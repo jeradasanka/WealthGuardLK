@@ -20,7 +20,11 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const { entities, addEmploymentIncome, addBusinessIncome, addInvestmentIncome, addAsset, addLiability } = useStore();
+  const entities = useStore((state) => state.entities);
+  const addIncome = useStore((state) => state.addIncome);
+  const addAsset = useStore((state) => state.addAsset);
+  const addLiability = useStore((state) => state.addLiability);
+  const saveToStorage = useStore((state) => state.saveToStorage);
   const [selectedEntityId, setSelectedEntityId] = useState<string>(entities[0]?.id || '');
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,90 +99,127 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
     };
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     if (!parsedData || !selectedEntityId) return;
 
     setLoading(true);
+    setError(null);
     
     try {
+      console.log('Starting import with data:', parsedData);
+      console.log('Selected entity:', selectedEntityId);
+      
       // Import employment income
-      parsedData.employmentIncome?.forEach(income => {
-        addEmploymentIncome({
-          ownerId: selectedEntityId,
-          schedule: '1',
-          taxYear: parsedData.taxYear,
-          details: {
-            employerName: income.employerName,
-            employerTIN: income.employerTIN || '',
-            grossRemuneration: income.grossRemuneration,
-            nonCashBenefits: income.nonCashBenefits || 0,
-            apitDeducted: income.apitDeducted || 0,
-            exemptIncome: income.exemptIncome || 0,
-          },
+      if (parsedData.employmentIncome && parsedData.employmentIncome.length > 0) {
+        console.log('Importing employment income:', parsedData.employmentIncome.length);
+        parsedData.employmentIncome.forEach(income => {
+          addIncome({
+            id: crypto.randomUUID(),
+            ownerId: selectedEntityId,
+            type: 'employment',
+            schedule: '1',
+            taxYear: parsedData.taxYear,
+            details: {
+              employerName: income.employerName,
+              employerTIN: income.employerTIN || '',
+              grossRemuneration: income.grossRemuneration,
+              grossAmount: income.grossRemuneration,
+              nonCashBenefits: income.nonCashBenefits || 0,
+              apitDeducted: income.apitDeducted || 0,
+              exemptIncome: income.exemptIncome || 0,
+            },
+          });
         });
-      });
+      }
 
       // Import business income
-      parsedData.businessIncome?.forEach(income => {
-        addBusinessIncome({
-          ownerId: selectedEntityId,
-          schedule: '2',
-          taxYear: parsedData.taxYear,
-          details: {
-            businessName: income.businessName,
-            grossRevenue: income.grossRevenue,
-            directExpenses: income.directExpenses || 0,
-            netProfit: income.netProfit,
-          },
+      if (parsedData.businessIncome && parsedData.businessIncome.length > 0) {
+        console.log('Importing business income:', parsedData.businessIncome.length);
+        parsedData.businessIncome.forEach(income => {
+          addIncome({
+            id: crypto.randomUUID(),
+            ownerId: selectedEntityId,
+            type: 'business',
+            schedule: '2',
+            taxYear: parsedData.taxYear,
+            details: {
+              businessName: income.businessName,
+              grossRevenue: income.grossRevenue,
+              grossAmount: income.netProfit,
+              directExpenses: income.directExpenses || 0,
+              netProfit: income.netProfit,
+            },
+          });
         });
-      });
+      }
 
       // Import investment income
-      parsedData.investmentIncome?.forEach(income => {
-        addInvestmentIncome({
-          ownerId: selectedEntityId,
-          schedule: '3',
-          taxYear: parsedData.taxYear,
-          details: {
-            source: income.source,
-            dividends: income.dividends || 0,
-            interest: income.interest || 0,
-            rent: income.rent || 0,
-          },
+      if (parsedData.investmentIncome && parsedData.investmentIncome.length > 0) {
+        console.log('Importing investment income:', parsedData.investmentIncome.length);
+        parsedData.investmentIncome.forEach(income => {
+          addIncome({
+            id: crypto.randomUUID(),
+            ownerId: selectedEntityId,
+            type: 'investment',
+            schedule: '3',
+            taxYear: parsedData.taxYear,
+            details: {
+              source: income.source,
+              grossAmount: (income.dividends || 0) + (income.interest || 0) + (income.rent || 0),
+              dividends: income.dividends || 0,
+              interest: income.interest || 0,
+              rent: income.rent || 0,
+            },
+          });
         });
-      });
+      }
 
       // Import assets
-      parsedData.assets?.forEach(asset => {
-        addAsset({
-          ownerId: selectedEntityId,
-          cageCategory: asset.category,
-          meta: {
-            description: asset.description,
-            dateAcquired: asset.dateAcquired || new Date().toISOString().split('T')[0],
-          },
-          financials: {
-            cost: asset.cost,
-            marketValue: asset.marketValue,
-          },
+      if (parsedData.assets && parsedData.assets.length > 0) {
+        console.log('Importing assets:', parsedData.assets.length);
+        parsedData.assets.forEach(asset => {
+          addAsset({
+            id: crypto.randomUUID(),
+            ownerId: selectedEntityId,
+            cageCategory: asset.category,
+            meta: {
+              description: asset.description,
+              dateAcquired: asset.dateAcquired || new Date().toISOString().split('T')[0],
+            },
+            financials: {
+              cost: asset.cost,
+              marketValue: asset.marketValue,
+            },
+          });
         });
-      });
+      }
 
       // Import liabilities
-      parsedData.liabilities?.forEach(liability => {
-        addLiability({
-          ownerId: selectedEntityId,
-          description: liability.description,
-          lenderName: liability.lenderName,
-          originalAmount: liability.originalAmount,
-          currentBalance: liability.currentBalance,
-          date: liability.dateAcquired || new Date().toISOString().split('T')[0],
-          dateAcquired: liability.dateAcquired || new Date().toISOString().split('T')[0],
+      if (parsedData.liabilities && parsedData.liabilities.length > 0) {
+        console.log('Importing liabilities:', parsedData.liabilities.length);
+        parsedData.liabilities.forEach(liability => {
+          addLiability({
+            id: crypto.randomUUID(),
+            ownerId: selectedEntityId,
+            description: liability.description,
+            lenderName: liability.lenderName,
+            originalAmount: liability.originalAmount,
+            currentBalance: liability.currentBalance,
+            date: liability.dateAcquired || new Date().toISOString().split('T')[0],
+            dateAcquired: liability.dateAcquired || new Date().toISOString().split('T')[0],
+          });
         });
-      });
+      }
 
+      console.log('Import completed successfully');
+      
+      // Save to storage
+      await saveToStorage();
+      console.log('Data saved to storage');
+      
       setStep('complete');
     } catch (err) {
+      console.error('Import error:', err);
       setError(err instanceof Error ? err.message : 'Failed to import data');
     } finally {
       setLoading(false);

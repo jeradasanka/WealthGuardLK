@@ -341,13 +341,52 @@ export function Dashboard() {
             <div className="grid gap-6 md:grid-cols-2">
               {entities.map((entity, index) => {
                 // Calculate stats for this specific entity
-                const entityIncomes = incomes.filter((i) => i.ownerId === entity.id);
-                const entityAssets = assets.filter((a) => a.ownerId === entity.id && !a.disposed);
-                const entityLiabilities = liabilities.filter((l) => l.ownerId === entity.id);
+                // Include incomes for current tax year only
+                const entityIncomes = incomes.filter((i) => i.ownerId === entity.id && i.taxYear === currentTaxYear);
+                
+                // Include assets owned directly or with joint ownership
+                const entityAssets = assets.filter((a) => {
+                  if (a.disposed) return false;
+                  if (a.ownerId === entity.id) return true;
+                  if (a.ownershipShares && a.ownershipShares.some((s) => s.entityId === entity.id)) return true;
+                  return false;
+                });
+                
+                // Include liabilities owned directly or with joint ownership
+                const entityLiabilities = liabilities.filter((l) => {
+                  if (l.ownerId === entity.id) return true;
+                  if (l.ownershipShares && l.ownershipShares.some((s) => s.entityId === entity.id)) return true;
+                  return false;
+                });
                 
                 const entityTotalIncome = entityIncomes.reduce((sum, i) => sum + i.details.grossAmount, 0);
-                const entityTotalAssets = entityAssets.reduce((sum, a) => sum + a.financials.marketValue, 0);
-                const entityTotalLiabilities = entityLiabilities.reduce((sum, l) => sum + l.currentBalance, 0);
+                
+                // Calculate assets with ownership percentage
+                const entityTotalAssets = entityAssets.reduce((sum, a) => {
+                  if (!a.ownershipShares) {
+                    // Fully owned by this entity
+                    return sum + a.financials.marketValue;
+                  } else {
+                    // Jointly owned - get this entity's share
+                    const ownershipShare = a.ownershipShares.find((s) => s.entityId === entity.id);
+                    const percentage = ownershipShare ? ownershipShare.percentage : 0;
+                    return sum + (a.financials.marketValue * percentage / 100);
+                  }
+                }, 0);
+                
+                // Calculate liabilities with ownership percentage
+                const entityTotalLiabilities = entityLiabilities.reduce((sum, l) => {
+                  if (!l.ownershipShares) {
+                    // Fully owned by this entity
+                    return sum + l.currentBalance;
+                  } else {
+                    // Jointly owned - get this entity's share
+                    const ownershipShare = l.ownershipShares.find((s) => s.entityId === entity.id);
+                    const percentage = ownershipShare ? ownershipShare.percentage : 0;
+                    return sum + (l.currentBalance * percentage / 100);
+                  }
+                }, 0);
+                
                 const entityNetWorth = entityTotalAssets - entityTotalLiabilities;
                 
                 return (

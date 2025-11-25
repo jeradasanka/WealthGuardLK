@@ -162,22 +162,6 @@ export function AssetsPage() {
     }
   };
 
-  const handleReopenAsset = async (id: string) => {
-    if (confirm('Are you sure you want to reopen this account?')) {
-      const asset = assets.find((a) => a.id === id);
-      if (asset && asset.closed) {
-        updateAsset(id, {
-          closed: undefined,
-          financials: {
-            ...asset.financials,
-            marketValue: asset.closed.finalBalance || asset.financials.cost,
-          },
-        });
-        await saveToStorage();
-      }
-    }
-  };
-
   const handleDeleteLiability = async (id: string) => {
     if (confirm('Are you sure you want to delete this liability?')) {
       removeLiability(id);
@@ -526,36 +510,22 @@ export function AssetsPage() {
                               <TrendingUp className="w-4 h-4" />
                             </Button>
                           )}
-                          {asset.closed && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditAsset(asset)}
+                            title={asset.closed ? 'Edit or reopen account' : 'Edit asset'}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          {!asset.closed && asset.cageCategory !== 'Bii' && asset.cageCategory !== 'Biv' && asset.cageCategory !== 'Bv' && (
                             <Button
-                              variant="default"
+                              variant="outline"
                               size="sm"
-                              onClick={() => handleReopenAsset(asset.id)}
-                              className="bg-green-600 hover:bg-green-700"
-                              title="Reopen this account"
+                              onClick={() => handleDisposeAsset(asset.id)}
                             >
-                              Reopen
+                              Sell
                             </Button>
-                          )}
-                          {!asset.closed && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditAsset(asset)}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              {asset.cageCategory !== 'Bii' && asset.cageCategory !== 'Biv' && asset.cageCategory !== 'Bv' && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDisposeAsset(asset.id)}
-                                >
-                                  Sell
-                                </Button>
-                              )}
-                            </>
                           )}
                           <Button
                             variant="outline"

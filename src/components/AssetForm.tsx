@@ -459,7 +459,7 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
                         className="h-4 w-4 rounded border-gray-300"
                       />
                       <Label htmlFor="isClosed" className="font-semibold">
-                        Account Closed
+                        {formData.isClosed ? 'Account Closed (Uncheck to Reopen)' : 'Mark Account as Closed'}
                       </Label>
                     </div>
 
@@ -495,7 +495,7 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
 
                     <p className="text-xs text-muted-foreground">
                       {formData.isClosed
-                        ? 'This account will be marked as closed and excluded from current assets, but kept for historical records.'
+                        ? 'This account is marked as closed and excluded from current assets, but kept for historical records. Uncheck to reopen the account.'
                         : 'Check this box if this account has been closed.'}
                     </p>
                   </div>

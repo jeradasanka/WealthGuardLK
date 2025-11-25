@@ -5,10 +5,11 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, FileText, Building2, Wallet, TrendingUp, Settings, Download, ArrowLeft } from 'lucide-react';
+import { Shield, FileText, Building2, Wallet, TrendingUp, Settings, Download, ArrowLeft, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DangerMeter } from '@/components/DangerMeter';
+import { PDFImportWizard } from '@/components/PDFImportWizard';
 import { useStore } from '@/stores/useStore';
 import { hasSavedData } from '@/utils/storage';
 import { formatLKR } from '@/lib/taxEngine';
@@ -19,6 +20,7 @@ export function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [selectedEntityId, setSelectedEntityId] = useState<string | 'family'>('family');
+  const [showImportWizard, setShowImportWizard] = useState(false);
   
   const entities = useStore((state) => state.entities);
   const assets = useStore((state) => state.assets);
@@ -56,15 +58,9 @@ export function Dashboard() {
   const { end: taxYearEnd } = getTaxYearDateRange(currentTaxYear);
   
   const filteredAssets = selectedEntityId === 'family' 
-    ? assets.filter((a) => {
-        // Include assets acquired on or before the end of the selected tax year
-        const acquiredDate = new Date(a.meta.dateAcquired);
-        return acquiredDate <= taxYearEnd;
-      })
+    ? assets.filter((a) => !a.disposed)
     : assets.filter((a) => {
-        // Filter by tax year first
-        const acquiredDate = new Date(a.meta.dateAcquired);
-        if (acquiredDate > taxYearEnd) return false;
+        if (a.disposed) return false;
         
         // Include assets owned directly by this entity
         if (a.ownerId === selectedEntityId) return true;
@@ -74,16 +70,8 @@ export function Dashboard() {
       });
   
   const filteredLiabilities = selectedEntityId === 'family'
-    ? liabilities.filter((l) => {
-        // Include liabilities acquired on or before the end of the selected tax year
-        const acquiredDate = new Date(l.dateAcquired);
-        return acquiredDate <= taxYearEnd;
-      })
+    ? liabilities
     : liabilities.filter((l) => {
-        // Filter by tax year first
-        const acquiredDate = new Date(l.dateAcquired);
-        if (acquiredDate > taxYearEnd) return false;
-        
         // Include liabilities owned directly by this entity
         if (l.ownerId === selectedEntityId) return true;
         // Include liabilities with joint ownership where this entity has a share
@@ -191,6 +179,10 @@ export function Dashboard() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowImportWizard(true)}>
+                <Upload className="w-4 h-4 mr-2" />
+                Import PDF
+              </Button>
               <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
                 <Download className="w-4 h-4 mr-2" />
                 Export
@@ -335,13 +327,52 @@ export function Dashboard() {
             <div className="grid gap-6 md:grid-cols-2">
               {entities.map((entity, index) => {
                 // Calculate stats for this specific entity
-                const entityIncomes = incomes.filter((i) => i.ownerId === entity.id);
-                const entityAssets = assets.filter((a) => a.ownerId === entity.id && !a.disposed);
-                const entityLiabilities = liabilities.filter((l) => l.ownerId === entity.id);
+                // Include incomes for current tax year only
+                const entityIncomes = incomes.filter((i) => i.ownerId === entity.id && i.taxYear === currentTaxYear);
+                
+                // Include assets owned directly or with joint ownership
+                const entityAssets = assets.filter((a) => {
+                  if (a.disposed) return false;
+                  if (a.ownerId === entity.id) return true;
+                  if (a.ownershipShares && a.ownershipShares.some((s) => s.entityId === entity.id)) return true;
+                  return false;
+                });
+                
+                // Include liabilities owned directly or with joint ownership
+                const entityLiabilities = liabilities.filter((l) => {
+                  if (l.ownerId === entity.id) return true;
+                  if (l.ownershipShares && l.ownershipShares.some((s) => s.entityId === entity.id)) return true;
+                  return false;
+                });
                 
                 const entityTotalIncome = entityIncomes.reduce((sum, i) => sum + i.details.grossAmount, 0);
-                const entityTotalAssets = entityAssets.reduce((sum, a) => sum + a.financials.marketValue, 0);
-                const entityTotalLiabilities = entityLiabilities.reduce((sum, l) => sum + l.currentBalance, 0);
+                
+                // Calculate assets with ownership percentage
+                const entityTotalAssets = entityAssets.reduce((sum, a) => {
+                  if (!a.ownershipShares) {
+                    // Fully owned by this entity
+                    return sum + a.financials.marketValue;
+                  } else {
+                    // Jointly owned - get this entity's share
+                    const ownershipShare = a.ownershipShares.find((s) => s.entityId === entity.id);
+                    const percentage = ownershipShare ? ownershipShare.percentage : 0;
+                    return sum + (a.financials.marketValue * percentage / 100);
+                  }
+                }, 0);
+                
+                // Calculate liabilities with ownership percentage
+                const entityTotalLiabilities = entityLiabilities.reduce((sum, l) => {
+                  if (!l.ownershipShares) {
+                    // Fully owned by this entity
+                    return sum + l.currentBalance;
+                  } else {
+                    // Jointly owned - get this entity's share
+                    const ownershipShare = l.ownershipShares.find((s) => s.entityId === entity.id);
+                    const percentage = ownershipShare ? ownershipShare.percentage : 0;
+                    return sum + (l.currentBalance * percentage / 100);
+                  }
+                }, 0);
+                
                 const entityNetWorth = entityTotalAssets - entityTotalLiabilities;
                 
                 return (
@@ -413,6 +444,12 @@ export function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* PDF Import Wizard */}
+      <PDFImportWizard 
+        open={showImportWizard} 
+        onClose={() => setShowImportWizard(false)} 
+      />
     </div>
   );
 }

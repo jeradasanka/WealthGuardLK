@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { ArrowLeft, Settings as SettingsIcon, Download, Shield, User, Calendar } from 'lucide-react';
+import { ArrowLeft, Settings as SettingsIcon, Download, Shield, User, Calendar, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,11 +14,11 @@ import { useStore } from '@/stores/useStore';
 import { ExportDialog } from '@/components/ExportDialog';
 import { EntityForm } from '@/components/EntityForm';
 import { deriveKey } from '@/utils/crypto';
-import { storePassphrase } from '@/utils/storage';
+import { storePassphrase, clearStoredPassphrase } from '@/utils/storage';
 
 export function SettingsPage() {
   const navigate = useNavigate();
-  const { entities, updateEntity, removeEntity, passphrase, setPassphrase, saveToStorage, addEntity } = useStore();
+  const { entities, updateEntity, removeEntity, passphrase, setPassphrase, saveToStorage, addEntity, resetState } = useStore();
   const [showExport, setShowExport] = useState(false);
   const [showPassphraseChange, setShowPassphraseChange] = useState(false);
   const [oldPassphrase, setOldPassphrase] = useState('');
@@ -44,6 +44,19 @@ export function SettingsPage() {
     }
     if (confirm('Are you sure you want to remove this family member? This will also remove their associated income, assets, and liabilities.')) {
       removeEntity(entityId);
+    }
+  };
+
+  const handleClearAllData = () => {
+    if (confirm('⚠️ WARNING: This will permanently delete ALL your data including entities, income, assets, and liabilities. This action cannot be undone.\n\nAre you absolutely sure?')) {
+      if (confirm('Last chance! Are you REALLY sure you want to delete everything?')) {
+        // Clear localStorage
+        clearStoredPassphrase();
+        // Clear cookies by resetting state
+        resetState();
+        // Redirect to setup
+        navigate('/setup');
+      }
     }
   };
 
@@ -289,6 +302,33 @@ export function SettingsPage() {
               <Download className="mr-2 h-4 w-4" />
               Export Data
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Danger Zone */}
+        <Card className="border-red-200">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-600" />
+              <CardTitle className="text-red-600">Danger Zone</CardTitle>
+            </div>
+            <CardDescription>Irreversible actions - proceed with caution</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="bg-red-50 p-4 rounded border border-red-200">
+                <p className="text-sm text-red-800 mb-3">
+                  <strong>Clear All Data:</strong> This will permanently delete all entities, income, assets, liabilities, and settings. You will be redirected to the initial setup screen.
+                </p>
+                <Button 
+                  variant="destructive"
+                  onClick={handleClearAllData}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Clear All Data & Reset App
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

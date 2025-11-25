@@ -123,6 +123,11 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
              asset.cageCategory === 'Biv' ? 'Cash Balance History' :
              asset.cageCategory === 'Bv' ? 'Loan Balance History' :
              'Asset Balances'} - {asset.meta.description}
+            {asset.closed && (
+              <span className="ml-2 text-sm bg-orange-100 text-orange-700 px-3 py-1 rounded-full font-normal">
+                CLOSED - READ ONLY
+              </span>
+            )}
           </CardTitle>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-5 w-5" />
@@ -131,11 +136,12 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
 
         <CardContent className="pt-6 space-y-6">
           {/* Add Balance Form */}
-          <div className="bg-blue-50 rounded-lg p-6 space-y-4">
-            <h3 className="font-semibold text-lg flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              Record Balance for Tax Year
-            </h3>
+          {!asset.closed && (
+            <div className="bg-blue-50 rounded-lg p-6 space-y-4">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <Plus className="h-5 w-5" />
+                Record Balance for Tax Year
+              </h3>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -195,6 +201,17 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
               Add Balance Record
             </Button>
           </div>
+          )}
+
+          {/* Closed Account Notice */}
+          {asset.closed && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <p className="text-sm text-orange-800">
+                <strong>Account Closed:</strong> This account was closed on {new Date(asset.closed.date).toLocaleDateString()}. 
+                Balance records are read-only. To add new records, reopen the account from the edit page.
+              </p>
+            </div>
+          )}
 
           {/* Balance History */}
           <div>
@@ -250,7 +267,9 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDeleteBalance(balance.id)}
+                              disabled={asset.closed}
                               className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title={asset.closed ? 'Cannot delete - account is closed' : 'Delete this record'}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

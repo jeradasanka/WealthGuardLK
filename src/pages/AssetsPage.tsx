@@ -495,16 +495,18 @@ export function AssetsPage() {
                           </p>
                         </div>
                         <div className="flex flex-col gap-2">
-                          {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && !asset.closed && (
+                          {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && (
                             <Button
                               variant="default"
                               size="sm"
                               onClick={() => handleManageBalances(asset)}
                               className="bg-purple-600 hover:bg-purple-700"
                               title={
-                                asset.cageCategory === 'Bii' ? 'Manage yearly balances and interest' :
-                                asset.cageCategory === 'Biv' ? 'Manage yearly cash balances' :
-                                'Manage yearly loan balances'
+                                asset.closed 
+                                  ? 'View balance history (read-only)'
+                                  : asset.cageCategory === 'Bii' ? 'Manage yearly balances and interest' :
+                                    asset.cageCategory === 'Biv' ? 'Manage yearly cash balances' :
+                                    'Manage yearly loan balances'
                               }
                             >
                               <TrendingUp className="w-4 h-4" />
@@ -527,13 +529,6 @@ export function AssetsPage() {
                               Sell
                             </Button>
                           )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteAsset(asset.id)}
-                          >
-                            <Trash2 className="w-4 h-4 text-red-600" />
-                          </Button>
                         </div>
                       </div>
                     </div>

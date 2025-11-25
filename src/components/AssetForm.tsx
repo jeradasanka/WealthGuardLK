@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Trash2 } from 'lucide-react';
 import { useStore } from '@/stores/useStore';
 import type { Asset } from '@/types';
 import { formatLKR } from '@/lib/taxEngine';
@@ -22,6 +23,7 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
   const entities = useStore((state) => state.entities);
   const addAsset = useStore((state) => state.addAsset);
   const updateAsset = useStore((state) => state.updateAsset);
+  const removeAsset = useStore((state) => state.removeAsset);
   const saveToStorage = useStore((state) => state.saveToStorage);
 
   const [formData, setFormData] = useState({
@@ -158,6 +160,29 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+  };
+
+  const handleDelete = () => {
+    if (!asset?.id) return;
+    
+    const categoryLabel = getCategoryLabel().toLowerCase();
+    const verification = window.prompt(
+      `⚠️ WARNING: You are about to permanently delete this ${categoryLabel}.\n\n` +
+      `Asset: ${formData.description || 'Untitled'}\n` +
+      `Category: ${getCategoryLabel()} (Cage ${formData.cageCategory})\n` +
+      `Acquired: ${formData.dateAcquired}\n` +
+      `Cost: ${formatLKR(formData.cost)}\n\n` +
+      `This action CANNOT be undone. All data including balance history will be permanently lost.\n\n` +
+      `To confirm deletion, type DELETE in capital letters:`
+    );
+    
+    if (verification === 'DELETE') {
+      removeAsset(asset.id);
+      saveToStorage();
+      onCancel?.(); // Close form and return to list
+    } else if (verification !== null) {
+      alert('Deletion cancelled. The verification text did not match.');
+    }
   };
 
   const getCategoryLabel = () => {
@@ -726,6 +751,16 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
             {onCancel && (
               <Button type="button" variant="outline" onClick={onCancel}>
                 Cancel
+              </Button>
+            )}
+            {asset && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleDelete}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4" />
               </Button>
             )}
           </div>

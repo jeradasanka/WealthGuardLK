@@ -238,8 +238,9 @@ export function validateSourceOfFunds(asset: Asset): {
 /**
  * Formats Sri Lankan Rupees
  */
-export function formatLKR(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-LK', {
+export function formatLKR(amount: number | undefined | null): string {
+  const value = amount ?? 0;
+  return `Rs. ${value.toLocaleString('en-LK', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

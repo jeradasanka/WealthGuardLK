@@ -3,9 +3,9 @@
  * Main application interface
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, FileText, Building2, Wallet, TrendingUp, Settings, ArrowLeft, Upload } from 'lucide-react';
+import { Shield, FileText, Building2, Wallet, TrendingUp, Settings, ArrowLeft, Upload, Download, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DangerMeter } from '@/components/DangerMeter';
@@ -14,6 +14,7 @@ import { useStore } from '@/stores/useStore';
 import { hasSavedData } from '@/utils/storage';
 import { formatLKR } from '@/lib/taxEngine';
 import { formatTaxYear, getRecentTaxYears, isDateInTaxYear, getTaxYearDateRange } from '@/lib/taxYear';
+import { downloadDetailedTaxReport, downloadDetailedTaxReportPDF } from '@/utils/export';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -21,6 +22,8 @@ export function Dashboard() {
   const [needsSetup, setNeedsSetup] = useState(false);
   const [selectedEntityId, setSelectedEntityId] = useState<string | 'family'>('family');
   const [showImportWizard, setShowImportWizard] = useState(false);
+  const [showReportMenu, setShowReportMenu] = useState(false);
+  const reportMenuRef = useRef<HTMLDivElement>(null);
   
   const entities = useStore((state) => state.entities);
   const assets = useStore((state) => state.assets);
@@ -41,6 +44,20 @@ export function Dashboard() {
     };
     checkSetup();
   }, [entities.length, navigate]);
+
+  // Close report menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (reportMenuRef.current && !reportMenuRef.current.contains(event.target as Node)) {
+        setShowReportMenu(false);
+      }
+    };
+
+    if (showReportMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showReportMenu]);
 
   if (isLoading) {
     return (
@@ -130,6 +147,31 @@ export function Dashboard() {
     ? null 
     : entities.find((e) => e.id === selectedEntityId);
 
+  const handleDownloadTaxReport = (format: 'txt' | 'pdf') => {
+    if (format === 'pdf') {
+      downloadDetailedTaxReportPDF(
+        entities,
+        incomes,
+        assets,
+        liabilities,
+        currentTaxYear,
+        selectedEntityId === 'family',
+        selectedEntityId === 'family' ? undefined : selectedEntityId
+      );
+    } else {
+      downloadDetailedTaxReport(
+        entities,
+        incomes,
+        assets,
+        liabilities,
+        currentTaxYear,
+        selectedEntityId === 'family',
+        selectedEntityId === 'family' ? undefined : selectedEntityId
+      );
+    }
+    setShowReportMenu(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
@@ -183,6 +225,35 @@ export function Dashboard() {
                 <Upload className="w-4 h-4 mr-2" />
                 Import PDF
               </Button>
+              <div className="relative" ref={reportMenuRef}>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowReportMenu(!showReportMenu)}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Tax Report
+                  <ChevronDown className="w-4 h-4 ml-1" />
+                </Button>
+                {showReportMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-lg z-50">
+                    <button
+                      className="w-full px-4 py-2 text-left hover:bg-slate-50 flex items-center gap-2"
+                      onClick={() => handleDownloadTaxReport('pdf')}
+                    >
+                      <FileText className="w-4 h-4" />
+                      Download as PDF
+                    </button>
+                    <button
+                      className="w-full px-4 py-2 text-left hover:bg-slate-50 flex items-center gap-2 border-t"
+                      onClick={() => handleDownloadTaxReport('txt')}
+                    >
+                      <FileText className="w-4 h-4" />
+                      Download as Text
+                    </button>
+                  </div>
+                )}
+              </div>
               <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
                 <Settings className="w-4 h-4" />
               </Button>

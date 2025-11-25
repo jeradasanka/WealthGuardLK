@@ -120,6 +120,7 @@ export interface PropertyExpense {
   description: string;
   expenseType: 'repair' | 'construction' | 'renovation' | 'maintenance' | 'other';
   amount: number;
+  marketValue?: number; // Market valuation for this year
   notes?: string;
 }
 

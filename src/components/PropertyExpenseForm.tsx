@@ -33,6 +33,7 @@ export function PropertyExpenseForm({ asset, onClose }: PropertyExpenseFormProps
     description: '',
     expenseType: 'repair' as 'repair' | 'construction' | 'renovation' | 'maintenance' | 'other',
     amount: 0,
+    marketValue: 0,
     notes: '',
   });
 
@@ -68,6 +69,7 @@ export function PropertyExpenseForm({ asset, onClose }: PropertyExpenseFormProps
       description: '',
       expenseType: 'repair',
       amount: 0,
+      marketValue: 0,
       notes: '',
     });
   };
@@ -106,6 +108,11 @@ export function PropertyExpenseForm({ asset, onClose }: PropertyExpenseFormProps
 
   const initialCost = asset.financials.cost;
   const currentTotalValue = initialCost + totalExpenses;
+  
+  // Get the latest market value from the most recent year's expense record
+  const latestMarketValue = expenses.length > 0 
+    ? expenses.sort((a, b) => b.taxYear.localeCompare(a.taxYear))[0].marketValue || 0
+    : 0;
 
   return (
     <Card className="max-w-4xl mx-auto">
@@ -119,7 +126,7 @@ export function PropertyExpenseForm({ asset, onClose }: PropertyExpenseFormProps
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Cost Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <div>
             <p className="text-sm text-muted-foreground">Initial Cost</p>
             <p className="text-xl font-semibold">{formatLKR(initialCost)}</p>
@@ -130,7 +137,11 @@ export function PropertyExpenseForm({ asset, onClose }: PropertyExpenseFormProps
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Current Value</p>
-            <p className="text-2xl font-bold text-green-600">{formatLKR(currentTotalValue)}</p>
+            <p className="text-xl font-semibold text-green-600">{formatLKR(currentTotalValue)}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Latest Market Value</p>
+            <p className="text-2xl font-bold text-blue-600">{formatLKR(latestMarketValue)}</p>
           </div>
         </div>
 
@@ -228,6 +239,19 @@ export function PropertyExpenseForm({ asset, onClose }: PropertyExpenseFormProps
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="marketValue">Market Value (Valuation for this year)</Label>
+              <Input
+                id="marketValue"
+                type="number"
+                min="0"
+                step="0.01"
+                value={newExpense.marketValue}
+                onChange={(e) => setNewExpense({ ...newExpense, marketValue: Number(e.target.value) })}
+                placeholder="0.00"
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>
               <Input
                 id="notes"
@@ -269,7 +293,12 @@ export function PropertyExpenseForm({ asset, onClose }: PropertyExpenseFormProps
                         </span>
                       </div>
                       <p className="font-semibold mt-1">{expense.description}</p>
-                      <p className="text-lg font-bold text-red-600 mt-1">{formatLKR(expense.amount)}</p>
+                      <div className="flex items-center gap-4 mt-1">
+                        <p className="text-lg font-bold text-orange-600">Expense: {formatLKR(expense.amount)}</p>
+                        {expense.marketValue && expense.marketValue > 0 && (
+                          <p className="text-lg font-bold text-blue-600">Market Value: {formatLKR(expense.marketValue)}</p>
+                        )}
+                      </div>
                       {expense.notes && (
                         <p className="text-sm text-muted-foreground mt-1">Note: {expense.notes}</p>
                       )}

@@ -579,6 +579,21 @@ export function AssetsPage() {
                           <p className="text-xs text-muted-foreground">
                             Cost: {formatLKR(asset.financials.cost)}
                           </p>
+                          {asset.cageCategory === 'A' && asset.propertyExpenses && asset.propertyExpenses.length > 0 && (
+                            <>
+                              <p className="text-xs text-orange-600 font-medium mt-1">
+                                Total Expenses: {formatLKR(asset.propertyExpenses.reduce((sum, e) => sum + e.amount, 0))}
+                              </p>
+                              {(() => {
+                                const latestExpense = asset.propertyExpenses.sort((a, b) => b.taxYear.localeCompare(a.taxYear))[0];
+                                return latestExpense.marketValue && latestExpense.marketValue > 0 ? (
+                                  <p className="text-xs text-blue-600 font-medium">
+                                    Latest Valuation: {formatLKR(latestExpense.marketValue)}
+                                  </p>
+                                ) : null;
+                              })()}
+                            </>
+                          )}
                         </div>
                         <div className="flex flex-col gap-2">
                           {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && (

@@ -75,10 +75,25 @@ export async function saveState(
   passphrase: string
 ): Promise<void> {
   try {
+    console.log('saveState() called with:', {
+      entities: state.entities?.length || 0,
+      assets: state.assets?.length || 0,
+      liabilities: state.liabilities?.length || 0,
+      incomes: state.incomes?.length || 0
+    });
+    
     const jsonData = JSON.stringify(state);
+    console.log('JSON data length:', jsonData.length, 'chars');
+    console.log('JSON preview:', jsonData.substring(0, 500));
+    
     const encryptedData = await encrypt(jsonData, passphrase);
+    console.log('Encrypted data length:', encryptedData.length, 'chars');
     
     setCookie(STORAGE_KEY, encryptedData);
+    
+    // Verify it was saved
+    const savedCookie = getCookie(STORAGE_KEY);
+    console.log('Verified cookie saved:', savedCookie ? `${savedCookie.length} chars` : 'NULL');
     
     // Store a hash of the passphrase for validation (not the passphrase itself)
     const passphraseHash = await hashPassphrase(passphrase);
@@ -135,13 +150,35 @@ export async function hasSavedData(): Promise<boolean> {
  * Exports encrypted data as a downloadable file
  */
 export async function exportData(passphrase: string): Promise<Blob> {
+  console.log('=== EXPORT DATA DEBUG ===');
   const encryptedData = getCookie(STORAGE_KEY);
   
   if (!encryptedData) {
+    console.error('No cookie data found!');
     throw new Error('No data to export');
   }
   
-  return new Blob([encryptedData], { type: 'application/octet-stream' });
+  console.log('Cookie data length:', encryptedData.length, 'chars');
+  
+  // Decrypt to verify contents
+  try {
+    const jsonData = await decrypt(encryptedData, passphrase);
+    const state = JSON.parse(jsonData) as AppState;
+    console.log('Decrypted state from cookie:', {
+      entities: state.entities?.length || 0,
+      assets: state.assets?.length || 0,
+      liabilities: state.liabilities?.length || 0,
+      incomes: state.incomes?.length || 0
+    });
+  } catch (err) {
+    console.error('Failed to decrypt for verification:', err);
+  }
+  
+  const blob = new Blob([encryptedData], { type: 'application/octet-stream' });
+  console.log('Blob size:', blob.size, 'bytes');
+  console.log('=== EXPORT COMPLETE ===');
+  
+  return blob;
 }
 
 /**

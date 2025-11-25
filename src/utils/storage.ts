@@ -38,7 +38,10 @@ export function clearStoredPassphrase(): void {
  * Set a cookie value
  */
 function setCookie(name: string, value: string): void {
-  document.cookie = `${name}=${encodeURIComponent(value)}; max-age=${COOKIE_MAX_AGE}; path=/; SameSite=Strict; Secure`;
+  // Only use Secure flag in production (HTTPS). In development (HTTP), omit it.
+  const isSecure = window.location.protocol === 'https:';
+  const secureFlag = isSecure ? '; Secure' : '';
+  document.cookie = `${name}=${encodeURIComponent(value)}; max-age=${COOKIE_MAX_AGE}; path=/; SameSite=Strict${secureFlag}`;
 }
 
 /**

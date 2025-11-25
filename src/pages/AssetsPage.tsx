@@ -38,8 +38,10 @@ export function AssetsPage() {
   const [balanceAsset, setBalanceAsset] = useState<Asset | null>(null);
   const [pendingAsset, setPendingAsset] = useState<Asset | null>(null);
 
-  const activeAssets = assets.filter((a) => !a.disposed && !a.closed);
-  const totalAssetValue = activeAssets.reduce((sum, a) => sum + a.financials.marketValue, 0);
+  // Show all assets including closed ones
+  const activeAssets = assets.filter((a) => !a.disposed);
+  // Calculate total value only from open assets
+  const totalAssetValue = assets.filter((a) => !a.disposed && !a.closed).reduce((sum, a) => sum + a.financials.marketValue, 0);
   const totalLiabilities = liabilities.reduce((sum, l) => sum + l.currentBalance, 0);
   const netWorth = totalAssetValue - totalLiabilities;
 
@@ -157,6 +159,22 @@ export function AssetsPage() {
     if (salePrice && !Number.isNaN(Number(salePrice))) {
       disposeAsset(id, new Date().toISOString().split('T')[0], Number(salePrice));
       await saveToStorage();
+    }
+  };
+
+  const handleReopenAsset = async (id: string) => {
+    if (confirm('Are you sure you want to reopen this account?')) {
+      const asset = assets.find((a) => a.id === id);
+      if (asset && asset.closed) {
+        updateAsset(id, {
+          closed: undefined,
+          financials: {
+            ...asset.financials,
+            marketValue: asset.closed.finalBalance || asset.financials.cost,
+          },
+        });
+        await saveToStorage();
+      }
     }
   };
 
@@ -428,7 +446,7 @@ export function AssetsPage() {
           ) : (
             <div className="space-y-4">
               {activeAssets.map((asset) => (
-                <Card key={asset.id}>
+                <Card key={asset.id} className={asset.closed ? 'opacity-60 bg-gray-50' : ''}>
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
@@ -436,7 +454,14 @@ export function AssetsPage() {
                           {getAssetIcon(asset.cageCategory)}
                         </div>
                         <div>
-                          <p className="font-semibold">{asset.meta.description}</p>
+                          <p className="font-semibold">
+                            {asset.meta.description}
+                            {asset.closed && (
+                              <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-normal">
+                                CLOSED
+                              </span>
+                            )}
+                          </p>
                           <p className="text-sm text-muted-foreground">
                             {getCategoryLabel(asset.cageCategory)} (Cage {asset.cageCategory})
                             {asset.ownershipShares && asset.ownershipShares.length > 0 ? (
@@ -455,6 +480,11 @@ export function AssetsPage() {
                           )}
                           <p className="text-xs text-muted-foreground">
                             Acquired: {new Date(asset.meta.dateAcquired).toLocaleDateString()}
+                            {asset.closed && (
+                              <span className="text-orange-600 ml-2">
+                                • Closed: {new Date(asset.closed.date).toLocaleDateString()}
+                              </span>
+                            )}
                           </p>
                           {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && asset.balances && asset.balances.length > 0 && (
                             <p className="text-xs text-purple-600 mt-1 font-medium">
@@ -481,7 +511,7 @@ export function AssetsPage() {
                           </p>
                         </div>
                         <div className="flex flex-col gap-2">
-                          {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && (
+                          {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && !asset.closed && (
                             <Button
                               variant="default"
                               size="sm"
@@ -496,21 +526,36 @@ export function AssetsPage() {
                               <TrendingUp className="w-4 h-4" />
                             </Button>
                           )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditAsset(asset)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          {asset.cageCategory !== 'Bii' && asset.cageCategory !== 'Biv' && asset.cageCategory !== 'Bv' && (
+                          {asset.closed && (
                             <Button
-                              variant="outline"
+                              variant="default"
                               size="sm"
-                              onClick={() => handleDisposeAsset(asset.id)}
+                              onClick={() => handleReopenAsset(asset.id)}
+                              className="bg-green-600 hover:bg-green-700"
+                              title="Reopen this account"
                             >
-                              Sell
+                              Reopen
                             </Button>
+                          )}
+                          {!asset.closed && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditAsset(asset)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              {asset.cageCategory !== 'Bii' && asset.cageCategory !== 'Biv' && asset.cageCategory !== 'Bv' && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDisposeAsset(asset.id)}
+                                >
+                                  Sell
+                                </Button>
+                              )}
+                            </>
                           )}
                           <Button
                             variant="outline"

@@ -51,6 +51,18 @@ export interface Asset {
   };
 }
 
+// Payment record for liabilities
+export interface LiabilityPayment {
+  id: string;
+  date: string;
+  principalPaid: number;
+  interestPaid: number;
+  totalPaid: number;
+  balanceAfterPayment: number;
+  taxYear: string;
+  notes?: string;
+}
+
 // Liability Object (Cage 781)
 export interface Liability {
   id: string;
@@ -65,6 +77,9 @@ export interface Liability {
   dateAcquired: string;
   interestRate?: number;
   purpose?: string;
+  payments?: LiabilityPayment[]; // Payment history
+  paymentFrequency?: 'monthly' | 'quarterly' | 'annually' | 'other';
+  maturityDate?: string;
 }
 
 // Income Schedules
@@ -135,7 +150,8 @@ export interface AuditRisk {
   estimatedLivingExpenses: number;
   declaredIncome: number;
   newLoans: number;
-  riskScore: number; // (assetGrowth + expenses) - (income + loans)
+  loanPayments: number; // Total loan payments (principal + interest) for the year
+  riskScore: number; // (assetGrowth + expenses + loanPayments) - (income + newLoans)
   riskLevel: 'safe' | 'warning' | 'danger';
 }
 

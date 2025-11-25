@@ -5,17 +5,18 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
 import { AssetForm } from '@/components/AssetForm';
 import { LiabilityForm } from '@/components/LiabilityForm';
+import { LiabilityPaymentForm } from '@/components/LiabilityPaymentForm';
 import { SourceOfFundsWizard } from '@/components/SourceOfFundsWizard';
 import { formatLKR } from '@/lib/taxEngine';
 import type { Asset, Liability, FundingSource } from '@/types';
 
-type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds';
+type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment';
 
 export function AssetsPage() {
   const navigate = useNavigate();
@@ -24,12 +25,14 @@ export function AssetsPage() {
   const entities = useStore((state) => state.entities);
   const removeAsset = useStore((state) => state.removeAsset);
   const removeLiability = useStore((state) => state.removeLiability);
+  const updateLiability = useStore((state) => state.updateLiability);
   const disposeAsset = useStore((state) => state.disposeAsset);
   const saveToStorage = useStore((state) => state.saveToStorage);
 
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [editingLiability, setEditingLiability] = useState<Liability | null>(null);
+  const [paymentLiability, setPaymentLiability] = useState<Liability | null>(null);
   const [pendingAsset, setPendingAsset] = useState<Asset | null>(null);
 
   const activeAssets = assets.filter((a) => !a.disposed);
@@ -97,6 +100,16 @@ export function AssetsPage() {
   const handleEditLiability = (liability: Liability) => {
     setEditingLiability(liability);
     setViewMode('edit-liability');
+  };
+
+  const handleRecordPayment = (liability: Liability) => {
+    setPaymentLiability(liability);
+    setViewMode('record-payment');
+  };
+
+  const handlePaymentSave = async (updatedLiability: Liability) => {
+    updateLiability(updatedLiability.id, updatedLiability);
+    await saveToStorage();
   };
 
   const handleFormClose = () => {
@@ -170,6 +183,16 @@ export function AssetsPage() {
           />
         </div>
       </div>
+    );
+  }
+
+  if (viewMode === 'record-payment' && paymentLiability) {
+    return (
+      <LiabilityPaymentForm
+        liability={paymentLiability}
+        onSave={handlePaymentSave}
+        onClose={handleFormClose}
+      />
     );
   }
 
@@ -398,8 +421,21 @@ export function AssetsPage() {
                             <p className="text-xs text-muted-foreground">
                               Original: {formatLKR(liability.originalAmount)}
                             </p>
+                            {liability.payments && liability.payments.length > 0 && (
+                              <p className="text-xs text-green-600 mt-1">
+                                {liability.payments.length} payment{liability.payments.length > 1 ? 's' : ''} recorded
+                              </p>
+                            )}
                           </div>
                           <div className="flex flex-col gap-2">
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleRecordPayment(liability)}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <DollarSign className="w-4 h-4" />
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"

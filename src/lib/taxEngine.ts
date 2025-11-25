@@ -180,13 +180,24 @@ export function calculateAuditRisk(
     .filter((l) => l.dateAcquired.startsWith(currentYear))
     .reduce((sum, l) => sum + l.originalAmount, 0);
 
+  // Calculate loan payments made in current year (principal + interest)
+  const loanPayments = liabilities.reduce((sum, l) => {
+    if (!l.payments || l.payments.length === 0) return sum;
+    
+    const yearPayments = l.payments
+      .filter(p => p.taxYear.toString() === currentYear)
+      .reduce((total, p) => total + p.principalPaid + p.interestPaid, 0);
+    
+    return sum + yearPayments;
+  }, 0);
+
   // Calculate declared income
   const { totalIncome } = calculateTotalIncome(
     incomes.filter((i) => i.taxYear === currentYear)
   );
 
   // Calculate risk score
-  const outflows = assetGrowth + estimatedLivingExpenses;
+  const outflows = assetGrowth + estimatedLivingExpenses + loanPayments;
   const inflows = totalIncome + newLoans;
   const riskScore = outflows - inflows;
 
@@ -203,6 +214,7 @@ export function calculateAuditRisk(
     estimatedLivingExpenses,
     declaredIncome: totalIncome,
     newLoans,
+    loanPayments,
     riskScore,
     riskLevel,
   };

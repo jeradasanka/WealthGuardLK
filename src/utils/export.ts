@@ -407,6 +407,20 @@ AUDIT RISK ASSESSMENT
 ════════════════════════════════════════════════════════════════════════════
 Risk Level:                           ${auditRisk.riskLevel.toUpperCase()}
 Risk Score:                           ${formatLKR(Math.abs(auditRisk.riskScore))}
+
+Outflows:
+  Asset Growth:                       ${formatLKR(auditRisk.assetGrowth)}
+  Living Expenses:                    ${formatLKR(auditRisk.estimatedLivingExpenses)}
+  Loan Payments:                      ${formatLKR(auditRisk.loanPayments)}
+                                      ────────────────────
+  Total Outflows:                     ${formatLKR(auditRisk.assetGrowth + auditRisk.estimatedLivingExpenses + auditRisk.loanPayments)}
+
+Inflows:
+  Declared Income:                    ${formatLKR(auditRisk.declaredIncome)}
+  New Loans:                          ${formatLKR(auditRisk.newLoans)}
+                                      ────────────────────
+  Total Inflows:                      ${formatLKR(auditRisk.declaredIncome + auditRisk.newLoans)}
+
 Recommendation:                       ${auditRisk.riskLevel === 'safe' ? 'Low Risk - Good Standing' : 
                                        auditRisk.riskLevel === 'warning' ? 'Medium Risk - Review Recommended' : 
                                        'High Risk - Immediate Attention Required'}
@@ -808,7 +822,7 @@ export function downloadDetailedTaxReportPDF(
   yPos += lineHeight + 5;
 
   // Audit Risk Assessment
-  checkPageBreak(30);
+  checkPageBreak(70); // Increased space needed for detailed breakdown
   doc.setFontSize(14);
   doc.text('AUDIT RISK ASSESSMENT', margin, yPos);
   yPos += lineHeight + 3;
@@ -826,8 +840,44 @@ export function downloadDetailedTaxReportPDF(
   doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'normal');
   doc.text(`Risk Score: ${formatLKR(Math.abs(auditRisk.riskScore))}`, margin + 5, yPos);
+  yPos += lineHeight + 3;
+
+  // Outflows section
+  doc.setFont('helvetica', 'bold');
+  doc.text('Outflows:', margin + 5, yPos);
   yPos += lineHeight;
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Asset Growth:`, margin + 10, yPos);
+  doc.text(formatLKR(auditRisk.assetGrowth), margin + 90, yPos);
+  yPos += lineHeight;
+  doc.text(`Living Expenses:`, margin + 10, yPos);
+  doc.text(formatLKR(auditRisk.estimatedLivingExpenses), margin + 90, yPos);
+  yPos += lineHeight;
+  doc.text(`Loan Payments:`, margin + 10, yPos);
+  doc.text(formatLKR(auditRisk.loanPayments), margin + 90, yPos);
+  yPos += lineHeight;
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Total Outflows:`, margin + 10, yPos);
+  doc.text(formatLKR(auditRisk.assetGrowth + auditRisk.estimatedLivingExpenses + auditRisk.loanPayments), margin + 90, yPos);
+  yPos += lineHeight + 2;
+
+  // Inflows section
+  doc.setFont('helvetica', 'bold');
+  doc.text('Inflows:', margin + 5, yPos);
+  yPos += lineHeight;
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Declared Income:`, margin + 10, yPos);
+  doc.text(formatLKR(auditRisk.declaredIncome), margin + 90, yPos);
+  yPos += lineHeight;
+  doc.text(`New Loans:`, margin + 10, yPos);
+  doc.text(formatLKR(auditRisk.newLoans), margin + 90, yPos);
+  yPos += lineHeight;
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Total Inflows:`, margin + 10, yPos);
+  doc.text(formatLKR(auditRisk.declaredIncome + auditRisk.newLoans), margin + 90, yPos);
+  yPos += lineHeight + 3;
   
+  doc.setFont('helvetica', 'normal');
   const recommendation = auditRisk.riskLevel === 'safe' ? 'Low Risk - Good Standing' : 
                         auditRisk.riskLevel === 'warning' ? 'Medium Risk - Review Recommended' : 
                         'High Risk - Immediate Attention Required';

@@ -3,19 +3,21 @@
  * Manages wealth tracking (FR-05, FR-06)
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
 import { AssetForm } from '@/components/AssetForm';
 import { LiabilityForm } from '@/components/LiabilityForm';
+import { LiabilityPaymentForm } from '@/components/LiabilityPaymentForm';
 import { SourceOfFundsWizard } from '@/components/SourceOfFundsWizard';
 import { formatLKR } from '@/lib/taxEngine';
+import { getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Asset, Liability, FundingSource } from '@/types';
 
-type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds';
+type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment';
 
 export function AssetsPage() {
   const navigate = useNavigate();
@@ -24,18 +26,57 @@ export function AssetsPage() {
   const entities = useStore((state) => state.entities);
   const removeAsset = useStore((state) => state.removeAsset);
   const removeLiability = useStore((state) => state.removeLiability);
+  const updateLiability = useStore((state) => state.updateLiability);
   const disposeAsset = useStore((state) => state.disposeAsset);
   const saveToStorage = useStore((state) => state.saveToStorage);
 
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [editingLiability, setEditingLiability] = useState<Liability | null>(null);
+  const [paymentLiability, setPaymentLiability] = useState<Liability | null>(null);
   const [pendingAsset, setPendingAsset] = useState<Asset | null>(null);
 
   const activeAssets = assets.filter((a) => !a.disposed);
   const totalAssetValue = activeAssets.reduce((sum, a) => sum + a.financials.marketValue, 0);
   const totalLiabilities = liabilities.reduce((sum, l) => sum + l.currentBalance, 0);
   const netWorth = totalAssetValue - totalLiabilities;
+
+  // Calculate net worth for each tax year
+  const netWorthByYear = useMemo(() => {
+    const taxYears = getTaxYearsFromStart(entities[0]?.taxYear || '2022');
+    
+    return taxYears.map((year) => {
+      const yearEndDate = `${year}-03-31`;
+      
+      // Calculate assets value at year end
+      const assetsAtYearEnd = assets
+        .filter((a) => {
+          const acquired = a.meta.dateAcquired <= yearEndDate;
+          const notDisposed = !a.disposed || (a.disposed && a.meta.dateDisposed! > yearEndDate);
+          return acquired && notDisposed;
+        })
+        .reduce((sum, a) => sum + a.financials.marketValue, 0);
+      
+      // Calculate liabilities balance at year end
+      const liabilitiesAtYearEnd = liabilities
+        .filter((l) => l.dateAcquired <= yearEndDate)
+        .reduce((sum, l) => {
+          // Calculate balance at year end
+          const paymentsUpToYear = l.payments
+            ?.filter((p) => p.taxYear <= year)
+            .reduce((total, p) => total + p.principalPaid, 0) || 0;
+          const balance = l.originalAmount - paymentsUpToYear;
+          return sum + Math.max(0, balance);
+        }, 0);
+      
+      return {
+        year,
+        assets: assetsAtYearEnd,
+        liabilities: liabilitiesAtYearEnd,
+        netWorth: assetsAtYearEnd - liabilitiesAtYearEnd,
+      };
+    });
+  }, [assets, liabilities, entities]);
 
   const getEntityName = (ownerId: string) => {
     return entities.find((e) => e.id === ownerId)?.name || 'Unknown';
@@ -97,6 +138,16 @@ export function AssetsPage() {
   const handleEditLiability = (liability: Liability) => {
     setEditingLiability(liability);
     setViewMode('edit-liability');
+  };
+
+  const handleRecordPayment = (liability: Liability) => {
+    setPaymentLiability(liability);
+    setViewMode('record-payment');
+  };
+
+  const handlePaymentSave = async (updatedLiability: Liability) => {
+    updateLiability(updatedLiability.id, updatedLiability);
+    await saveToStorage();
   };
 
   const handleFormClose = () => {
@@ -173,6 +224,16 @@ export function AssetsPage() {
     );
   }
 
+  if (viewMode === 'record-payment' && paymentLiability) {
+    return (
+      <LiabilityPaymentForm
+        liability={paymentLiability}
+        onSave={handlePaymentSave}
+        onClose={handleFormClose}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-6xl mx-auto">
@@ -227,6 +288,77 @@ export function AssetsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Net Worth Trend Chart */}
+        {netWorthByYear.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Net Worth Trend</CardTitle>
+              <CardDescription>Net worth by tax year (Assets - Liabilities)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {netWorthByYear.slice().reverse().map((yearData) => {
+                  const maxNetWorth = Math.max(
+                    ...netWorthByYear.map((d) => Math.abs(d.netWorth)),
+                    1000 // Minimum scale
+                  );
+                  const barWidth = maxNetWorth > 0 ? (Math.abs(yearData.netWorth) / maxNetWorth) * 100 : 0;
+                  const isPositive = yearData.netWorth >= 0;
+
+                  return (
+                    <div key={yearData.year}>
+                      <div className="flex items-center gap-4">
+                        <span className="font-medium text-sm w-24">{yearData.year}/{Number(yearData.year) + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="h-10 bg-gray-100 rounded-lg overflow-hidden relative">
+                            <div
+                              className={`absolute top-0 left-0 h-full transition-all duration-300 flex items-center px-3 ${
+                                isPositive
+                                  ? 'bg-gradient-to-r from-blue-500 to-blue-600'
+                                  : 'bg-gradient-to-r from-red-500 to-red-600'
+                              }`}
+                              style={{ width: `${Math.max(barWidth, 5)}%` }}
+                            >
+                              {barWidth > 20 && (
+                                <span className="text-xs text-white font-semibold">
+                                  {formatLKR(yearData.netWorth)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex justify-between mt-1 text-xs text-muted-foreground">
+                            <span>Assets: {formatLKR(yearData.assets)}</span>
+                            <span>Liabilities: {formatLKR(yearData.liabilities)}</span>
+                          </div>
+                        </div>
+                        <div className="text-right w-32">
+                          <span
+                            className={`font-bold text-sm ${
+                              isPositive ? 'text-blue-600' : 'text-red-600'
+                            }`}
+                          >
+                            {formatLKR(yearData.netWorth)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-6 flex items-center gap-6 text-sm text-muted-foreground border-t pt-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded"></div>
+                  <span>Positive Net Worth</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-gradient-to-r from-red-500 to-red-600 rounded"></div>
+                  <span>Negative Net Worth</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Assets Section */}
         <div className="mb-8">
@@ -398,8 +530,21 @@ export function AssetsPage() {
                             <p className="text-xs text-muted-foreground">
                               Original: {formatLKR(liability.originalAmount)}
                             </p>
+                            {liability.payments && liability.payments.length > 0 && (
+                              <p className="text-xs text-green-600 mt-1">
+                                {liability.payments.length} payment{liability.payments.length > 1 ? 's' : ''} recorded
+                              </p>
+                            )}
                           </div>
                           <div className="flex flex-col gap-2">
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleRecordPayment(liability)}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <DollarSign className="w-4 h-4" />
+                            </Button>
                             <Button
                               variant="outline"
                               size="sm"

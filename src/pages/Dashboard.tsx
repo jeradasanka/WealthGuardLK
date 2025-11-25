@@ -13,7 +13,7 @@ import { PDFImportWizard } from '@/components/PDFImportWizard';
 import { useStore } from '@/stores/useStore';
 import { hasSavedData } from '@/utils/storage';
 import { formatLKR } from '@/lib/taxEngine';
-import { formatTaxYear, getRecentTaxYears, isDateInTaxYear, getTaxYearDateRange } from '@/lib/taxYear';
+import { formatTaxYear, getTaxYearsFromStart, getTaxYearDateRange } from '@/lib/taxYear';
 import { downloadDetailedTaxReport, downloadDetailedTaxReportPDF } from '@/utils/export';
 
 export function Dashboard() {
@@ -72,12 +72,36 @@ export function Dashboard() {
   }
 
   // Filter data based on selected entity and tax year
-  const { end: taxYearEnd } = getTaxYearDateRange(currentTaxYear);
+  const { start: taxYearStart, end: taxYearEnd } = getTaxYearDateRange(currentTaxYear);
   
   const filteredAssets = selectedEntityId === 'family' 
-    ? assets.filter((a) => !a.disposed)
+    ? assets.filter((a) => {
+        // Asset must be acquired before or during the tax year
+        const acquiredDate = new Date(a.meta.dateAcquired);
+        if (acquiredDate > new Date(taxYearEnd)) return false;
+        
+        // If disposed, must be disposed after the tax year start
+        if (a.disposed && a.meta.dateDisposed) {
+          const disposedDate = new Date(a.meta.dateDisposed);
+          if (disposedDate < new Date(taxYearStart)) return false;
+        } else if (a.disposed) {
+          return false; // Disposed but no date, exclude
+        }
+        
+        return true;
+      })
     : assets.filter((a) => {
-        if (a.disposed) return false;
+        // Asset must be acquired before or during the tax year
+        const acquiredDate = new Date(a.meta.dateAcquired);
+        if (acquiredDate > new Date(taxYearEnd)) return false;
+        
+        // If disposed, must be disposed after the tax year start
+        if (a.disposed && a.meta.dateDisposed) {
+          const disposedDate = new Date(a.meta.dateDisposed);
+          if (disposedDate < new Date(taxYearStart)) return false;
+        } else if (a.disposed) {
+          return false; // Disposed but no date, exclude
+        }
         
         // Include assets owned directly by this entity
         if (a.ownerId === selectedEntityId) return true;
@@ -87,8 +111,16 @@ export function Dashboard() {
       });
   
   const filteredLiabilities = selectedEntityId === 'family'
-    ? liabilities
+    ? liabilities.filter((l) => {
+        // Liability must be acquired before or during the tax year
+        const acquiredDate = new Date(l.dateAcquired);
+        return acquiredDate <= new Date(taxYearEnd);
+      })
     : liabilities.filter((l) => {
+        // Liability must be acquired before or during the tax year
+        const acquiredDate = new Date(l.dateAcquired);
+        if (acquiredDate > new Date(taxYearEnd)) return false;
+        
         // Include liabilities owned directly by this entity
         if (l.ownerId === selectedEntityId) return true;
         // Include liabilities with joint ownership where this entity has a share
@@ -116,16 +148,26 @@ export function Dashboard() {
     }, 0);
 
   const totalLiabilities = filteredLiabilities.reduce((sum, l) => {
+    // Calculate balance as of the end of the selected tax year
+    let balanceAtYearEnd = l.originalAmount;
+    
+    // Subtract all payments made up to and including the selected tax year
+    if (l.payments && l.payments.length > 0) {
+      const paymentsUpToYear = l.payments.filter(p => p.taxYear <= parseInt(currentTaxYear));
+      const totalPrincipalPaid = paymentsUpToYear.reduce((total, p) => total + p.principalPaid, 0);
+      balanceAtYearEnd = l.originalAmount - totalPrincipalPaid;
+    }
+    
     // For individual view, calculate based on ownership percentage
     if (selectedEntityId !== 'family' && l.ownershipShares && l.ownershipShares.length > 0) {
       const ownershipShare = l.ownershipShares.find((s) => s.entityId === selectedEntityId);
       if (ownershipShare) {
-        return sum + (l.currentBalance * ownershipShare.percentage / 100);
+        return sum + (balanceAtYearEnd * ownershipShare.percentage / 100);
       }
       return sum;
     }
     // For family view or single owner, use full value
-    return sum + l.currentBalance;
+    return sum + balanceAtYearEnd;
   }, 0);
 
   const currentYearIncome = filteredIncomes
@@ -192,7 +234,7 @@ export function Dashboard() {
                       saveToStorage();
                     }}
                   >
-                    {getRecentTaxYears(6).map((year) => (
+                    {getTaxYearsFromStart(entities[0]?.taxYear || '2022').map((year) => (
                       <option key={year} value={year}>
                         {formatTaxYear(year)}
                       </option>
@@ -296,7 +338,7 @@ export function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Assets</CardDescription>
+              <CardDescription>Total Assets ({currentTaxYear})</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-green-600">{formatLKR(totalAssetValue)}</p>
@@ -306,17 +348,17 @@ export function Dashboard() {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Liabilities</CardDescription>
+              <CardDescription>Outstanding Loans ({currentTaxYear})</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-red-600">{formatLKR(totalLiabilities)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{filteredLiabilities.length} loans</p>
+              <p className="text-xs text-muted-foreground mt-1">{filteredLiabilities.length} loans (remaining balance)</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Net Worth</CardDescription>
+              <CardDescription>Net Worth ({currentTaxYear})</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-blue-600">{formatLKR(netWorth)}</p>

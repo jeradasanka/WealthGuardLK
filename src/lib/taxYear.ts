@@ -84,3 +84,18 @@ export function getRecentTaxYears(count: number = 5): string[] {
   
   return years;
 }
+
+/**
+ * Generate tax years from a starting year to current year
+ */
+export function getTaxYearsFromStart(startYear: string): string[] {
+  const currentYear = parseInt(getCurrentTaxYear());
+  const start = parseInt(startYear);
+  const years: string[] = [];
+  
+  for (let year = currentYear; year >= start; year--) {
+    years.push(year.toString());
+  }
+  
+  return years;
+}

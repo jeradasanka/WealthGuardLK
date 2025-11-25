@@ -16,6 +16,7 @@ import { ImportDialog } from '@/components/ImportDialog';
 import { EntityForm } from '@/components/EntityForm';
 import { deriveKey } from '@/utils/crypto';
 import { storePassphrase, clearStoredPassphrase } from '@/utils/storage';
+import { getRecentTaxYears, formatTaxYear } from '@/lib/taxYear';
 
 export function SettingsPage() {
   const navigate = useNavigate();
@@ -211,12 +212,13 @@ export function SettingsPage() {
                 id="taxYear"
                 className="w-full px-3 py-2 border rounded-md"
                 value={entity?.taxYear || '2024'}
-                onChange={(e) => handleEntityUpdate('taxYear', e.target.value)}
+                onChange={(e) => handleEntityUpdate(entity.id, 'taxYear', e.target.value)}
               >
-                <option value="2022">2022</option>
-                <option value="2023">2023</option>
-                <option value="2024">2024</option>
-                <option value="2025">2025</option>
+                {getRecentTaxYears(10).map((year) => (
+                  <option key={year} value={year}>
+                    {formatTaxYear(year)}
+                  </option>
+                ))}
               </select>
             </div>
           </CardContent>

@@ -63,6 +63,20 @@ export function AssetsPage() {
   const totalAssetValue = assets
     .filter((a) => !a.disposed && !a.closed)
     .reduce((sum, a) => sum + getAssetDisplayValue(a), 0);
+  
+  // Calculate total cost of assets (including property expenses)
+  const totalAssetCost = assets
+    .filter((a) => !a.disposed && !a.closed)
+    .reduce((sum, a) => {
+      let cost = a.financials.cost;
+      // Add property expenses to the cost
+      if (a.cageCategory === 'A' && a.propertyExpenses && a.propertyExpenses.length > 0) {
+        const totalExpenses = a.propertyExpenses.reduce((expSum, e) => expSum + e.amount, 0);
+        cost += totalExpenses;
+      }
+      return sum + cost;
+    }, 0);
+    
   const totalLiabilities = liabilities.reduce((sum, l) => sum + l.currentBalance, 0);
   const netWorth = totalAssetValue - totalLiabilities;
 
@@ -386,10 +400,20 @@ export function AssetsPage() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Assets</CardDescription>
+              <CardDescription>Total Assets Cost</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-blue-600">{formatLKR(totalAssetCost)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Cost + property expenses</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Total Assets Market Value</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-green-600">{formatLKR(totalAssetValue)}</p>
@@ -415,7 +439,7 @@ export function AssetsPage() {
               <p className={`text-2xl font-bold ${netWorth >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
                 {formatLKR(netWorth)}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">Assets - Liabilities</p>
+              <p className="text-xs text-muted-foreground mt-1">Market Value - Liabilities</p>
             </CardContent>
           </Card>
         </div>

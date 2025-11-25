@@ -1,8 +1,8 @@
 import { ParsedTaxData } from '@/types/import';
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Configure PDF.js worker using jsdelivr CDN (works better with CORS)
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
 
 /**
  * Parse PDF buffer and extract tax-related data
@@ -13,9 +13,12 @@ export async function parseTaxPDF(file: File): Promise<ParsedTaxData> {
     // For browser environment, we'll use a different approach
     // Instead of pdf-parse (which is Node.js), we'll extract text using PDF.js or manual parsing
     
+    console.log('Starting PDF parsing for file:', file.name);
+    
     const text = await extractTextFromPDF(file);
     
-    console.log('Extracted PDF text:', text.substring(0, 500)); // Debug: show first 500 chars
+    console.log('Extracted PDF text (full):', text); // Debug: show full text
+    console.log('Text length:', text.length);
     
     // Extract tax year from filename or content
     const taxYear = extractTaxYear(text, file.name);
@@ -37,27 +40,41 @@ export async function parseTaxPDF(file: File): Promise<ParsedTaxData> {
     
     return parsedData;
   } catch (error) {
-    console.error('Error parsing PDF:', error);
+    console.error('Detailed error parsing PDF:', error);
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     throw new Error('Failed to parse PDF file. Please ensure it is a valid RAMIS tax return.');
   }
 }
 
 async function extractTextFromPDF(file: File): Promise<string> {
   try {
+    console.log('Reading PDF file...');
+    
     // Read file as ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
+    console.log('ArrayBuffer size:', arrayBuffer.byteLength);
     
     // Load PDF document
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    console.log('Loading PDF document...');
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+    
+    const pdf = await loadingTask.promise;
+    console.log('PDF loaded. Number of pages:', pdf.numPages);
     
     let fullText = '';
     
     // Extract text from all pages
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      console.log(`Extracting text from page ${pageNum}...`);
       const page = await pdf.getPage(pageNum);
       const textContent = await page.getTextContent();
       
-      // Combine all text items
+      console.log(`Page ${pageNum} has ${textContent.items.length} text items`);
+      
+      // Combine all text items with spaces
       const pageText = textContent.items
         .map((item: any) => item.str)
         .join(' ');
@@ -65,24 +82,30 @@ async function extractTextFromPDF(file: File): Promise<string> {
       fullText += pageText + '\n';
     }
     
+    console.log('Total extracted text length:', fullText.length);
+    
     return fullText;
   } catch (error) {
-    console.error('Error extracting text from PDF:', error);
-    throw new Error('Failed to extract text from PDF');
+    console.error('Detailed error extracting text from PDF:', error);
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+    }
+    throw error;
   }
 }
 
 function extractTaxYear(text: string, filename: string): string {
-  // Try to extract year from filename first (e.g., "RAMIS 2024.pdf")
+  // Try to extract year from "Year of assessment" field
+  const yearMatch = text.match(/Year of assessment\s+(\d{4})\/(\d{4})/i);
+  if (yearMatch) {
+    return yearMatch[1]; // Return first year (e.g., 2023 from 2023/2024)
+  }
+  
+  // Try to extract from filename first (e.g., "RAMIS 2024.pdf")
   const filenameMatch = filename.match(/20\d{2}/);
   if (filenameMatch) {
     return filenameMatch[0];
-  }
-  
-  // Try to extract from content
-  const contentMatch = text.match(/(?:Tax Year|Year of Assessment|Y\/A)\s*[:\-]?\s*(20\d{2}(?:\/\d{2})?)/i);
-  if (contentMatch) {
-    return contentMatch[1].split('/')[0]; // Get first year if in format 2024/25
   }
   
   // Default to current tax year
@@ -92,9 +115,9 @@ function extractTaxYear(text: string, filename: string): string {
 }
 
 function extractTaxpayerInfo(text: string) {
-  const nameMatch = text.match(/(?:Name|Taxpayer Name)\s*[:\-]?\s*([A-Za-z\s\.]+?)(?:\n|TIN)/i);
-  const tinMatch = text.match(/(?:TIN|Tax Identification Number)\s*[:\-]?\s*(\d{9,12})/i);
-  const nicMatch = text.match(/(?:NIC|National Identity Card)\s*[:\-]?\s*(\d{9}[VvXx]|\d{12})/i);
+  const nameMatch = text.match(/Name of taxpayer\s+([A-Z\s]+?)(?:\s+Year of assessment|$)/i);
+  const tinMatch = text.match(/Taxpayer Identification\s+Number \(TIN\)\s+(\d+)/i);
+  const nicMatch = text.match(/National Identity card\s+number.*?(\d{9}[VvXx]|\d{12})/i);
   
   return {
     name: nameMatch?.[1]?.trim(),
@@ -106,29 +129,22 @@ function extractTaxpayerInfo(text: string) {
 function extractEmploymentIncome(text: string) {
   const incomes = [];
   
-  // Look for employment income sections (Schedule 1, Cage 103-104)
-  const employmentSection = text.match(/(?:Schedule\s*1|Employment Income|Gross Remuneration)(.*?)(?:Schedule\s*2|Business Income|$)/is);
+  // Look for Primary Employment section
+  const employerNameMatch = text.match(/Employer\/company name\s+([A-Z\s&\.]+?)(?:\s+Remuneration|$)/i);
+  const employerTINMatch = text.match(/TIN of the employer\s+(\d+)/i);
+  const remunerationMatch = text.match(/Remuneration \(Rs\.\)\s+([\d,]+\.?\d*)/i);
+  const apitMatch = text.match(/APIT paid on Employment\s+income \(Rs\.\)\s+([\d,]+\.?\d*)/i);
+  const exemptMatch = text.match(/Total exempt \/ Excluded\s+employment income \(Rs\.\)\s+([\d,]+\.?\d*)/i);
   
-  if (employmentSection) {
-    const section = employmentSection[1];
-    
-    // Extract employer details
-    const employerMatch = section.match(/(?:Employer Name|Employer)\s*[:\-]?\s*([A-Za-z\s&\.]+?)(?:\n|TIN)/i);
-    const tinMatch = section.match(/(?:Employer TIN)\s*[:\-]?\s*(\d{9,12})/i);
-    const grossMatch = section.match(/(?:Gross Remuneration|Cage 103)\s*[:\-]?\s*Rs?\.?\s*([\d,]+(?:\.\d{2})?)/i);
-    const benefitsMatch = section.match(/(?:Non-Cash Benefits|Cage 104)\s*[:\-]?\s*Rs?\.?\s*([\d,]+(?:\.\d{2})?)/i);
-    const apitMatch = section.match(/(?:APIT|Cage 903)\s*[:\-]?\s*Rs?\.?\s*([\d,]+(?:\.\d{2})?)/i);
-    
-    if (employerMatch || grossMatch) {
-      incomes.push({
-        employerName: employerMatch?.[1]?.trim() || 'Unknown Employer',
-        employerTIN: tinMatch?.[1]?.trim(),
-        grossRemuneration: parseAmount(grossMatch?.[1]),
-        nonCashBenefits: parseAmount(benefitsMatch?.[1]),
-        apitDeducted: parseAmount(apitMatch?.[1]),
-        exemptIncome: 0,
-      });
-    }
+  if (employerNameMatch || remunerationMatch) {
+    incomes.push({
+      employerName: employerNameMatch?.[1]?.trim() || 'Unknown Employer',
+      employerTIN: employerTINMatch?.[1]?.trim(),
+      grossRemuneration: parseAmount(remunerationMatch?.[1]),
+      nonCashBenefits: 0,
+      apitDeducted: parseAmount(apitMatch?.[1]),
+      exemptIncome: parseAmount(exemptMatch?.[1]),
+    });
   }
   
   return incomes;
@@ -166,23 +182,20 @@ function extractBusinessIncome(text: string) {
 function extractInvestmentIncome(text: string) {
   const incomes = [];
   
-  const investmentSection = text.match(/(?:Schedule\s*3|Investment Income|Interest.*?Dividends.*?Rent)(.*?)(?:Schedule\s*4|Assets|$)/is);
+  // Extract interest income total
+  const interestMatches = text.matchAll(/I-INTEREST\s+\d+\s+\d+\s+([\d,]+\.?\d*)/gi);
+  let totalInterest = 0;
+  for (const match of interestMatches) {
+    totalInterest += parseAmount(match[1]);
+  }
   
-  if (investmentSection) {
-    const section = investmentSection[1];
-    
-    const dividendsMatch = section.match(/(?:Dividends|Cage 301)\s*[:\-]?\s*Rs?\.?\s*([\d,]+(?:\.\d{2})?)/i);
-    const interestMatch = section.match(/(?:Interest|Cage 302)\s*[:\-]?\s*Rs?\.?\s*([\d,]+(?:\.\d{2})?)/i);
-    const rentMatch = section.match(/(?:Rent|Rental Income|Cage 303)\s*[:\-]?\s*Rs?\.?\s*([\d,]+(?:\.\d{2})?)/i);
-    
-    if (dividendsMatch || interestMatch || rentMatch) {
-      incomes.push({
-        source: 'Mixed Investments',
-        dividends: parseAmount(dividendsMatch?.[1]),
-        interest: parseAmount(interestMatch?.[1]),
-        rent: parseAmount(rentMatch?.[1]),
-      });
-    }
+  if (totalInterest > 0) {
+    incomes.push({
+      source: 'Bank Interest',
+      dividends: 0,
+      interest: totalInterest,
+      rent: 0,
+    });
   }
   
   return incomes;
@@ -191,37 +204,72 @@ function extractInvestmentIncome(text: string) {
 function extractAssets(text: string) {
   const assets = [];
   
-  // Extract immovable property (Cage 701)
-  const propertyMatches = text.matchAll(/(?:Cage 701|Immovable Property).*?Description[:\-\s]+([^\n]+).*?Cost[:\-\s]+Rs?\.?\s*([\d,]+(?:\.\d{2})?)/gis);
-  for (const match of propertyMatches) {
+  // Extract immovable property (land/house)
+  const propertyMatch = text.match(/A\s+1\s+([A-Z0-9\s,\/\-\(\)]+?)\s+(\d{4}-\d{2}-\d{2})\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)/);
+  if (propertyMatch) {
     assets.push({
-      description: match[1].trim(),
+      description: propertyMatch[1].trim(),
       category: '701' as const,
-      cost: parseAmount(match[2]),
-      marketValue: parseAmount(match[2]), // Default to cost if market value not specified
+      cost: parseAmount(propertyMatch[3]),
+      marketValue: parseAmount(propertyMatch[4]),
+      dateAcquired: propertyMatch[2],
     });
   }
   
-  // Extract vehicles (Cage 711)
-  const vehicleMatches = text.matchAll(/(?:Cage 711|Motor Vehicle).*?(?:Description|Reg No)[:\-\s]+([^\n]+).*?Cost[:\-\s]+Rs?\.?\s*([\d,]+(?:\.\d{2})?)/gis);
-  for (const match of vehicleMatches) {
-    assets.push({
-      description: match[1].trim(),
-      category: '711' as const,
-      cost: parseAmount(match[2]),
-      marketValue: parseAmount(match[2]),
-    });
+  // Extract bank balances
+  const bankMatches = text.matchAll(/A\s+\d+\s+([A-Z\s]+BANK[A-Z\s]*)\s+(\d+)\s+[A-Z\s]+\s+[\d,]+\.?\d*\s+[\d,]+\.?\d*\s+([\d,]+\.?\d*)/gi);
+  for (const match of bankMatches) {
+    const balance = parseAmount(match[3]);
+    if (balance > 0) {
+      assets.push({
+        description: `${match[1].trim()} - Account ${match[2]}`,
+        category: '721' as const,
+        cost: balance,
+        marketValue: balance,
+      });
+    }
   }
   
-  // Extract bank/financial assets (Cage 721)
-  const financialMatches = text.matchAll(/(?:Cage 721|Bank|Financial Asset).*?(?:Description|Account)[:\-\s]+([^\n]+).*?(?:Balance|Value)[:\-\s]+Rs?\.?\s*([\d,]+(?:\.\d{2})?)/gis);
-  for (const match of financialMatches) {
-    assets.push({
-      description: match[1].trim(),
-      category: '721' as const,
-      cost: parseAmount(match[2]),
-      marketValue: parseAmount(match[2]),
-    });
+  // Extract cash in hand
+  const cashMatch = text.match(/iv\. Cash in hand.*?(\d+)\s+([\d,]+\.?\d*)/i);
+  if (cashMatch) {
+    const cashAmount = parseAmount(cashMatch[2]);
+    if (cashAmount > 0) {
+      assets.push({
+        description: 'Cash in Hand',
+        category: '721' as const,
+        cost: cashAmount,
+        marketValue: cashAmount,
+      });
+    }
+  }
+  
+  // Extract loans given
+  const loansGivenMatch = text.match(/v\. Loans given.*?(\d+)\s+([\d,]+\.?\d*)/i);
+  if (loansGivenMatch) {
+    const loanAmount = parseAmount(loansGivenMatch[2]);
+    if (loanAmount > 0) {
+      assets.push({
+        description: 'Loans Given & Amount Receivable',
+        category: '721' as const,
+        cost: loanAmount,
+        marketValue: loanAmount,
+      });
+    }
+  }
+  
+  // Extract gold, gems, jewelry
+  const valuablesMatch = text.match(/vi\. Value of gold.*?(\d+)\s+([\d,]+\.?\d*)/i);
+  if (valuablesMatch) {
+    const valuablesAmount = parseAmount(valuablesMatch[2]);
+    if (valuablesAmount > 0) {
+      assets.push({
+        description: 'Gold, Silver, Gems, Jewellery',
+        category: '721' as const,
+        cost: valuablesAmount,
+        marketValue: valuablesAmount,
+      });
+    }
   }
   
   return assets;
@@ -230,15 +278,21 @@ function extractAssets(text: string) {
 function extractLiabilities(text: string) {
   const liabilities = [];
   
-  const liabilityMatches = text.matchAll(/(?:Cage 781|Liability|Loan).*?(?:Description|Lender)[:\-\s]+([^\n]+).*?(?:Original Amount|Principal)[:\-\s]+Rs?\.?\s*([\d,]+(?:\.\d{2})?).*?(?:Current Balance|Outstanding)[:\-\s]+Rs?\.?\s*([\d,]+(?:\.\d{2})?)/gis);
+  // Extract housing loans and other liabilities
+  const liabilityMatches = text.matchAll(/A\s+\d+\s+([A-Z\s\-0-9]+?)\s+[A-Z]+\s+(\d{4}-\d{2}-\d{2})?\s*([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)/g);
   
   for (const match of liabilityMatches) {
-    liabilities.push({
-      description: match[1].trim(),
-      lenderName: match[1].split('-')[0].trim() || 'Unknown Lender',
-      originalAmount: parseAmount(match[2]),
-      currentBalance: parseAmount(match[3]),
-    });
+    const description = match[1].trim();
+    // Only process if it looks like a loan/liability
+    if (description.includes('LOAN') || description.includes('HOUSING')) {
+      liabilities.push({
+        description: description,
+        lenderName: description.split('-')[0].trim() || 'Unknown Lender',
+        originalAmount: parseAmount(match[3]),
+        currentBalance: parseAmount(match[4]),
+        dateAcquired: match[2] || new Date().toISOString().split('T')[0],
+      });
+    }
   }
   
   return liabilities;

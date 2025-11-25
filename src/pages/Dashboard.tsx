@@ -13,7 +13,7 @@ import { PDFImportWizard } from '@/components/PDFImportWizard';
 import { useStore } from '@/stores/useStore';
 import { hasSavedData } from '@/utils/storage';
 import { formatLKR } from '@/lib/taxEngine';
-import { formatTaxYear, getRecentTaxYears, isDateInTaxYear, getTaxYearDateRange } from '@/lib/taxYear';
+import { formatTaxYear, getTaxYearsFromStart, getTaxYearDateRange } from '@/lib/taxYear';
 import { downloadDetailedTaxReport, downloadDetailedTaxReportPDF } from '@/utils/export';
 
 export function Dashboard() {
@@ -234,7 +234,7 @@ export function Dashboard() {
                       saveToStorage();
                     }}
                   >
-                    {getRecentTaxYears(6).map((year) => (
+                    {getTaxYearsFromStart(entities[0]?.taxYear || '2022').map((year) => (
                       <option key={year} value={year}>
                         {formatTaxYear(year)}
                       </option>
@@ -338,7 +338,7 @@ export function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Assets</CardDescription>
+              <CardDescription>Total Assets ({currentTaxYear})</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-green-600">{formatLKR(totalAssetValue)}</p>
@@ -348,7 +348,7 @@ export function Dashboard() {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Outstanding Loans</CardDescription>
+              <CardDescription>Outstanding Loans ({currentTaxYear})</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-red-600">{formatLKR(totalLiabilities)}</p>
@@ -358,7 +358,7 @@ export function Dashboard() {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Net Worth</CardDescription>
+              <CardDescription>Net Worth ({currentTaxYear})</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-blue-600">{formatLKR(netWorth)}</p>

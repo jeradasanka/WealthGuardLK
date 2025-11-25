@@ -289,8 +289,11 @@ INCOME SUMMARY (IRD Schedules 1-3)
   if (investmentIncomes.length > 0) {
     investmentIncomes.forEach((income, idx) => {
       const inv = income.details as any;
-      const incomeType = income.type === 'investment' ? 
-        (inv.interest > 0 ? 'Interest' : inv.dividends > 0 ? 'Dividend' : inv.rent > 0 ? 'Rent' : 'Mixed') : 
+      const invIncome = income as InvestmentIncome;
+      const incomeType = invIncome.type ? 
+        (invIncome.type === 'interest' ? 'Interest' : 
+         invIncome.type === 'dividend' ? 'Dividend' : 
+         invIncome.type === 'rent' ? 'Rent' : 'Mixed') : 
         'Investment';
       report += `
 │ ${idx + 1}. Source: ${inv.source || 'Not Specified'}

@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, FileText, Building2, Wallet, TrendingUp, Settings, ArrowLeft, Upload } from 'lucide-react';
+import { Shield, FileText, Building2, Wallet, TrendingUp, Settings, ArrowLeft, Upload, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DangerMeter } from '@/components/DangerMeter';
@@ -14,6 +14,7 @@ import { useStore } from '@/stores/useStore';
 import { hasSavedData } from '@/utils/storage';
 import { formatLKR } from '@/lib/taxEngine';
 import { formatTaxYear, getRecentTaxYears, isDateInTaxYear, getTaxYearDateRange } from '@/lib/taxYear';
+import { downloadDetailedTaxReport } from '@/utils/export';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -130,6 +131,18 @@ export function Dashboard() {
     ? null 
     : entities.find((e) => e.id === selectedEntityId);
 
+  const handleDownloadTaxReport = () => {
+    downloadDetailedTaxReport(
+      entities,
+      incomes,
+      assets,
+      liabilities,
+      currentTaxYear,
+      selectedEntityId === 'family',
+      selectedEntityId === 'family' ? undefined : selectedEntityId
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
@@ -182,6 +195,10 @@ export function Dashboard() {
               <Button variant="outline" size="sm" onClick={() => setShowImportWizard(true)}>
                 <Upload className="w-4 h-4 mr-2" />
                 Import PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDownloadTaxReport}>
+                <Download className="w-4 h-4 mr-2" />
+                Tax Report
               </Button>
               <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
                 <Settings className="w-4 h-4" />

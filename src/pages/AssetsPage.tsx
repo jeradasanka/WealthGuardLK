@@ -83,11 +83,15 @@ export function AssetsPage() {
   // Calculate net worth for each tax year
   const netWorthByYear = useMemo(() => {
     const taxYears = getTaxYearsFromStart(entities[0]?.taxYear || '2022');
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
+    const currentTaxYear = currentMonth < 3 ? (currentYear - 1).toString() : currentYear.toString();
     
     return taxYears.map((year) => {
-      const yearEndDate = `${year}-03-31`;
+      const isCurrentYear = year === currentTaxYear;
+      const yearEndDate = isCurrentYear ? new Date().toISOString().split('T')[0] : `${year}-03-31`;
       
-      // Calculate assets value at year end
+      // Calculate assets value at year end (or current date for current year)
       const assetsAtYearEnd = assets
         .filter((a) => {
           const acquired = a.meta.dateAcquired <= yearEndDate;
@@ -96,6 +100,12 @@ export function AssetsPage() {
           return acquired && notDisposed && notClosed;
         })
         .reduce((sum, a) => {
+          // For current year, use the same logic as top tiles
+          if (isCurrentYear) {
+            return sum + getAssetDisplayValue(a);
+          }
+          
+          // For historical years, calculate year-end values
           // For bank balances (Bii), use balance from records if available
           if (a.cageCategory === 'Bii' && a.balances && a.balances.length > 0) {
             const yearBalance = a.balances.find((b) => b.taxYear === year);

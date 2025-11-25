@@ -2,21 +2,23 @@
 export interface TaxEntity {
   id: string;
   name: string;
-  tin: string;
-  mobile: string;
-  email: string;
-  role: 'primary' | 'spouse';
+  tin?: string;
+  nic?: string;
+  mobile?: string;
+  email?: string;
+  type: 'individual' | 'company' | 'partnership' | 'trust';
+  taxYear: string;
+  role?: 'primary' | 'spouse';
   createdAt: string;
 }
 
 // Source of funds for asset acquisition (FR-07)
-export type FundingSource = 
-  | { type: 'income'; scheduleId: string; amount: number }
-  | { type: 'asset_sale'; assetId: string; amount: number }
-  | { type: 'loan'; loanId: string; amount: number }
-  | { type: 'gift'; description: string; amount: number }
-  | { type: 'inheritance'; description: string; amount: number }
-  | { type: 'savings'; description: string; amount: number };
+export interface FundingSource {
+  type: 'current-income' | 'asset-sale' | 'loan' | 'gift' | 'savings';
+  amount: number;
+  description?: string;
+  relatedId?: string; // ID of related income, asset, or liability
+}
 
 // Asset Object (Maps to Cages 701-721)
 export interface Asset {
@@ -41,6 +43,7 @@ export interface Asset {
     marketValue: number;
     sourceOfFunds?: FundingSource[];
   };
+  fundingSources?: FundingSource[];
   disposed?: {
     date: string;
     salePrice: number;
@@ -51,10 +54,12 @@ export interface Asset {
 export interface Liability {
   id: string;
   ownerId: string;
+  description: string;
   lenderName: string;
   originalAmount: number;
   currentBalance: number;
   securityGiven?: string;
+  date: string;
   dateAcquired: string;
   interestRate?: number;
   purpose?: string;

@@ -10,10 +10,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useStore } from '@/stores/useStore';
 import { AssetForm } from '@/components/AssetForm';
 import { LiabilityForm } from '@/components/LiabilityForm';
+import { SourceOfFundsWizard } from '@/components/SourceOfFundsWizard';
 import { formatLKR } from '@/lib/taxEngine';
-import type { Asset, Liability } from '@/types';
+import type { Asset, Liability, FundingSource } from '@/types';
 
-type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability';
+type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds';
 
 export function AssetsPage() {
   const assets = useStore((state) => state.assets);
@@ -27,6 +28,7 @@ export function AssetsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [editingLiability, setEditingLiability] = useState<Liability | null>(null);
+  const [pendingAsset, setPendingAsset] = useState<Asset | null>(null);
 
   const activeAssets = assets.filter((a) => !a.disposed);
   const totalAssetValue = activeAssets.reduce((sum, a) => sum + a.financials.marketValue, 0);
@@ -99,7 +101,41 @@ export function AssetsPage() {
     setViewMode('list');
     setEditingAsset(null);
     setEditingLiability(null);
+    setPendingAsset(null);
   };
+
+  const handleAssetSaveWithFunding = (asset: Asset) => {
+    // Prompt for source of funds if asset cost > 500k
+    if (asset.financials.cost > 500000) {
+      setPendingAsset(asset);
+      setViewMode('source-of-funds');
+    } else {
+      handleFormClose();
+    }
+  };
+
+  const handleFundingComplete = (fundingSources: FundingSource[]) => {
+    if (pendingAsset) {
+      const assetWithFunding = {
+        ...pendingAsset,
+        fundingSources,
+      };
+      // Update asset in store with funding sources
+      useStore.getState().updateAsset(assetWithFunding.id, { fundingSources });
+      saveToStorage();
+    }
+    handleFormClose();
+  };
+
+  if (viewMode === 'source-of-funds' && pendingAsset) {
+    return (
+      <SourceOfFundsWizard
+        asset={pendingAsset}
+        onComplete={handleFundingComplete}
+        onCancel={handleFormClose}
+      />
+    );
+  }
 
   if (viewMode === 'add-asset' || viewMode === 'edit-asset') {
     return (

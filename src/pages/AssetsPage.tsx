@@ -602,40 +602,45 @@ export function AssetsPage() {
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          {asset.cageCategory === 'A' && asset.propertyExpenses && asset.propertyExpenses.length > 0 && (() => {
-                            const sortedExpenses = [...asset.propertyExpenses].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
-                            const latestExpense = sortedExpenses[0];
-                            const hasLatestValuation = latestExpense.marketValue && latestExpense.marketValue > 0;
+                          {asset.cageCategory === 'A' ? (() => {
+                            const hasExpenses = asset.propertyExpenses && asset.propertyExpenses.length > 0;
                             
-                            return hasLatestValuation ? (
-                              <>
-                                <p className="text-sm text-muted-foreground">Latest Market Value</p>
-                                <p className="font-bold text-lg text-green-600">
-                                  {formatLKR(latestExpense.marketValue!)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Initial Cost: {formatLKR(asset.financials.cost)}
-                                </p>
-                                <p className="text-xs text-orange-600 font-medium mt-1">
-                                  Total Expenses: {formatLKR(asset.propertyExpenses.reduce((sum, e) => sum + e.amount, 0))}
-                                </p>
-                              </>
-                            ) : (
-                              <>
-                                <p className="text-sm text-muted-foreground">Market Value</p>
-                                <p className="font-bold text-lg text-green-600">
-                                  {formatLKR(asset.financials.marketValue)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Cost: {formatLKR(asset.financials.cost)}
-                                </p>
-                                <p className="text-xs text-orange-600 font-medium mt-1">
-                                  Total Expenses: {formatLKR(asset.propertyExpenses.reduce((sum, e) => sum + e.amount, 0))}
-                                </p>
-                              </>
-                            );
-                          })()}
-                          {asset.cageCategory !== 'A' && (
+                            if (hasExpenses) {
+                              const sortedExpenses = [...asset.propertyExpenses!].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
+                              const latestExpense = sortedExpenses[0];
+                              const hasLatestValuation = latestExpense.marketValue && latestExpense.marketValue > 0;
+                              
+                              return (
+                                <>
+                                  <p className="text-sm text-muted-foreground">
+                                    Latest Market Value {hasLatestValuation && `(${latestExpense.taxYear}/${parseInt(latestExpense.taxYear) + 1})`}
+                                  </p>
+                                  <p className="font-bold text-lg text-green-600">
+                                    {formatLKR(hasLatestValuation ? latestExpense.marketValue! : asset.financials.marketValue)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Initial Cost: {formatLKR(asset.financials.cost)}
+                                  </p>
+                                  <p className="text-xs text-orange-600 font-medium mt-1">
+                                    Total Expenses: {formatLKR(asset.propertyExpenses!.reduce((sum, e) => sum + e.amount, 0))}
+                                  </p>
+                                </>
+                              );
+                            } else {
+                              // No expense records - show as Latest Market Value from edit page
+                              return (
+                                <>
+                                  <p className="text-sm text-muted-foreground">Latest Market Value</p>
+                                  <p className="font-bold text-lg text-green-600">
+                                    {formatLKR(asset.financials.marketValue)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Initial Cost: {formatLKR(asset.financials.cost)}
+                                  </p>
+                                </>
+                              );
+                            }
+                          })() : (
                             <>
                               <p className="text-sm text-muted-foreground">Market Value</p>
                               <p className="font-bold text-lg text-green-600">

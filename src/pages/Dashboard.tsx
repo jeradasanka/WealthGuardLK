@@ -58,15 +58,9 @@ export function Dashboard() {
   const { end: taxYearEnd } = getTaxYearDateRange(currentTaxYear);
   
   const filteredAssets = selectedEntityId === 'family' 
-    ? assets.filter((a) => {
-        // Include assets acquired on or before the end of the selected tax year
-        const acquiredDate = new Date(a.meta.dateAcquired);
-        return acquiredDate <= taxYearEnd;
-      })
+    ? assets.filter((a) => !a.disposed)
     : assets.filter((a) => {
-        // Filter by tax year first
-        const acquiredDate = new Date(a.meta.dateAcquired);
-        if (acquiredDate > taxYearEnd) return false;
+        if (a.disposed) return false;
         
         // Include assets owned directly by this entity
         if (a.ownerId === selectedEntityId) return true;
@@ -76,16 +70,8 @@ export function Dashboard() {
       });
   
   const filteredLiabilities = selectedEntityId === 'family'
-    ? liabilities.filter((l) => {
-        // Include liabilities acquired on or before the end of the selected tax year
-        const acquiredDate = new Date(l.dateAcquired);
-        return acquiredDate <= taxYearEnd;
-      })
+    ? liabilities
     : liabilities.filter((l) => {
-        // Filter by tax year first
-        const acquiredDate = new Date(l.dateAcquired);
-        if (acquiredDate > taxYearEnd) return false;
-        
         // Include liabilities owned directly by this entity
         if (l.ownerId === selectedEntityId) return true;
         // Include liabilities with joint ownership where this entity has a share

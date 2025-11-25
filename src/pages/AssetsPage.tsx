@@ -430,7 +430,7 @@ export function AssetsPage() {
           ) : (
             <div className="space-y-4">
               {activeAssets.map((asset) => (
-                <Card key={asset.id} className={asset.closed ? 'opacity-60 bg-gray-50' : ''}>
+                <Card key={asset.id} className={(asset.closed || asset.disposed) ? 'opacity-60 bg-gray-50' : ''}>
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
@@ -443,6 +443,11 @@ export function AssetsPage() {
                             {asset.closed && (
                               <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-normal">
                                 CLOSED
+                              </span>
+                            )}
+                            {asset.disposed && (
+                              <span className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-normal">
+                                SOLD
                               </span>
                             )}
                           </p>
@@ -467,6 +472,11 @@ export function AssetsPage() {
                             {asset.closed && (
                               <span className="text-orange-600 ml-2">
                                 • Closed: {new Date(asset.closed.date).toLocaleDateString()}
+                              </span>
+                            )}
+                            {asset.disposed && (
+                              <span className="text-red-600 ml-2">
+                                • Sold: {new Date(asset.disposed.date).toLocaleDateString()}
                               </span>
                             )}
                           </p>
@@ -516,11 +526,11 @@ export function AssetsPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleEditAsset(asset)}
-                            title={asset.closed ? 'Edit or reopen account' : 'Edit asset'}
+                            title={asset.closed ? 'Edit or reopen account' : asset.disposed ? 'Edit or mark as unsold' : 'Edit asset'}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          {!asset.closed && asset.cageCategory !== 'Bii' && asset.cageCategory !== 'Biv' && asset.cageCategory !== 'Bv' && (
+                          {!asset.closed && !asset.disposed && asset.cageCategory !== 'Bii' && asset.cageCategory !== 'Biv' && asset.cageCategory !== 'Bv' && asset.cageCategory !== 'Bvi' && (
                             <Button
                               variant="outline"
                               size="sm"

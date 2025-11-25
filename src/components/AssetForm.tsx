@@ -62,10 +62,14 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
     // C - Business properties
     businessName: asset?.meta.businessName || '',
     businessRegNo: asset?.meta.businessRegNo || '',
-    // Close fields for financial assets (Bii)
+    // Close fields for financial assets (Bii, Biv, Bv)
     isClosed: !!asset?.closed,
     closedDate: asset?.closed?.date || '',
     finalBalance: asset?.closed?.finalBalance || 0,
+    // Sold fields for jewellery assets (Bvi)
+    isSold: !!asset?.disposed,
+    soldDate: asset?.disposed?.date || '',
+    salePrice: asset?.disposed?.salePrice || 0,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,7 +130,7 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
       financials: {
         cost: Number(formData.cost),
         // For Biv (Cash), Bii (Bank), Bv (Loans Given), market value equals cost
-        marketValue: formData.isClosed ? 0 : 
+        marketValue: formData.isClosed ? 0 : formData.isSold ? 0 :
           (formData.cageCategory === 'Biv' || formData.cageCategory === 'Bii' || formData.cageCategory === 'Bv') 
             ? Number(formData.cost) 
             : Number(formData.marketValue),
@@ -138,7 +142,10 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
         date: formData.closedDate,
         finalBalance: Number(formData.finalBalance),
       } : undefined,
-      disposed: asset?.disposed,
+      disposed: formData.isSold ? {
+        date: formData.soldDate,
+        salePrice: Number(formData.salePrice),
+      } : undefined,
     };
 
     if (asset) {
@@ -638,6 +645,70 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
                   placeholder="e.g., 22K, 24K, 999"
                 />
               </div>
+
+              {/* Sold Section for Jewellery */}
+              {asset && (
+                <div className="border rounded-lg p-4 bg-orange-50 border-orange-200">
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="isSold"
+                        checked={formData.isSold}
+                        onChange={(e) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            isSold: e.target.checked,
+                            soldDate: e.target.checked ? (prev.soldDate || new Date().toISOString().split('T')[0]) : '',
+                            salePrice: e.target.checked ? prev.salePrice : 0,
+                          }));
+                        }}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor="isSold" className="font-semibold">
+                        {formData.isSold ? 'Item Sold (Uncheck to Mark as Unsold)' : 'Mark Item as Sold'}
+                      </Label>
+                    </div>
+
+                    {formData.isSold && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="soldDate">Sale Date *</Label>
+                          <Input
+                            id="soldDate"
+                            type="date"
+                            value={formData.soldDate}
+                            onChange={handleChange('soldDate')}
+                            required={formData.isSold}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="salePrice">Sale Price *</Label>
+                          <Input
+                            id="salePrice"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={formData.salePrice}
+                            onChange={handleChange('salePrice')}
+                            placeholder="0.00"
+                            required={formData.isSold}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Price received from sale
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {formData.isSold && (
+                      <p className="text-xs text-orange-700 mt-2">
+                        💡 When marked as sold, this item will be flagged but remain visible in your records for reference.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </>
           )}
 

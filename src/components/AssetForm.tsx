@@ -396,10 +396,74 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
                     id="extentArea"
                     value={formData.extentArea}
                     onChange={handleChange('extentArea')}
-                    placeholder="e.g., 10 perches, 2 acres"
-                  />
+                  placeholder="e.g., 10 perches, 2 acres"
+                />
+              </div>
+            </div>
+
+            {/* Sold Section for Immovable Properties */}
+            {asset && (
+              <div className="border rounded-lg p-4 bg-orange-50 border-orange-200">
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="isSold"
+                      checked={formData.isSold}
+                      onChange={(e) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          isSold: e.target.checked,
+                          soldDate: e.target.checked ? (prev.soldDate || new Date().toISOString().split('T')[0]) : '',
+                          salePrice: e.target.checked ? prev.salePrice : 0,
+                        }));
+                      }}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                    <Label htmlFor="isSold" className="font-semibold">
+                      {formData.isSold ? 'Property Sold (Uncheck to Mark as Unsold)' : 'Mark Property as Sold'}
+                    </Label>
+                  </div>
+
+                  {formData.isSold && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="soldDate">Sale Date *</Label>
+                        <Input
+                          id="soldDate"
+                          type="date"
+                          value={formData.soldDate}
+                          onChange={handleChange('soldDate')}
+                          required={formData.isSold}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="salePrice">Sale Price *</Label>
+                        <Input
+                          id="salePrice"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={formData.salePrice}
+                          onChange={handleChange('salePrice')}
+                          placeholder="0.00"
+                          required={formData.isSold}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Price received from sale
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {formData.isSold && (
+                    <p className="text-xs text-orange-700 mt-2">
+                      💡 When marked as sold, this property will be flagged but remain visible in your records for reference.
+                    </p>
+                  )}
                 </div>
               </div>
+            )}
             </>
           )}
 

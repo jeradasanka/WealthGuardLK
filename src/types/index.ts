@@ -64,12 +64,14 @@ export interface Asset {
     sourceOfFunds?: FundingSource[];
   };
   fundingSources?: FundingSource[];
-  balances?: FinancialAssetBalance[]; // Yearly balances for Bii (Bank/Term Deposits)
-  closed?: { // For financial assets (Bii) - account closure
+  balances?: FinancialAssetBalance[]; // Yearly balances for Bii (Bank/Term Deposits), Biv (Cash), Bv (Loans Given)
+  jewelleryTransactions?: JewelleryTransaction[]; // Yearly purchases/sales for Bvi (Jewellery)
+  propertyExpenses?: PropertyExpense[]; // Yearly expenses for A (Immovable Properties)
+  closed?: { // For financial assets (Bii, Biv, Bv) - account closure
     date: string;
     finalBalance: number;
   };
-  disposed?: { // For sale/disposal of assets
+  disposed?: { // For sale/disposal of assets (A, Bvi, etc.)
     date: string;
     salePrice: number;
   };
@@ -93,6 +95,31 @@ export interface FinancialAssetBalance {
   taxYear: string;
   closingBalance: number; // Balance as of March 31 of the tax year
   interestEarned: number; // Interest income for the year
+  notes?: string;
+}
+
+// Yearly transaction record for jewellery (Bvi) - purchases and sales
+export interface JewelleryTransaction {
+  id: string;
+  taxYear: string;
+  type: 'purchase' | 'sale';
+  date: string;
+  description: string;
+  itemType?: string; // Gold, Silver, Gems, Jewellery
+  weight?: number;
+  purity?: string;
+  amount: number; // Purchase cost or sale price
+  notes?: string;
+}
+
+// Yearly expense record for immovable properties (A) - repairs, construction, etc.
+export interface PropertyExpense {
+  id: string;
+  taxYear: string;
+  date: string;
+  description: string;
+  expenseType: 'repair' | 'construction' | 'renovation' | 'maintenance' | 'other';
+  amount: number;
   notes?: string;
 }
 

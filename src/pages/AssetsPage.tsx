@@ -13,12 +13,14 @@ import { AssetForm } from '@/components/AssetForm';
 import { LiabilityForm } from '@/components/LiabilityForm';
 import { LiabilityPaymentForm } from '@/components/LiabilityPaymentForm';
 import { FinancialAssetBalanceForm } from '@/components/FinancialAssetBalanceForm';
+import { JewelleryTransactionForm } from '@/components/JewelleryTransactionForm';
+import { PropertyExpenseForm } from '@/components/PropertyExpenseForm';
 import { SourceOfFundsWizard } from '@/components/SourceOfFundsWizard';
 import { formatLKR } from '@/lib/taxEngine';
 import { getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Asset, Liability, FundingSource } from '@/types';
 
-type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment' | 'manage-balances';
+type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment' | 'manage-balances' | 'manage-jewellery-transactions' | 'manage-property-expenses';
 
 export function AssetsPage() {
   const navigate = useNavigate();
@@ -36,6 +38,8 @@ export function AssetsPage() {
   const [editingLiability, setEditingLiability] = useState<Liability | null>(null);
   const [paymentLiability, setPaymentLiability] = useState<Liability | null>(null);
   const [balanceAsset, setBalanceAsset] = useState<Asset | null>(null);
+  const [transactionAsset, setTransactionAsset] = useState<Asset | null>(null);
+  const [expenseAsset, setExpenseAsset] = useState<Asset | null>(null);
   const [pendingAsset, setPendingAsset] = useState<Asset | null>(null);
 
   // Show all assets including closed ones
@@ -237,6 +241,14 @@ export function AssetsPage() {
 
   if (viewMode === 'manage-balances' && balanceAsset) {
     return <FinancialAssetBalanceForm asset={balanceAsset} onClose={handleFormClose} />;
+  }
+
+  if (viewMode === 'manage-jewellery-transactions' && transactionAsset) {
+    return <JewelleryTransactionForm asset={transactionAsset} onClose={handleFormClose} />;
+  }
+
+  if (viewMode === 'manage-property-expenses' && expenseAsset) {
+    return <PropertyExpenseForm asset={expenseAsset} onClose={handleFormClose} />;
   }
 
   if (viewMode === 'add-asset' || viewMode === 'edit-asset') {
@@ -522,6 +534,34 @@ export function AssetsPage() {
                               <TrendingUp className="w-4 h-4" />
                             </Button>
                           )}
+                          {asset.cageCategory === 'Bvi' && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => {
+                                setTransactionAsset(asset);
+                                setViewMode('manage-jewellery-transactions');
+                              }}
+                              className="bg-amber-600 hover:bg-amber-700"
+                              title="Manage yearly jewellery purchases and sales"
+                            >
+                              <Sparkles className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {asset.cageCategory === 'A' && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => {
+                                setExpenseAsset(asset);
+                                setViewMode('manage-property-expenses');
+                              }}
+                              className="bg-green-600 hover:bg-green-700"
+                              title="Manage yearly property expenses (repairs, construction)"
+                            >
+                              <Building2 className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"
@@ -530,7 +570,7 @@ export function AssetsPage() {
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          {!asset.closed && !asset.disposed && asset.cageCategory !== 'Bii' && asset.cageCategory !== 'Biv' && asset.cageCategory !== 'Bv' && asset.cageCategory !== 'Bvi' && (
+                          {!asset.closed && !asset.disposed && asset.cageCategory !== 'Bii' && asset.cageCategory !== 'Biv' && asset.cageCategory !== 'Bv' && asset.cageCategory !== 'Bvi' && asset.cageCategory !== 'A' && (
                             <Button
                               variant="outline"
                               size="sm"

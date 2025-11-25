@@ -26,8 +26,6 @@ export function Dashboard() {
   const currentTaxYear = useStore((state) => state.currentTaxYear);
   const setCurrentTaxYear = useStore((state) => state.setCurrentTaxYear);
   const saveToStorage = useStore((state) => state.saveToStorage);
-  const setCurrentTaxYear = useStore((state) => state.setCurrentTaxYear);
-  const saveToStorage = useStore((state) => state.saveToStorage);
 
   useEffect(() => {
     const checkSetup = async () => {

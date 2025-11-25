@@ -37,6 +37,9 @@ interface StoreState extends AppState {
   // Joint asset split ratio
   setJointAssetSplit: (entityId: string, percentage: number) => void;
   
+  // Tax year
+  setCurrentTaxYear: (year: string) => void;
+  
   // Persistence
   saveToStorage: () => Promise<void>;
   loadFromStorage: (passphrase: string) => Promise<void>;
@@ -146,6 +149,9 @@ export const useStore = create<StoreState>((set, get) => ({
         [entityId]: percentage,
       },
     })),
+  
+  // Set current tax year
+  setCurrentTaxYear: (year) => set({ currentTaxYear: year }),
   
   // Persistence
   saveToStorage: async () => {

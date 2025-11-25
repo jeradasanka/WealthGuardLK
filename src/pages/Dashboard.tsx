@@ -24,6 +24,10 @@ export function Dashboard() {
   const liabilities = useStore((state) => state.liabilities);
   const incomes = useStore((state) => state.incomes);
   const currentTaxYear = useStore((state) => state.currentTaxYear);
+  const setCurrentTaxYear = useStore((state) => state.setCurrentTaxYear);
+  const saveToStorage = useStore((state) => state.saveToStorage);
+  const setCurrentTaxYear = useStore((state) => state.setCurrentTaxYear);
+  const saveToStorage = useStore((state) => state.saveToStorage);
 
   useEffect(() => {
     const checkSetup = async () => {
@@ -97,7 +101,23 @@ export function Dashboard() {
               <Shield className="w-8 h-8 text-blue-600" />
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">WealthGuard LK</h1>
-                <p className="text-sm text-slate-600">Tax Year {currentTaxYear}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-slate-600">Tax Year:</p>
+                  <select
+                    className="text-sm px-2 py-1 border rounded bg-white font-medium"
+                    value={currentTaxYear}
+                    onChange={(e) => {
+                      setCurrentTaxYear(e.target.value);
+                      saveToStorage();
+                    }}
+                  >
+                    <option value="2025">2025/2026</option>
+                    <option value="2024">2024/2025</option>
+                    <option value="2023">2023/2024</option>
+                    <option value="2022">2022/2023</option>
+                    <option value="2021">2021/2022</option>
+                  </select>
+                </div>
               </div>
               
               {/* Profile Selector */}

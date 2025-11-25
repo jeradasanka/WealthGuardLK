@@ -4,7 +4,8 @@
  */
 
 import { useState } from 'react';
-import { Plus, Trash2, Edit, Briefcase, Building2, TrendingUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Trash2, Edit, Briefcase, Building2, TrendingUp, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
@@ -15,6 +16,7 @@ import { formatLKR } from '@/lib/taxEngine';
 import type { Income, EmploymentIncome, BusinessIncome, InvestmentIncome } from '@/types';
 
 export function IncomePage() {
+  const navigate = useNavigate();
   const incomes = useStore((state) => state.incomes);
   const entities = useStore((state) => state.entities);
   const currentTaxYear = useStore((state) => state.currentTaxYear);
@@ -122,6 +124,14 @@ export function IncomePage() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/')}
+              className="mb-4"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Button>
             <h1 className="text-3xl font-bold">Income Management</h1>
             <p className="text-muted-foreground">
               Tax Year {currentTaxYear} • {currentYearIncomes.length} income source(s)

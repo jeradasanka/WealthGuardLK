@@ -4,7 +4,8 @@
  */
 
 import { useState } from 'react';
-import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
@@ -17,6 +18,7 @@ import type { Asset, Liability, FundingSource } from '@/types';
 type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds';
 
 export function AssetsPage() {
+  const navigate = useNavigate();
   const assets = useStore((state) => state.assets);
   const liabilities = useStore((state) => state.liabilities);
   const entities = useStore((state) => state.entities);
@@ -176,6 +178,14 @@ export function AssetsPage() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/')}
+              className="mb-4"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Button>
             <h1 className="text-3xl font-bold">Assets & Liabilities</h1>
             <p className="text-muted-foreground">
               Statement of Assets and Liabilities

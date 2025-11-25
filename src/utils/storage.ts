@@ -1,5 +1,5 @@
 /**
- * Storage utilities using encrypted cookies
+ * Storage utilities using encrypted localStorage
  * Implements encrypted storage as per SRS Section 2.1
  */
 
@@ -9,9 +9,6 @@ import type { AppState } from '@/types';
 const STORAGE_KEY = 'wealthguard_lk_data';
 const PASSPHRASE_KEY = 'wealthguard_lk_passphrase_hash';
 const PASSPHRASE_STORE_KEY = 'wealthguard_lk_passphrase';
-
-// Cookie expiration: 10 years
-const COOKIE_MAX_AGE = 10 * 365 * 24 * 60 * 60;
 
 /**
  * Store passphrase in localStorage for convenience
@@ -35,40 +32,29 @@ export function clearStoredPassphrase(): void {
 }
 
 /**
- * Set a cookie value
+ * Set a localStorage value
  */
-function setCookie(name: string, value: string): void {
-  // Only use Secure flag in production (HTTPS). In development (HTTP), omit it.
-  const isSecure = window.location.protocol === 'https:';
-  const secureFlag = isSecure ? '; Secure' : '';
-  document.cookie = `${name}=${encodeURIComponent(value)}; max-age=${COOKIE_MAX_AGE}; path=/; SameSite=Strict${secureFlag}`;
+function setStorage(name: string, value: string): void {
+  localStorage.setItem(name, value);
 }
 
 /**
- * Get a cookie value
+ * Get a localStorage value
  */
-function getCookie(name: string): string | null {
-  const nameEQ = name + "=";
-  const cookies = document.cookie.split(';');
-  for (let i = 0; i < cookies.length; i++) {
-    let cookie = cookies[i].trim();
-    if (cookie.indexOf(nameEQ) === 0) {
-      return decodeURIComponent(cookie.substring(nameEQ.length));
-    }
-  }
-  return null;
+function getStorage(name: string): string | null {
+  return localStorage.getItem(name);
 }
 
 /**
- * Delete a cookie
+ * Delete a localStorage value
  */
-function deleteCookie(name: string): void {
-  document.cookie = `${name}=; max-age=0; path=/`;
+function deleteStorage(name: string): void {
+  localStorage.removeItem(name);
 }
 
 
 /**
- * Saves application state to cookies with encryption
+ * Saves application state to localStorage with encryption
  */
 export async function saveState(
   state: AppState,
@@ -89,20 +75,20 @@ export async function saveState(
     const encryptedData = await encrypt(jsonData, passphrase);
     console.log('Encrypted data length:', encryptedData.length, 'chars');
     
-    setCookie(STORAGE_KEY, encryptedData);
+    setStorage(STORAGE_KEY, encryptedData);
     
     // Verify it was saved
-    const savedCookie = getCookie(STORAGE_KEY);
-    console.log('Verified cookie saved:', savedCookie ? `${savedCookie.length} chars` : 'NULL');
+    const savedData = getStorage(STORAGE_KEY);
+    console.log('Verified storage saved:', savedData ? `${savedData.length} chars` : 'NULL');
     
     // Store a hash of the passphrase for validation (not the passphrase itself)
     const passphraseHash = await hashPassphrase(passphrase);
-    setCookie(PASSPHRASE_KEY, passphraseHash);
+    setStorage(PASSPHRASE_KEY, passphraseHash);
     
     // Store passphrase in localStorage for auto-login
     storePassphrase(passphrase);
     
-    console.log('State saved successfully to cookies');
+    console.log('State saved successfully to localStorage');
   } catch (error) {
     console.error('Failed to save state:', error);
     throw new Error('Failed to save data. Please try again.');
@@ -110,11 +96,11 @@ export async function saveState(
 }
 
 /**
- * Loads application state from cookies and decrypts it
+ * Loads application state from localStorage and decrypts it
  */
 export async function loadState(passphrase: string): Promise<AppState | null> {
   try {
-    const encryptedData = getCookie(STORAGE_KEY);
+    const encryptedData = getStorage(STORAGE_KEY);
     
     if (!encryptedData) {
       return null; // No saved data
@@ -129,7 +115,7 @@ export async function loadState(passphrase: string): Promise<AppState | null> {
     const jsonData = await decrypt(encryptedData, passphrase);
     const state = JSON.parse(jsonData) as AppState;
     
-    console.log('State loaded successfully from cookies');
+    console.log('State loaded successfully from localStorage');
     return state;
   } catch (error) {
     console.error('Failed to load state:', error);
@@ -141,7 +127,7 @@ export async function loadState(passphrase: string): Promise<AppState | null> {
  * Checks if there is saved data
  */
 export async function hasSavedData(): Promise<boolean> {
-  const data = getCookie(STORAGE_KEY);
+  const data = getStorage(STORAGE_KEY);
   return data !== null;
 }
 
@@ -151,20 +137,20 @@ export async function hasSavedData(): Promise<boolean> {
  */
 export async function exportData(passphrase: string): Promise<Blob> {
   console.log('=== EXPORT DATA DEBUG ===');
-  const encryptedData = getCookie(STORAGE_KEY);
+  const encryptedData = getStorage(STORAGE_KEY);
   
   if (!encryptedData) {
-    console.error('No cookie data found!');
+    console.error('No storage data found!');
     throw new Error('No data to export');
   }
   
-  console.log('Cookie data length:', encryptedData.length, 'chars');
+  console.log('Storage data length:', encryptedData.length, 'chars');
   
   // Decrypt to verify contents
   try {
     const jsonData = await decrypt(encryptedData, passphrase);
     const state = JSON.parse(jsonData) as AppState;
-    console.log('Decrypted state from cookie:', {
+    console.log('Decrypted state from storage:', {
       entities: state.entities?.length || 0,
       assets: state.assets?.length || 0,
       liabilities: state.liabilities?.length || 0,
@@ -193,9 +179,9 @@ export async function importData(
   const state = JSON.parse(jsonData) as AppState;
   
   // Save the imported data
-  setCookie(STORAGE_KEY, encryptedData);
+  setStorage(STORAGE_KEY, encryptedData);
   const passphraseHash = await hashPassphrase(passphrase);
-  setCookie(PASSPHRASE_KEY, passphraseHash);
+  setStorage(PASSPHRASE_KEY, passphraseHash);
   
   return state;
 }
@@ -204,8 +190,8 @@ export async function importData(
  * Clears all stored data (use with caution)
  */
 export async function clearAllData(): Promise<void> {
-  deleteCookie(STORAGE_KEY);
-  deleteCookie(PASSPHRASE_KEY);
+  deleteStorage(STORAGE_KEY);
+  deleteStorage(PASSPHRASE_KEY);
   clearStoredPassphrase();
   console.log('All data cleared');
 }
@@ -225,7 +211,7 @@ async function hashPassphrase(passphrase: string): Promise<string> {
  * Verifies if a passphrase is correct
  */
 async function verifyPassphrase(passphrase: string): Promise<boolean> {
-  const storedHash = getCookie(PASSPHRASE_KEY);
+  const storedHash = getStorage(PASSPHRASE_KEY);
   
   if (!storedHash) {
     return true; // No passphrase set yet

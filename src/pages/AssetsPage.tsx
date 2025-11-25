@@ -96,8 +96,21 @@ export function AssetsPage() {
           return acquired && notDisposed && notClosed;
         })
         .reduce((sum, a) => {
-          // For financial assets, use balance from records if available
+          // For bank balances (Bii), use balance from records if available
           if (a.cageCategory === 'Bii' && a.balances && a.balances.length > 0) {
+            const yearBalance = a.balances.find((b) => b.taxYear === year);
+            if (yearBalance) {
+              return sum + yearBalance.closingBalance;
+            }
+            // If no exact year match, use previous year's closing balance
+            const previousBalances = a.balances.filter((b) => b.taxYear < year);
+            if (previousBalances.length > 0) {
+              return sum + previousBalances[previousBalances.length - 1].closingBalance;
+            }
+          }
+          
+          // For cash in hand (Biv) and loans given (Bv), use balance from records if available
+          if ((a.cageCategory === 'Biv' || a.cageCategory === 'Bv') && a.balances && a.balances.length > 0) {
             const yearBalance = a.balances.find((b) => b.taxYear === year);
             if (yearBalance) {
               return sum + yearBalance.closingBalance;

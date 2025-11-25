@@ -3,7 +3,7 @@
  * Manages wealth tracking (FR-05, FR-06)
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { LiabilityForm } from '@/components/LiabilityForm';
 import { LiabilityPaymentForm } from '@/components/LiabilityPaymentForm';
 import { SourceOfFundsWizard } from '@/components/SourceOfFundsWizard';
 import { formatLKR } from '@/lib/taxEngine';
+import { getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Asset, Liability, FundingSource } from '@/types';
 
 type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment';
@@ -39,6 +40,43 @@ export function AssetsPage() {
   const totalAssetValue = activeAssets.reduce((sum, a) => sum + a.financials.marketValue, 0);
   const totalLiabilities = liabilities.reduce((sum, l) => sum + l.currentBalance, 0);
   const netWorth = totalAssetValue - totalLiabilities;
+
+  // Calculate net worth for each tax year
+  const netWorthByYear = useMemo(() => {
+    const taxYears = getTaxYearsFromStart(entities[0]?.taxYear || '2022');
+    
+    return taxYears.map((year) => {
+      const yearEndDate = `${year}-03-31`;
+      
+      // Calculate assets value at year end
+      const assetsAtYearEnd = assets
+        .filter((a) => {
+          const acquired = a.meta.dateAcquired <= yearEndDate;
+          const notDisposed = !a.disposed || (a.disposed && a.meta.dateDisposed! > yearEndDate);
+          return acquired && notDisposed;
+        })
+        .reduce((sum, a) => sum + a.financials.marketValue, 0);
+      
+      // Calculate liabilities balance at year end
+      const liabilitiesAtYearEnd = liabilities
+        .filter((l) => l.dateAcquired <= yearEndDate)
+        .reduce((sum, l) => {
+          // Calculate balance at year end
+          const paymentsUpToYear = l.payments
+            ?.filter((p) => p.taxYear <= year)
+            .reduce((total, p) => total + p.principalPaid, 0) || 0;
+          const balance = l.originalAmount - paymentsUpToYear;
+          return sum + Math.max(0, balance);
+        }, 0);
+      
+      return {
+        year,
+        assets: assetsAtYearEnd,
+        liabilities: liabilitiesAtYearEnd,
+        netWorth: assetsAtYearEnd - liabilitiesAtYearEnd,
+      };
+    });
+  }, [assets, liabilities, entities]);
 
   const getEntityName = (ownerId: string) => {
     return entities.find((e) => e.id === ownerId)?.name || 'Unknown';
@@ -250,6 +288,77 @@ export function AssetsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Net Worth Trend Chart */}
+        {netWorthByYear.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Net Worth Trend</CardTitle>
+              <CardDescription>Net worth by tax year (Assets - Liabilities)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {netWorthByYear.slice().reverse().map((yearData) => {
+                  const maxNetWorth = Math.max(
+                    ...netWorthByYear.map((d) => Math.abs(d.netWorth)),
+                    1000 // Minimum scale
+                  );
+                  const barWidth = maxNetWorth > 0 ? (Math.abs(yearData.netWorth) / maxNetWorth) * 100 : 0;
+                  const isPositive = yearData.netWorth >= 0;
+
+                  return (
+                    <div key={yearData.year}>
+                      <div className="flex items-center gap-4">
+                        <span className="font-medium text-sm w-24">{yearData.year}/{Number(yearData.year) + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="h-10 bg-gray-100 rounded-lg overflow-hidden relative">
+                            <div
+                              className={`absolute top-0 left-0 h-full transition-all duration-300 flex items-center px-3 ${
+                                isPositive
+                                  ? 'bg-gradient-to-r from-blue-500 to-blue-600'
+                                  : 'bg-gradient-to-r from-red-500 to-red-600'
+                              }`}
+                              style={{ width: `${Math.max(barWidth, 5)}%` }}
+                            >
+                              {barWidth > 20 && (
+                                <span className="text-xs text-white font-semibold">
+                                  {formatLKR(yearData.netWorth)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex justify-between mt-1 text-xs text-muted-foreground">
+                            <span>Assets: {formatLKR(yearData.assets)}</span>
+                            <span>Liabilities: {formatLKR(yearData.liabilities)}</span>
+                          </div>
+                        </div>
+                        <div className="text-right w-32">
+                          <span
+                            className={`font-bold text-sm ${
+                              isPositive ? 'text-blue-600' : 'text-red-600'
+                            }`}
+                          >
+                            {formatLKR(yearData.netWorth)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-6 flex items-center gap-6 text-sm text-muted-foreground border-t pt-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded"></div>
+                  <span>Positive Net Worth</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-gradient-to-r from-red-500 to-red-600 rounded"></div>
+                  <span>Negative Net Worth</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Assets Section */}
         <div className="mb-8">

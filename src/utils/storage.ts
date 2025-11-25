@@ -8,9 +8,31 @@ import type { AppState } from '@/types';
 
 const STORAGE_KEY = 'wealthguard_lk_data';
 const PASSPHRASE_KEY = 'wealthguard_lk_passphrase_hash';
+const PASSPHRASE_STORE_KEY = 'wealthguard_lk_passphrase';
 
 // Cookie expiration: 10 years
 const COOKIE_MAX_AGE = 10 * 365 * 24 * 60 * 60;
+
+/**
+ * Store passphrase in localStorage for convenience
+ */
+export function storePassphrase(passphrase: string): void {
+  localStorage.setItem(PASSPHRASE_STORE_KEY, passphrase);
+}
+
+/**
+ * Retrieve stored passphrase from localStorage
+ */
+export function getStoredPassphrase(): string | null {
+  return localStorage.getItem(PASSPHRASE_STORE_KEY);
+}
+
+/**
+ * Clear stored passphrase
+ */
+export function clearStoredPassphrase(): void {
+  localStorage.removeItem(PASSPHRASE_STORE_KEY);
+}
 
 /**
  * Set a cookie value
@@ -58,6 +80,9 @@ export async function saveState(
     // Store a hash of the passphrase for validation (not the passphrase itself)
     const passphraseHash = await hashPassphrase(passphrase);
     setCookie(PASSPHRASE_KEY, passphraseHash);
+    
+    // Store passphrase in localStorage for auto-login
+    storePassphrase(passphrase);
     
     console.log('State saved successfully to cookies');
   } catch (error) {
@@ -141,6 +166,7 @@ export async function importData(
 export async function clearAllData(): Promise<void> {
   deleteCookie(STORAGE_KEY);
   deleteCookie(PASSPHRASE_KEY);
+  clearStoredPassphrase();
   console.log('All data cleared');
 }
 

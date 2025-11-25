@@ -14,6 +14,7 @@ import { useStore } from '@/stores/useStore';
 import { ExportDialog } from '@/components/ExportDialog';
 import { EntityForm } from '@/components/EntityForm';
 import { deriveKey } from '@/utils/crypto';
+import { storePassphrase } from '@/utils/storage';
 
 export function SettingsPage() {
   const navigate = useNavigate();
@@ -69,6 +70,8 @@ export function SettingsPage() {
       const salt = crypto.getRandomValues(new Uint8Array(16));
       await deriveKey(newPassphrase, salt);
       setPassphrase(newPassphrase);
+      storePassphrase(newPassphrase); // Store in localStorage
+      await saveToStorage(); // Re-save with new passphrase
       setShowPassphraseChange(false);
       setOldPassphrase('');
       setNewPassphrase('');

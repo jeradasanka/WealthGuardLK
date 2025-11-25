@@ -123,7 +123,11 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
       },
       financials: {
         cost: Number(formData.cost),
-        marketValue: formData.isClosed ? 0 : Number(formData.marketValue),
+        // For Biv (Cash), Bii (Bank), Bv (Loans Given), market value equals cost
+        marketValue: formData.isClosed ? 0 : 
+          (formData.cageCategory === 'Biv' || formData.cageCategory === 'Bii' || formData.cageCategory === 'Bv') 
+            ? Number(formData.cost) 
+            : Number(formData.marketValue),
         sourceOfFunds: asset?.financials.sourceOfFunds,
       },
       fundingSources: asset?.fundingSources,
@@ -640,7 +644,12 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="cost">Cost/Acquisition Value *</Label>
+              <Label htmlFor="cost">
+                {formData.cageCategory === 'Biv' ? 'Amount *' :
+                 formData.cageCategory === 'Bii' ? 'Amount *' :
+                 formData.cageCategory === 'Bv' ? 'Loan Amount *' :
+                 'Cost/Acquisition Value *'}
+              </Label>
               <Input
                 id="cost"
                 type="number"
@@ -652,26 +661,32 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
                 placeholder="0.00"
               />
               <p className="text-xs text-muted-foreground">
-                Amount paid to acquire this asset
+                {formData.cageCategory === 'Biv' ? 'Cash amount in hand' :
+                 formData.cageCategory === 'Bii' ? 'Account balance or deposit amount' :
+                 formData.cageCategory === 'Bv' ? 'Amount loaned or receivable' :
+                 'Amount paid to acquire this asset'}
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="marketValue">Current Market Value *</Label>
-              <Input
-                id="marketValue"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.marketValue}
-                onChange={handleChange('marketValue')}
-                required
-                placeholder="0.00"
-              />
-              <p className="text-xs text-muted-foreground">
-                Estimated current market value
-              </p>
-            </div>
+            {/* Only show market value for categories that need it */}
+            {formData.cageCategory !== 'Biv' && formData.cageCategory !== 'Bii' && formData.cageCategory !== 'Bv' && (
+              <div className="space-y-2">
+                <Label htmlFor="marketValue">Current Market Value *</Label>
+                <Input
+                  id="marketValue"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.marketValue}
+                  onChange={handleChange('marketValue')}
+                  required
+                  placeholder="0.00"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Estimated current market value
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Summary */}
@@ -679,19 +694,28 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
             <h4 className="font-semibold text-sm">Asset Summary</h4>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div>
-                <p className="text-muted-foreground">Acquisition Cost:</p>
+                <p className="text-muted-foreground">
+                  {formData.cageCategory === 'Biv' ? 'Cash Amount:' :
+                   formData.cageCategory === 'Bii' ? 'Balance:' :
+                   formData.cageCategory === 'Bv' ? 'Loan Amount:' :
+                   'Acquisition Cost:'}
+                </p>
                 <p className="font-bold">{formatLKR(Number(formData.cost))}</p>
               </div>
-              <div>
-                <p className="text-muted-foreground">Market Value:</p>
-                <p className="font-bold text-green-600">{formatLKR(Number(formData.marketValue))}</p>
-              </div>
-              <div className="col-span-2">
-                <p className="text-muted-foreground">Capital Gain/Loss:</p>
-                <p className={`font-bold ${Number(formData.marketValue) - Number(formData.cost) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatLKR(Number(formData.marketValue) - Number(formData.cost))}
-                </p>
-              </div>
+              {formData.cageCategory !== 'Biv' && formData.cageCategory !== 'Bii' && formData.cageCategory !== 'Bv' && (
+                <>
+                  <div>
+                    <p className="text-muted-foreground">Market Value:</p>
+                    <p className="font-bold text-green-600">{formatLKR(Number(formData.marketValue))}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-muted-foreground">Capital Gain/Loss:</p>
+                    <p className={`font-bold ${Number(formData.marketValue) - Number(formData.cost) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatLKR(Number(formData.marketValue) - Number(formData.cost))}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

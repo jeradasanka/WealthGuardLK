@@ -40,6 +40,10 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
     brand: asset?.meta.brand || '',
     accountNo: asset?.meta.accountNo || '',
     bankName: asset?.meta.bankName || '',
+    // Close fields for financial assets
+    isClosed: !!asset?.closed,
+    closedDate: asset?.closed?.date || '',
+    finalBalance: asset?.closed?.finalBalance || 0,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,9 +81,15 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
       },
       financials: {
         cost: Number(formData.cost),
-        marketValue: Number(formData.marketValue),
+        marketValue: formData.isClosed ? 0 : Number(formData.marketValue),
         sourceOfFunds: asset?.financials.sourceOfFunds,
       },
+      fundingSources: asset?.fundingSources,
+      balances: asset?.balances,
+      closed: formData.isClosed ? {
+        date: formData.closedDate,
+        finalBalance: Number(formData.finalBalance),
+      } : undefined,
       disposed: asset?.disposed,
     };
 
@@ -331,6 +341,69 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
                   />
                 </div>
               </div>
+
+              {/* Account Closure Section */}
+              {asset && (
+                <div className="border rounded-lg p-4 bg-orange-50 border-orange-200">
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="isClosed"
+                        checked={formData.isClosed}
+                        onChange={(e) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            isClosed: e.target.checked,
+                            closedDate: e.target.checked ? (prev.closedDate || new Date().toISOString().split('T')[0]) : '',
+                            finalBalance: e.target.checked ? prev.finalBalance : 0,
+                          }));
+                        }}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor="isClosed" className="font-semibold">
+                        Account Closed
+                      </Label>
+                    </div>
+
+                    {formData.isClosed && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="closedDate">Closure Date *</Label>
+                          <Input
+                            id="closedDate"
+                            type="date"
+                            value={formData.closedDate}
+                            onChange={handleChange('closedDate')}
+                            required={formData.isClosed}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="finalBalance">Final Balance</Label>
+                          <Input
+                            id="finalBalance"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={formData.finalBalance}
+                            onChange={handleChange('finalBalance')}
+                            placeholder="0.00"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Final balance at closure (if any)
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-muted-foreground">
+                      {formData.isClosed
+                        ? 'This account will be marked as closed and excluded from current assets, but kept for historical records.'
+                        : 'Check this box if this account has been closed.'}
+                    </p>
+                  </div>
+                </div>
+              )}
             </>
           )}
 

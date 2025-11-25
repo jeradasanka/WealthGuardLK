@@ -29,7 +29,6 @@ export function AssetsPage() {
   const removeLiability = useStore((state) => state.removeLiability);
   const updateLiability = useStore((state) => state.updateLiability);
   const disposeAsset = useStore((state) => state.disposeAsset);
-  const closeFinancialAsset = useStore((state) => state.closeFinancialAsset);
   const saveToStorage = useStore((state) => state.saveToStorage);
 
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -138,17 +137,6 @@ export function AssetsPage() {
     if (salePrice && !Number.isNaN(Number(salePrice))) {
       disposeAsset(id, new Date().toISOString().split('T')[0], Number(salePrice));
       await saveToStorage();
-    }
-  };
-
-  const handleCloseFinancialAsset = async (id: string) => {
-    if (confirm('Are you sure you want to close this account? It will be marked as closed with zero balance but kept for historical records.')) {
-      const finalBalance = prompt('Enter final balance (if any):');
-      const balance = finalBalance ? Number(finalBalance) : 0;
-      if (!Number.isNaN(balance)) {
-        closeFinancialAsset(id, new Date().toISOString().split('T')[0], balance);
-        await saveToStorage();
-      }
     }
   };
 
@@ -487,16 +475,7 @@ export function AssetsPage() {
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          {asset.cageCategory === '721' ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleCloseFinancialAsset(asset.id)}
-                              className="text-orange-600 hover:text-orange-700"
-                            >
-                              Close
-                            </Button>
-                          ) : (
+                          {asset.cageCategory !== '721' && (
                             <Button
                               variant="outline"
                               size="sm"

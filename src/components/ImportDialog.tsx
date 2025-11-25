@@ -59,6 +59,12 @@ export function ImportDialog({ onClose, redirectToDashboard = false }: ImportDia
       // Import the data
       const importedState = await importData(file, passphrase);
       
+      console.log('Imported state:', importedState);
+      console.log('Entities:', importedState.entities);
+      console.log('Assets:', importedState.assets);
+      console.log('Liabilities:', importedState.liabilities);
+      console.log('Incomes:', importedState.incomes);
+      
       // Update the store with imported data
       setStorePassphrase(passphrase);
       storePassphrase(passphrase);

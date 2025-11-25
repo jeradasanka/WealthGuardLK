@@ -6,12 +6,14 @@ WealthGuard LK is a privacy-first, offline-first web application designed to hel
 
 ## 🔐 Key Features
 
-- **Zero-Knowledge Privacy**: All data encrypted with AES-GCM and stored locally in your browser using IndexedDB
+- **Zero-Knowledge Privacy**: All data encrypted with AES-GCM and stored locally in browser localStorage
 - **Offline-First**: Works 100% offline - no data ever sent to any server
+- **Backup & Restore**: Import/Export encrypted backups (.wglk files) with passphrase protection
 - **Audit Risk Detection**: Real-time "Danger Meter" warns about unexplained wealth
 - **IRD Compliance**: Generates filled values for IRD Schedules (1-10) and Statement of Assets & Liabilities
 - **Family Wealth Tracking**: Manage multiple taxpayer profiles (husband, wife) with joint asset management
 - **Source of Funds Validation**: Links every asset acquisition to its funding source
+- **PDF Import**: Import income data from IRD income tax certificates (experimental)
 
 ## 🏗️ Tech Stack
 
@@ -19,8 +21,9 @@ WealthGuard LK is a privacy-first, offline-first web application designed to hel
 - **Build Tool**: Vite
 - **Styling**: Tailwind CSS + Shadcn UI
 - **State Management**: Zustand
-- **Storage**: IndexedDB (via idb-keyval)
+- **Storage**: Browser localStorage (encrypted)
 - **Encryption**: Web Crypto API (AES-GCM + PBKDF2)
+- **Hosting**: Firebase Hosting
 
 ## 🚀 Getting Started
 
@@ -81,10 +84,10 @@ The app will be available at `http://localhost:5173`
 - Visual indicators: Green (Safe), Yellow (Warning), Red (Danger)
 - Real-time risk score calculation
 
-### 7. Export Functionality (FR-11)
-- Encrypted JSON backup
-- IRD Schedule 7 CSV for WHT certificates
-
+### 7. Export & Import (FR-11)
+- **Export**: Encrypted JSON backup (.wglk files)
+- **Import**: Restore data from backup during setup or from settings
+- **IRD Schedule 7**: CSV export for WHT certificates
 ## 🔒 Security Architecture
 
 ```
@@ -92,11 +95,14 @@ User Passphrase
      ↓ PBKDF2 (100,000 iterations)
 Encryption Key (AES-256)
      ↓ AES-GCM
-Encrypted Data → IndexedDB (Browser)
+Encrypted Data → localStorage (Browser)
 ```
 
 - Encryption key derived from user passphrase using PBKDF2
-- Data encrypted before saving to IndexedDB
+- Data encrypted before saving to localStorage (supports larger datasets than cookies)
+- No analytics trackers or external API calls
+- Passphrase hash stored for validation (not the passphrase itself)
+- Backup files (.wglk) are fully encrypted and portable
 - No analytics trackers or external API calls
 - Passphrase hash stored for validation (not the passphrase itself)
 
@@ -120,7 +126,7 @@ See `src/types/index.ts` for complete type definitions.
 
 ## 🛣️ Development Status
 
-- [x] **Phase 1**: Project setup with React + Vite + Zustand + IndexedDB ✅
+- [x] **Phase 1**: Project setup with React + Vite + Zustand + localStorage ✅
 - [x] **Phase 2**: Encryption layer and storage utilities ✅
 - [x] **Phase 3**: Core UI components (Danger Meter, Entity Form) ✅
 - [x] **Phase 4**: Tax calculation engine ✅
@@ -129,9 +135,11 @@ See `src/types/index.ts` for complete type definitions.
 - [x] **Phase 7**: Source of Funds wizard ✅
 - [x] **Phase 8**: Export functionality (JSON + CSV) ✅
 - [x] **Phase 9**: Tax Computation page and Settings ✅
-- [ ] **Phase 10**: Testing and IRD compliance validation 🚧
+- [x] **Phase 10**: Import backup functionality ✅
+- [x] **Phase 11**: Firebase deployment ✅
+- [ ] **Phase 12**: Testing and IRD compliance validation 🚧
 
-**MVP Status**: 95% Complete - Ready for Testing Phase
+**MVP Status**: Ready for Production - Deployed at https://wealthguard-f7c26.web.app
 
 ## 📖 IRD Reference
 

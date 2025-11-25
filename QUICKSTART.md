@@ -1,16 +1,17 @@
 # WealthGuard LK - Quick Start Guide
 
-## 🎯 What You Have Now
+## 🎯 Application Status
 
-The WealthGuard LK application is **60% complete** with all core infrastructure in place. The development server is running at **http://localhost:5173**
+The WealthGuard LK application is **complete and deployed** at https://wealthguard-f7c26.web.app
 
 ## ✅ Working Features
 
 ### 1. **Complete Setup Flow**
-- Welcome screen explaining zero-knowledge privacy
+- Welcome screen with option to create new profile or import backup
 - Passphrase creation with random generation option
 - Initial taxpayer profile creation
-- All data encrypted before storage
+- Import backup during setup to skip profile creation
+- All data encrypted before storage in localStorage
 
 ### 2. **Dashboard**
 - Summary cards showing:
@@ -19,14 +20,17 @@ The WealthGuard LK application is **60% complete** with all core infrastructure 
   - Net Worth
   - Current Year Income
 - Real-time Danger Meter with audit risk calculation
-- Entity profile listing
-- Quick action cards (UI ready, forms pending)
+- Entity/Family view switcher
+- Tax year selector
+- PDF import wizard for income certificates
+- Quick navigation to all sections
 
 ### 3. **Security System**
 - AES-GCM encryption with 256-bit keys
 - PBKDF2 key derivation (100,000 iterations)
-- All data stored in browser IndexedDB
+- All data stored in browser localStorage (larger capacity than cookies)
 - Zero external API calls
+- Encrypted backup files (.wglk format)
 
 ### 4. **Tax Calculation Engine**
 - Progressive tax rates (6% to 36%)
@@ -36,18 +40,32 @@ The WealthGuard LK application is **60% complete** with all core infrastructure 
 - 25% rent relief for rental income
 - Complete audit risk algorithm
 
-## 🔨 What to Build Next
+### 5. **Income Management**
+- Employment Income Form (Schedule 1)
+- Business Income Form (Schedule 2)
+- Investment Income Form (Schedule 3)
+- Tax year filtering
+- Entity ownership tracking
 
-### Priority 1: Income Forms (Essential)
-Create three forms to allow users to input their income:
+### 6. **Asset & Liability Tracking**
+- Asset categories: Immovable Property (701), Vehicles (711), Financial (721)
+- Liability tracking with loan details
+- Joint ownership management
+- Disposal tracking
+- Maps to IRD Statement of Assets and Liabilities
 
-1. **Employment Income Form** (Schedule 1)
-   ```typescript
-   - Employer Name & TIN
-   - Gross Remuneration
-   - Non-Cash Benefits
-   - APIT Deducted
-   ```
+### 7. **Backup & Restore**
+- Export encrypted backups (.wglk files)
+- Import backups from Settings or during Setup
+- IRD Schedule 7 CSV export for WHT
+- Summary report generation
+
+### 8. **Settings & Management**
+- Family member management
+- Passphrase change
+- Tax year configuration
+- Clear all data option
+- Backup and restore functionality
 
 2. **Business Income Form** (Schedule 2)
    ```typescript
@@ -96,44 +114,66 @@ Alerts if source < cost (unexplained wealth)
 
 ## 🏃 Running the App
 
+### Production (Live)
 ```bash
-# Already running at:
-http://localhost:5173
+# Access the deployed application
+https://wealthguard-f7c26.web.app
+```
 
-# To rebuild if needed:
+### Development
+```bash
+# Start development server
 npm run dev
 
-# To build for production:
-npm run build
+# Build for production
+npx vite build
+
+# Deploy to Firebase
+firebase deploy
 ```
 
 ## 📂 Code Organization
 
 ```
-Key Files to Know:
-├── src/stores/useStore.ts       # Add your data here
-├── src/lib/taxEngine.ts         # Tax calculation logic
-├── src/components/               # Add new forms here
-├── src/pages/Dashboard.tsx      # Main UI
-└── src/types/index.ts           # Type definitions
+Key Files:
+├── src/stores/useStore.ts           # Zustand state management
+├── src/lib/taxEngine.ts             # Tax calculation logic
+├── src/utils/storage.ts             # localStorage encryption
+├── src/utils/export.ts              # Backup/export utilities
+├── src/components/                  # Reusable components
+│   ├── ImportDialog.tsx             # Backup import
+│   ├── ExportDialog.tsx             # Backup export
+│   ├── PDFImportWizard.tsx          # PDF income import
+│   └── EntityForm.tsx               # Entity management
+├── src/pages/                       # Main pages
+│   ├── Dashboard.tsx                # Main dashboard
+│   ├── Setup.tsx                    # Initial setup flow
+│   ├── SettingsPage.tsx             # Settings & backup
+│   ├── AssetsPage.tsx               # Asset management
+│   ├── IncomePage.tsx               # Income tracking
+│   └── TaxComputationPage.tsx       # Tax calculation
+└── src/types/index.ts               # TypeScript definitions
 ```
 
-## 🎨 Adding a New Form (Example)
+## 🎨 Example: Using the Store
 
 ```typescript
-// 1. Create component
+// Add income
 export function EmploymentIncomeForm() {
   const addIncome = useStore((state) => state.addIncome);
+  const saveToStorage = useStore((state) => state.saveToStorage);
   
-  const handleSubmit = (data) => {
+  const handleSubmit = async (data) => {
     const income: EmploymentIncome = {
       id: crypto.randomUUID(),
       ownerId: selectedEntityId,
+      type: 'employment',
       schedule: '1',
       taxYear: currentTaxYear,
       details: {
         employerName: data.employerName,
         employerTIN: data.employerTIN,
+        grossAmount: data.grossRemuneration,
         grossRemuneration: data.grossRemuneration,
         nonCashBenefits: data.nonCashBenefits,
         apitDeducted: data.apitDeducted,
@@ -141,19 +181,36 @@ export function EmploymentIncomeForm() {
       },
     };
     addIncome(income);
-    await saveToStorage(); // Persist
+    await saveToStorage(); // Persist to localStorage
   };
   
   return <form onSubmit={handleSubmit}>...</form>
 }
 ```
 
-## 🔐 Security Reminders
+## 🔐 Security Architecture
 
 - Passphrase is NEVER stored (only its hash for validation)
-- All data encrypted before IndexedDB storage
-- Encryption key derived from passphrase via PBKDF2
+- All data encrypted before localStorage storage
+- Encryption key derived from passphrase via PBKDF2 (100,000 iterations)
 - Each save uses new random IV (Initialization Vector)
+- localStorage used instead of cookies (larger storage capacity)
+- Backup files (.wglk) are fully encrypted and portable
+
+## 💾 Storage & Backup
+
+### localStorage Structure
+```
+wealthguard_lk_data            → Encrypted AppState
+wealthguard_lk_passphrase_hash → Passphrase validation hash
+wealthguard_lk_passphrase      → Stored for convenience (optional)
+```
+
+### Backup Files (.wglk)
+- WealthGuard LK encrypted backup format
+- Contains full encrypted AppState
+- Requires original passphrase to decrypt
+- Can be imported during setup or from settings
 
 ## 📊 Tax Calculation Flow
 
@@ -182,25 +239,28 @@ Yellow: Rs. 100,000 < Risk ≤ Rs. 500,000 (Warning)
 Red:    Risk > Rs. 500,000 (Danger - Unexplained Wealth!)
 ```
 
-## 🎯 MVP Completion Checklist
+## 🎯 Feature Completion Status
 
-- [x] Project setup and infrastructure
-- [x] Encryption and storage
-- [x] Type system
-- [x] State management
-- [x] Tax engine
-- [x] Dashboard UI
-- [x] Setup flow
-- [x] Danger Meter
-- [ ] Income forms (3 schedules)
-- [ ] Asset management
-- [ ] Liability management
-- [ ] Source of funds wizard
-- [ ] Export functionality
-- [ ] Tax computation view
-- [ ] Settings page
+- [x] Project setup and infrastructure ✅
+- [x] Encryption and storage (localStorage) ✅
+- [x] Type system ✅
+- [x] State management (Zustand) ✅
+- [x] Tax engine ✅
+- [x] Dashboard UI ✅
+- [x] Setup flow with import option ✅
+- [x] Danger Meter ✅
+- [x] Income forms (3 schedules) ✅
+- [x] Asset management ✅
+- [x] Liability management ✅
+- [x] Source of funds tracking ✅
+- [x] Export functionality (.wglk, CSV, PDF) ✅
+- [x] Import functionality ✅
+- [x] Tax computation view ✅
+- [x] Settings page ✅
+- [x] PDF import wizard ✅
+- [x] Firebase deployment ✅
 
-**Estimated time to MVP: 6-10 days**
+**Status: Production Ready - Deployed at https://wealthguard-f7c26.web.app**
 
 ## 🆘 Common Tasks
 

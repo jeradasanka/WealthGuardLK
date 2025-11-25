@@ -147,7 +147,7 @@ export function Dashboard() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/income')}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5" />
@@ -160,29 +160,16 @@ export function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/assets')}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="w-5 h-5" />
-                Assets Registry
+                Assets & Liabilities
               </CardTitle>
-              <CardDescription>Track property, vehicles, and financial assets</CardDescription>
+              <CardDescription>Track property, vehicles, loans, and debts</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full">Manage Assets</Button>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wallet className="w-5 h-5" />
-                Liabilities
-              </CardTitle>
-              <CardDescription>Manage loans and debts</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full">Manage Liabilities</Button>
+              <Button className="w-full">Manage Assets & Liabilities</Button>
             </CardContent>
           </Card>
 

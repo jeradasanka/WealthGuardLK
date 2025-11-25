@@ -5,19 +5,20 @@
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign } from 'lucide-react';
+import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
 import { AssetForm } from '@/components/AssetForm';
 import { LiabilityForm } from '@/components/LiabilityForm';
 import { LiabilityPaymentForm } from '@/components/LiabilityPaymentForm';
+import { FinancialAssetBalanceForm } from '@/components/FinancialAssetBalanceForm';
 import { SourceOfFundsWizard } from '@/components/SourceOfFundsWizard';
 import { formatLKR } from '@/lib/taxEngine';
 import { getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Asset, Liability, FundingSource } from '@/types';
 
-type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment';
+type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment' | 'manage-balances';
 
 export function AssetsPage() {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ export function AssetsPage() {
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [editingLiability, setEditingLiability] = useState<Liability | null>(null);
   const [paymentLiability, setPaymentLiability] = useState<Liability | null>(null);
+  const [balanceAsset, setBalanceAsset] = useState<Asset | null>(null);
   const [pendingAsset, setPendingAsset] = useState<Asset | null>(null);
 
   const activeAssets = assets.filter((a) => !a.disposed);
@@ -154,7 +156,13 @@ export function AssetsPage() {
     setViewMode('list');
     setEditingAsset(null);
     setEditingLiability(null);
+    setBalanceAsset(null);
     setPendingAsset(null);
+  };
+
+  const handleManageBalances = (asset: Asset) => {
+    setBalanceAsset(asset);
+    setViewMode('manage-balances');
   };
 
   const handleAssetSaveWithFunding = (asset: Asset) => {
@@ -188,6 +196,10 @@ export function AssetsPage() {
         onCancel={handleFormClose}
       />
     );
+  }
+
+  if (viewMode === 'manage-balances' && balanceAsset) {
+    return <FinancialAssetBalanceForm asset={balanceAsset} onClose={handleFormClose} />;
   }
 
   if (viewMode === 'add-asset' || viewMode === 'edit-asset') {
@@ -409,6 +421,14 @@ export function AssetsPage() {
                           <p className="text-xs text-muted-foreground">
                             Acquired: {new Date(asset.meta.dateAcquired).toLocaleDateString()}
                           </p>
+                          {asset.cageCategory === '721' && asset.balances && asset.balances.length > 0 && (
+                            <p className="text-xs text-purple-600 mt-1 font-medium">
+                              {asset.balances.length} balance record{asset.balances.length > 1 ? 's' : ''} •{' '}
+                              Total interest: {formatLKR(
+                                asset.balances.reduce((sum, b) => sum + b.interestEarned, 0)
+                              )}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
@@ -422,6 +442,17 @@ export function AssetsPage() {
                           </p>
                         </div>
                         <div className="flex flex-col gap-2">
+                          {asset.cageCategory === '721' && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleManageBalances(asset)}
+                              className="bg-purple-600 hover:bg-purple-700"
+                              title="Manage yearly balances and interest"
+                            >
+                              <TrendingUp className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"

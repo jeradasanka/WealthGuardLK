@@ -45,6 +45,7 @@ export interface Asset {
     sourceOfFunds?: FundingSource[];
   };
   fundingSources?: FundingSource[];
+  balances?: FinancialAssetBalance[]; // Yearly balances for financial assets (721)
   disposed?: {
     date: string;
     salePrice: number;
@@ -60,6 +61,15 @@ export interface LiabilityPayment {
   totalPaid: number;
   balanceAfterPayment: number;
   taxYear: string;
+  notes?: string;
+}
+
+// Balance record for financial assets (bank accounts, investments, etc.)
+export interface FinancialAssetBalance {
+  id: string;
+  taxYear: string;
+  closingBalance: number; // Balance as of March 31 of the tax year
+  interestEarned: number; // Interest income for the year
   notes?: string;
 }
 

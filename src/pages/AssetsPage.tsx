@@ -29,6 +29,7 @@ export function AssetsPage() {
   const removeLiability = useStore((state) => state.removeLiability);
   const updateLiability = useStore((state) => state.updateLiability);
   const disposeAsset = useStore((state) => state.disposeAsset);
+  const closeFinancialAsset = useStore((state) => state.closeFinancialAsset);
   const saveToStorage = useStore((state) => state.saveToStorage);
 
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -38,7 +39,7 @@ export function AssetsPage() {
   const [balanceAsset, setBalanceAsset] = useState<Asset | null>(null);
   const [pendingAsset, setPendingAsset] = useState<Asset | null>(null);
 
-  const activeAssets = assets.filter((a) => !a.disposed);
+  const activeAssets = assets.filter((a) => !a.disposed && !a.closed);
   const totalAssetValue = activeAssets.reduce((sum, a) => sum + a.financials.marketValue, 0);
   const totalLiabilities = liabilities.reduce((sum, l) => sum + l.currentBalance, 0);
   const netWorth = totalAssetValue - totalLiabilities;
@@ -54,10 +55,25 @@ export function AssetsPage() {
       const assetsAtYearEnd = assets
         .filter((a) => {
           const acquired = a.meta.dateAcquired <= yearEndDate;
-          const notDisposed = !a.disposed || (a.disposed && a.meta.dateDisposed! > yearEndDate);
-          return acquired && notDisposed;
+          const notDisposed = !a.disposed || (a.disposed && a.disposed.date > yearEndDate);
+          const notClosed = !a.closed || (a.closed && a.closed.date > yearEndDate);
+          return acquired && notDisposed && notClosed;
         })
-        .reduce((sum, a) => sum + a.financials.marketValue, 0);
+        .reduce((sum, a) => {
+          // For financial assets, use balance from records if available
+          if (a.cageCategory === '721' && a.balances && a.balances.length > 0) {
+            const yearBalance = a.balances.find((b) => b.taxYear === year);
+            if (yearBalance) {
+              return sum + yearBalance.closingBalance;
+            }
+            // If no exact year match, use previous year's closing balance
+            const previousBalances = a.balances.filter((b) => b.taxYear < year);
+            if (previousBalances.length > 0) {
+              return sum + previousBalances[previousBalances.length - 1].closingBalance;
+            }
+          }
+          return sum + a.financials.marketValue;
+        }, 0);
       
       // Calculate liabilities balance at year end
       const liabilitiesAtYearEnd = liabilities
@@ -119,9 +135,20 @@ export function AssetsPage() {
 
   const handleDisposeAsset = async (id: string) => {
     const salePrice = prompt('Enter sale price:');
-    if (salePrice && !isNaN(Number(salePrice))) {
+    if (salePrice && !Number.isNaN(Number(salePrice))) {
       disposeAsset(id, new Date().toISOString().split('T')[0], Number(salePrice));
       await saveToStorage();
+    }
+  };
+
+  const handleCloseFinancialAsset = async (id: string) => {
+    if (confirm('Are you sure you want to close this account? It will be marked as closed with zero balance but kept for historical records.')) {
+      const finalBalance = prompt('Enter final balance (if any):');
+      const balance = finalBalance ? Number(finalBalance) : 0;
+      if (!Number.isNaN(balance)) {
+        closeFinancialAsset(id, new Date().toISOString().split('T')[0], balance);
+        await saveToStorage();
+      }
     }
   };
 
@@ -460,13 +487,24 @@ export function AssetsPage() {
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDisposeAsset(asset.id)}
-                          >
-                            Sell
-                          </Button>
+                          {asset.cageCategory === '721' ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCloseFinancialAsset(asset.id)}
+                              className="text-orange-600 hover:text-orange-700"
+                            >
+                              Close
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDisposeAsset(asset.id)}
+                            >
+                              Sell
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"

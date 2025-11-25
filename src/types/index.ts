@@ -46,7 +46,11 @@ export interface Asset {
   };
   fundingSources?: FundingSource[];
   balances?: FinancialAssetBalance[]; // Yearly balances for financial assets (721)
-  disposed?: {
+  closed?: { // For financial assets (721) - account closure
+    date: string;
+    finalBalance: number;
+  };
+  disposed?: { // For property/vehicles (701, 711) - sale/disposal
     date: string;
     salePrice: number;
   };

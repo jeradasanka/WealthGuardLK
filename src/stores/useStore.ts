@@ -24,6 +24,7 @@ interface StoreState extends AppState {
   updateAsset: (id: string, updates: Partial<Asset>) => void;
   removeAsset: (id: string) => void;
   disposeAsset: (id: string, date: string, salePrice: number) => void;
+  closeFinancialAsset: (id: string, date: string, finalBalance: number) => void;
   
   // Liability actions
   addLiability: (liability: Liability) => void;
@@ -103,6 +104,13 @@ export const useStore = create<StoreState>((set, get) => ({
     set((state) => ({
       assets: state.assets.map((a) =>
         a.id === id ? { ...a, disposed: { date, salePrice } } : a
+      ),
+    })),
+
+  closeFinancialAsset: (id, date, finalBalance) =>
+    set((state) => ({
+      assets: state.assets.map((a) =>
+        a.id === id ? { ...a, closed: { date, finalBalance }, financials: { ...a.financials, marketValue: 0 } } : a
       ),
     })),
   

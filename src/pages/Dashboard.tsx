@@ -81,11 +81,19 @@ export function Dashboard() {
         if (acquiredDate > new Date(taxYearEnd)) return false;
         
         // If disposed, must be disposed after the tax year start
-        if (a.disposed && a.meta.dateDisposed) {
-          const disposedDate = new Date(a.meta.dateDisposed);
+        if (a.disposed && a.disposed.date) {
+          const disposedDate = new Date(a.disposed.date);
           if (disposedDate < new Date(taxYearStart)) return false;
         } else if (a.disposed) {
           return false; // Disposed but no date, exclude
+        }
+        
+        // If closed (financial asset), must be closed after the tax year start
+        if (a.closed && a.closed.date) {
+          const closedDate = new Date(a.closed.date);
+          if (closedDate < new Date(taxYearStart)) return false;
+        } else if (a.closed) {
+          return false; // Closed but no date, exclude
         }
         
         return true;
@@ -96,11 +104,19 @@ export function Dashboard() {
         if (acquiredDate > new Date(taxYearEnd)) return false;
         
         // If disposed, must be disposed after the tax year start
-        if (a.disposed && a.meta.dateDisposed) {
-          const disposedDate = new Date(a.meta.dateDisposed);
+        if (a.disposed && a.disposed.date) {
+          const disposedDate = new Date(a.disposed.date);
           if (disposedDate < new Date(taxYearStart)) return false;
         } else if (a.disposed) {
           return false; // Disposed but no date, exclude
+        }
+        
+        // If closed (financial asset), must be closed after the tax year start
+        if (a.closed && a.closed.date) {
+          const closedDate = new Date(a.closed.date);
+          if (closedDate < new Date(taxYearStart)) return false;
+        } else if (a.closed) {
+          return false; // Closed but no date, exclude
         }
         
         // Include assets owned directly by this entity

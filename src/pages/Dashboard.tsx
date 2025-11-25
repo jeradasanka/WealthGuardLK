@@ -17,6 +17,7 @@ export function Dashboard() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
+  const [selectedEntityId, setSelectedEntityId] = useState<string | 'family'>('family');
   
   const entities = useStore((state) => state.entities);
   const assets = useStore((state) => state.assets);
@@ -48,13 +49,26 @@ export function Dashboard() {
     return null;
   }
 
-  const totalAssetValue = assets
+  // Filter data based on selected entity
+  const filteredAssets = selectedEntityId === 'family' 
+    ? assets 
+    : assets.filter((a) => a.ownerId === selectedEntityId);
+  
+  const filteredLiabilities = selectedEntityId === 'family'
+    ? liabilities
+    : liabilities.filter((l) => l.ownerId === selectedEntityId);
+  
+  const filteredIncomes = selectedEntityId === 'family'
+    ? incomes
+    : incomes.filter((i) => i.ownerId === selectedEntityId);
+
+  const totalAssetValue = filteredAssets
     .filter((a) => !a.disposed)
     .reduce((sum, a) => sum + a.financials.marketValue, 0);
 
-  const totalLiabilities = liabilities.reduce((sum, l) => sum + l.currentBalance, 0);
+  const totalLiabilities = filteredLiabilities.reduce((sum, l) => sum + l.currentBalance, 0);
 
-  const currentYearIncome = incomes
+  const currentYearIncome = filteredIncomes
     .filter((i) => i.taxYear === currentTaxYear)
     .reduce((sum, income) => {
       if (income.schedule === '1') {
@@ -68,6 +82,10 @@ export function Dashboard() {
     }, 0);
 
   const netWorth = totalAssetValue - totalLiabilities;
+  
+  const selectedEntity = selectedEntityId === 'family' 
+    ? null 
+    : entities.find((e) => e.id === selectedEntityId);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -75,12 +93,31 @@ export function Dashboard() {
       <header className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
               <Shield className="w-8 h-8 text-blue-600" />
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">WealthGuard LK</h1>
                 <p className="text-sm text-slate-600">Tax Year {currentTaxYear}</p>
               </div>
+              
+              {/* Profile Selector */}
+              {entities.length > 1 && (
+                <div className="ml-4">
+                  <select
+                    className="px-4 py-2 border rounded-lg bg-white font-medium text-sm"
+                    value={selectedEntityId}
+                    onChange={(e) => setSelectedEntityId(e.target.value)}
+                  >
+                    <option value="family">👨‍👩‍👧‍👦 Combined Family View</option>
+                    <option disabled>──────────</option>
+                    {entities.map((entity, index) => (
+                      <option key={entity.id} value={entity.id}>
+                        {index === 0 ? '👤' : '👥'} {entity.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
@@ -97,6 +134,20 @@ export function Dashboard() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
+        {/* Profile Header */}
+        <div className="mb-6">
+          <h2 className="text-3xl font-bold text-slate-900">
+            {selectedEntityId === 'family' 
+              ? '👨‍👩‍👧‍👦 Combined Family Overview' 
+              : `${selectedEntity?.name || ''}'s Profile`}
+          </h2>
+          <p className="text-slate-600">
+            {selectedEntityId === 'family'
+              ? `Showing combined data for ${entities.length} family member${entities.length > 1 ? 's' : ''}`
+              : `Individual taxpayer view • TIN: ${selectedEntity?.tin || 'Not Set'}`}
+          </p>
+        </div>
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card>
@@ -105,7 +156,7 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-green-600">{formatLKR(totalAssetValue)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{assets.length} items</p>
+              <p className="text-xs text-muted-foreground mt-1">{filteredAssets.filter(a => !a.disposed).length} items</p>
             </CardContent>
           </Card>
 
@@ -115,7 +166,7 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-red-600">{formatLKR(totalLiabilities)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{liabilities.length} loans</p>
+              <p className="text-xs text-muted-foreground mt-1">{filteredLiabilities.length} loans</p>
             </CardContent>
           </Card>
 
@@ -188,10 +239,10 @@ export function Dashboard() {
         </div>
 
         {/* Family Members / Individual Taxpayer Cards */}
-        {entities.length > 0 && (
+        {entities.length > 0 && selectedEntityId === 'family' && (
           <div className="mt-8">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold">Family Members</h2>
+              <h2 className="text-2xl font-bold">Individual Family Member Breakdown</h2>
               <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
                 Manage Family
               </Button>
@@ -209,7 +260,11 @@ export function Dashboard() {
                 const entityNetWorth = entityTotalAssets - entityTotalLiabilities;
                 
                 return (
-                  <Card key={entity.id} className="border-2">
+                  <Card 
+                    key={entity.id} 
+                    className="border-2 cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => setSelectedEntityId(entity.id)}
+                  >
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div>
@@ -220,6 +275,16 @@ export function Dashboard() {
                             TIN: {entity.tin || 'Not Set'} • {entity.type || 'Individual'}
                           </CardDescription>
                         </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedEntityId(entity.id);
+                          }}
+                        >
+                          View →
+                        </Button>
                       </div>
                     </CardHeader>
                     <CardContent>

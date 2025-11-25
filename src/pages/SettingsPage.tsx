@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { ArrowLeft, Settings as SettingsIcon, Download, Shield, User, Calendar, Trash2 } from 'lucide-react';
+import { ArrowLeft, Settings as SettingsIcon, Download, Upload, Shield, User, Calendar, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useStore } from '@/stores/useStore';
 import { ExportDialog } from '@/components/ExportDialog';
+import { ImportDialog } from '@/components/ImportDialog';
 import { EntityForm } from '@/components/EntityForm';
 import { deriveKey } from '@/utils/crypto';
 import { storePassphrase, clearStoredPassphrase } from '@/utils/storage';
@@ -20,6 +21,7 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const { entities, updateEntity, removeEntity, passphrase, setPassphrase, saveToStorage, addEntity, resetState } = useStore();
   const [showExport, setShowExport] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [showPassphraseChange, setShowPassphraseChange] = useState(false);
   const [oldPassphrase, setOldPassphrase] = useState('');
   const [newPassphrase, setNewPassphrase] = useState('');
@@ -293,15 +295,21 @@ export function SettingsPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Download className="h-5 w-5" />
-              <CardTitle>Export & Backup</CardTitle>
+              <CardTitle>Backup & Restore</CardTitle>
             </div>
-            <CardDescription>Download your data and IRD submission files</CardDescription>
+            <CardDescription>Export and import encrypted backup files</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setShowExport(true)}>
-              <Download className="mr-2 h-4 w-4" />
-              Export Data
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => setShowExport(true)}>
+                <Download className="mr-2 h-4 w-4" />
+                Export Backup
+              </Button>
+              <Button onClick={() => setShowImport(true)} variant="outline">
+                <Upload className="mr-2 h-4 w-4" />
+                Import Backup
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -335,6 +343,9 @@ export function SettingsPage() {
 
       {/* Export Dialog */}
       {showExport && <ExportDialog onClose={() => setShowExport(false)} />}
+      
+      {/* Import Dialog */}
+      {showImport && <ImportDialog onClose={() => setShowImport(false)} />}
       
       {/* Add Family Member Dialog */}
       {showAddFamily && (

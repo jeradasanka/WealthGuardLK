@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, FileText, Building2, Wallet, TrendingUp, Settings, Download } from 'lucide-react';
+import { Shield, FileText, Building2, Wallet, TrendingUp, Settings, Download, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DangerMeter } from '@/components/DangerMeter';
@@ -149,13 +149,14 @@ export function Dashboard() {
                   : `Individual taxpayer view • TIN: ${selectedEntity?.tin || 'Not Set'}`}
               </p>
             </div>
-            {selectedEntityId !== 'family' && entities.length > 1 && (
+            {selectedEntityId !== 'family' && (
               <Button 
                 variant="outline" 
                 onClick={() => setSelectedEntityId('family')}
                 className="flex items-center gap-2"
               >
-                ← Back to Family View
+                <ArrowLeft className="h-4 w-4" />
+                Back to Family View
               </Button>
             )}
           </div>

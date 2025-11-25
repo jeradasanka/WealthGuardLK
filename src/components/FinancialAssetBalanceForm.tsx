@@ -73,7 +73,7 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
       id: crypto.randomUUID(),
       taxYear: selectedYear,
       closingBalance: parseFloat(closingBalance),
-      interestEarned: parseFloat(interestEarned) || 0,
+      interestEarned: asset.cageCategory === 'Bii' ? (parseFloat(interestEarned) || 0) : 0,
     };
 
     const updatedAsset: Asset = {
@@ -119,7 +119,10 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
       <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b sticky top-0 bg-white z-10">
           <CardTitle className="text-2xl">
-            Financial Asset Balances - {asset.meta.description}
+            {asset.cageCategory === 'Bii' ? 'Financial Asset Balances' :
+             asset.cageCategory === 'Biv' ? 'Cash Balance History' :
+             asset.cageCategory === 'Bv' ? 'Loan Balance History' :
+             'Asset Balances'} - {asset.meta.description}
           </CardTitle>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-5 w-5" />
@@ -157,7 +160,12 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
               </div>
 
               <div>
-                <Label>Closing Balance (as of March 31) *</Label>
+                <Label>
+                  {asset.cageCategory === 'Bii' ? 'Closing Balance (as of March 31)' :
+                   asset.cageCategory === 'Biv' ? 'Cash Amount (as of March 31)' :
+                   asset.cageCategory === 'Bv' ? 'Outstanding Loan Amount (as of March 31)' :
+                   'Closing Balance (as of March 31)'} *
+                </Label>
                 <Input
                   type="number"
                   value={closingBalance}
@@ -166,18 +174,20 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
                 />
               </div>
 
-              <div className="col-span-2">
-                <Label>Interest Earned</Label>
-                <Input
-                  type="number"
-                  value={interestEarned}
-                  onChange={(e) => setInterestEarned(e.target.value)}
-                  placeholder="0.00"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Total interest income earned during the tax year
-                </p>
-              </div>
+              {asset.cageCategory === 'Bii' && (
+                <div className="col-span-2">
+                  <Label>Interest Earned</Label>
+                  <Input
+                    type="number"
+                    value={interestEarned}
+                    onChange={(e) => setInterestEarned(e.target.value)}
+                    placeholder="0.00"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Total interest income earned during the tax year
+                  </p>
+                </div>
+              )}
             </div>
 
             <Button onClick={handleAddBalance} className="w-full">
@@ -204,7 +214,7 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
                       <Card key={balance.id} className="bg-gray-50">
                         <CardContent className="pt-4">
                           <div className="flex items-start justify-between">
-                            <div className="flex-1 grid grid-cols-4 gap-4">
+                            <div className={`flex-1 grid gap-4 ${asset.cageCategory === 'Bii' ? 'grid-cols-4' : 'grid-cols-3'}`}>
                               <div>
                                 <p className="text-sm font-semibold text-blue-600">
                                   {formatTaxYear(balance.taxYear)}
@@ -225,14 +235,16 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
                                 </p>
                                 <p className="text-xs text-muted-foreground">Closing</p>
                               </div>
-                              <div>
-                                <p className="text-sm font-semibold text-purple-600">
-                                  {formatLKR(balance.interestEarned)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  Interest (Income)
-                                </p>
-                              </div>
+                              {asset.cageCategory === 'Bii' && (
+                                <div>
+                                  <p className="text-sm font-semibold text-purple-600">
+                                    {formatLKR(balance.interestEarned)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Interest (Income)
+                                  </p>
+                                </div>
+                              )}
                             </div>
                             <Button
                               variant="ghost"
@@ -256,19 +268,26 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
             <div className="bg-green-50 rounded-lg p-4">
               <h4 className="font-semibold mb-2">Summary</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
+                {asset.cageCategory === 'Bii' && (
+                  <div>
+                    <span className="text-muted-foreground">Total Interest Earned:</span>
+                    <p className="font-bold text-lg text-green-600">
+                      {formatLKR(
+                        currentAsset.balances.reduce(
+                          (sum, b) => sum + b.interestEarned,
+                          0
+                        )
+                      )}
+                    </p>
+                  </div>
+                )}
                 <div>
-                  <span className="text-muted-foreground">Total Interest Earned:</span>
-                  <p className="font-bold text-lg text-green-600">
-                    {formatLKR(
-                      currentAsset.balances.reduce(
-                        (sum, b) => sum + b.interestEarned,
-                        0
-                      )
-                    )}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Latest Balance:</span>
+                  <span className="text-muted-foreground">
+                    {asset.cageCategory === 'Bii' ? 'Latest Balance:' :
+                     asset.cageCategory === 'Biv' ? 'Latest Cash Amount:' :
+                     asset.cageCategory === 'Bv' ? 'Latest Loan Amount:' :
+                     'Latest Balance:'}
+                  </span>
                   <p className="font-bold text-lg text-blue-600">
                     {formatLKR(
                       currentAsset.balances[currentAsset.balances.length - 1]

@@ -456,11 +456,15 @@ export function AssetsPage() {
                           <p className="text-xs text-muted-foreground">
                             Acquired: {new Date(asset.meta.dateAcquired).toLocaleDateString()}
                           </p>
-                          {asset.cageCategory === 'Bii' && asset.balances && asset.balances.length > 0 && (
+                          {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && asset.balances && asset.balances.length > 0 && (
                             <p className="text-xs text-purple-600 mt-1 font-medium">
-                              {asset.balances.length} balance record{asset.balances.length > 1 ? 's' : ''} •{' '}
-                              Total interest: {formatLKR(
-                                asset.balances.reduce((sum, b) => sum + b.interestEarned, 0)
+                              {asset.balances.length} balance record{asset.balances.length > 1 ? 's' : ''}
+                              {asset.cageCategory === 'Bii' && (
+                                <> •{' '}
+                                  Total interest: {formatLKR(
+                                    asset.balances.reduce((sum, b) => sum + b.interestEarned, 0)
+                                  )}
+                                </>
                               )}
                             </p>
                           )}
@@ -477,13 +481,17 @@ export function AssetsPage() {
                           </p>
                         </div>
                         <div className="flex flex-col gap-2">
-                          {asset.cageCategory === 'Bii' && (
+                          {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && (
                             <Button
                               variant="default"
                               size="sm"
                               onClick={() => handleManageBalances(asset)}
                               className="bg-purple-600 hover:bg-purple-700"
-                              title="Manage yearly balances and interest"
+                              title={
+                                asset.cageCategory === 'Bii' ? 'Manage yearly balances and interest' :
+                                asset.cageCategory === 'Biv' ? 'Manage yearly cash balances' :
+                                'Manage yearly loan balances'
+                              }
                             >
                               <TrendingUp className="w-4 h-4" />
                             </Button>
@@ -495,7 +503,7 @@ export function AssetsPage() {
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          {asset.cageCategory !== 'Bii' && (
+                          {asset.cageCategory !== 'Bii' && asset.cageCategory !== 'Biv' && asset.cageCategory !== 'Bv' && (
                             <Button
                               variant="outline"
                               size="sm"

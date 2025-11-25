@@ -79,9 +79,24 @@ export function PropertyExpenseForm({ asset, onClose }: PropertyExpenseFormProps
   };
 
   const handleSave = () => {
+    // Calculate total expenses
+    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+    
+    // Get original cost (cost without previous expenses)
+    const previousExpenses = (asset.propertyExpenses || []).reduce((sum, e) => sum + e.amount, 0);
+    const originalCost = asset.financials.cost - previousExpenses;
+    
+    // Update asset with new expenses and accumulated cost
+    const updatedCost = originalCost + totalExpenses;
+    
     updateAsset(asset.id, {
       ...asset,
       propertyExpenses: expenses,
+      financials: {
+        ...asset.financials,
+        cost: updatedCost,
+        marketValue: asset.disposed ? 0 : updatedCost, // Update market value to match accumulated cost
+      },
     });
     saveToStorage();
     onClose();
@@ -104,6 +119,10 @@ export function PropertyExpenseForm({ asset, onClose }: PropertyExpenseFormProps
     return acc;
   }, {} as Record<string, number>);
 
+  const previousExpenses = (asset.propertyExpenses || []).reduce((sum, e) => sum + e.amount, 0);
+  const originalCost = asset.financials.cost - previousExpenses;
+  const currentTotalValue = originalCost + totalExpenses;
+
   return (
     <Card className="max-w-4xl mx-auto">
       <CardHeader>
@@ -115,15 +134,19 @@ export function PropertyExpenseForm({ asset, onClose }: PropertyExpenseFormProps
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        {/* Cost Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <div>
-            <p className="text-sm text-muted-foreground">Total Expenses</p>
-            <p className="text-2xl font-bold text-red-600">{formatLKR(totalExpenses)}</p>
+            <p className="text-sm text-muted-foreground">Original Cost</p>
+            <p className="text-xl font-semibold">{formatLKR(originalCost)}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Number of Records</p>
-            <p className="text-2xl font-bold">{expenses.length}</p>
+            <p className="text-sm text-muted-foreground">Total Expenses</p>
+            <p className="text-xl font-semibold text-red-600">{formatLKR(totalExpenses)}</p>
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Current Value</p>
+            <p className="text-2xl font-bold text-green-600">{formatLKR(currentTotalValue)}</p>
           </div>
         </div>
 

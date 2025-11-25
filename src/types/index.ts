@@ -208,11 +208,12 @@ export interface TaxComputation {
 // Audit Risk (The Danger Meter)
 export interface AuditRisk {
   assetGrowth: number;
+  propertyExpenses: number; // Property expenses (repairs, construction, etc.) for the year
   estimatedLivingExpenses: number;
   declaredIncome: number;
   newLoans: number;
   loanPayments: number; // Total loan payments (principal + interest) for the year
-  riskScore: number; // (assetGrowth + expenses + loanPayments) - (income + newLoans)
+  riskScore: number; // (assetGrowth + propertyExpenses + expenses + loanPayments) - (income + newLoans)
   riskLevel: 'safe' | 'warning' | 'danger';
 }
 

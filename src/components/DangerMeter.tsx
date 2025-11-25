@@ -80,6 +80,10 @@ export function DangerMeter({ estimatedLivingExpenses = 0 }: DangerMeterProps) {
             <p className="text-lg font-bold">{formatLKR(auditRisk.assetGrowth)}</p>
           </div>
           <div>
+            <p className="text-sm font-medium text-muted-foreground">Property Expenses</p>
+            <p className="text-lg font-bold">{formatLKR(auditRisk.propertyExpenses)}</p>
+          </div>
+          <div>
             <p className="text-sm font-medium text-muted-foreground">Living Expenses</p>
             <p className="text-lg font-bold">{formatLKR(auditRisk.estimatedLivingExpenses)}</p>
           </div>
@@ -104,7 +108,7 @@ export function DangerMeter({ estimatedLivingExpenses = 0 }: DangerMeterProps) {
             {auditRisk.riskScore > 0 ? ' Unexplained' : ' Surplus'}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Formula: (Asset Growth + Expenses + Loan Payments) - (Income + New Loans)
+            Formula: (Asset Growth + Property Expenses + Living Expenses + Loan Payments) - (Income + New Loans)
           </p>
         </div>
       </CardContent>

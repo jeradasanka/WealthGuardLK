@@ -175,6 +175,16 @@ export function calculateAuditRisk(
     .filter((a) => a.meta.dateAcquired.startsWith(currentYear) && !a.disposed)
     .reduce((sum, a) => sum + a.financials.cost, 0);
 
+  // Calculate property expenses made in current year
+  const propertyExpenses = assets
+    .filter((a) => a.cageCategory === 'A' && a.propertyExpenses && a.propertyExpenses.length > 0)
+    .reduce((sum, a) => {
+      const yearExpenses = a.propertyExpenses!
+        .filter((e) => e.taxYear === currentYear)
+        .reduce((total, e) => total + e.amount, 0);
+      return sum + yearExpenses;
+    }, 0);
+
   // Calculate new loans (liabilities in current year)
   const newLoans = liabilities
     .filter((l) => l.dateAcquired.startsWith(currentYear))
@@ -196,8 +206,8 @@ export function calculateAuditRisk(
     incomes.filter((i) => i.taxYear === currentYear)
   );
 
-  // Calculate risk score
-  const outflows = assetGrowth + estimatedLivingExpenses + loanPayments;
+  // Calculate risk score (include property expenses in outflows)
+  const outflows = assetGrowth + propertyExpenses + estimatedLivingExpenses + loanPayments;
   const inflows = totalIncome + newLoans;
   const riskScore = outflows - inflows;
 
@@ -211,6 +221,7 @@ export function calculateAuditRisk(
 
   return {
     assetGrowth,
+    propertyExpenses,
     estimatedLivingExpenses,
     declaredIncome: totalIncome,
     newLoans,

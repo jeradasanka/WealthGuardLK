@@ -44,8 +44,25 @@ export function AssetsPage() {
 
   // Show all assets including closed ones
   const activeAssets = assets.filter((a) => !a.disposed);
-  // Calculate total value only from open assets
-  const totalAssetValue = assets.filter((a) => !a.disposed && !a.closed).reduce((sum, a) => sum + a.financials.marketValue, 0);
+  
+  // Helper function to get display value for an asset
+  const getAssetDisplayValue = (asset: Asset): number => {
+    // For immovable properties with expenses, use latest market value if available
+    if (asset.cageCategory === 'A' && asset.propertyExpenses && asset.propertyExpenses.length > 0) {
+      const sortedExpenses = [...asset.propertyExpenses].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
+      const latestExpense = sortedExpenses[0];
+      if (latestExpense.marketValue && latestExpense.marketValue > 0) {
+        return latestExpense.marketValue;
+      }
+    }
+    // Otherwise use the asset's market value
+    return asset.financials.marketValue;
+  };
+  
+  // Calculate total value only from open assets, using latest valuations
+  const totalAssetValue = assets
+    .filter((a) => !a.disposed && !a.closed)
+    .reduce((sum, a) => sum + getAssetDisplayValue(a), 0);
   const totalLiabilities = liabilities.reduce((sum, l) => sum + l.currentBalance, 0);
   const netWorth = totalAssetValue - totalLiabilities;
 
@@ -77,6 +94,19 @@ export function AssetsPage() {
               return sum + previousBalances[previousBalances.length - 1].closingBalance;
             }
           }
+          
+          // For immovable properties, use market value from expense records if available
+          if (a.cageCategory === 'A' && a.propertyExpenses && a.propertyExpenses.length > 0) {
+            // Get expenses up to this year
+            const expensesUpToYear = a.propertyExpenses
+              .filter((e) => e.taxYear <= year)
+              .sort((x, y) => y.taxYear.localeCompare(x.taxYear));
+            
+            if (expensesUpToYear.length > 0 && expensesUpToYear[0].marketValue && expensesUpToYear[0].marketValue > 0) {
+              return sum + expensesUpToYear[0].marketValue;
+            }
+          }
+          
           return sum + a.financials.marketValue;
         }, 0);
       
@@ -498,7 +528,7 @@ export function AssetsPage() {
                     </div>
                     <div className="ml-auto text-right">
                       <p className="text-sm font-semibold text-green-700">
-                        Total: {formatLKR(assets.filter(a => !a.closed && !a.disposed).reduce((sum, a) => sum + a.financials.marketValue, 0))}
+                        Total: {formatLKR(assets.filter(a => !a.closed && !a.disposed).reduce((sum, a) => sum + getAssetDisplayValue(a), 0))}
                       </p>
                     </div>
                   </div>
@@ -572,26 +602,48 @@ export function AssetsPage() {
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <p className="text-sm text-muted-foreground">Market Value</p>
-                          <p className="font-bold text-lg text-green-600">
-                            {formatLKR(asset.financials.marketValue)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Cost: {formatLKR(asset.financials.cost)}
-                          </p>
-                          {asset.cageCategory === 'A' && asset.propertyExpenses && asset.propertyExpenses.length > 0 && (
+                          {asset.cageCategory === 'A' && asset.propertyExpenses && asset.propertyExpenses.length > 0 && (() => {
+                            const sortedExpenses = [...asset.propertyExpenses].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
+                            const latestExpense = sortedExpenses[0];
+                            const hasLatestValuation = latestExpense.marketValue && latestExpense.marketValue > 0;
+                            
+                            return hasLatestValuation ? (
+                              <>
+                                <p className="text-sm text-muted-foreground">Latest Market Value</p>
+                                <p className="font-bold text-lg text-green-600">
+                                  {formatLKR(latestExpense.marketValue!)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Initial Cost: {formatLKR(asset.financials.cost)}
+                                </p>
+                                <p className="text-xs text-orange-600 font-medium mt-1">
+                                  Total Expenses: {formatLKR(asset.propertyExpenses.reduce((sum, e) => sum + e.amount, 0))}
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-sm text-muted-foreground">Market Value</p>
+                                <p className="font-bold text-lg text-green-600">
+                                  {formatLKR(asset.financials.marketValue)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Cost: {formatLKR(asset.financials.cost)}
+                                </p>
+                                <p className="text-xs text-orange-600 font-medium mt-1">
+                                  Total Expenses: {formatLKR(asset.propertyExpenses.reduce((sum, e) => sum + e.amount, 0))}
+                                </p>
+                              </>
+                            );
+                          })()}
+                          {asset.cageCategory !== 'A' && (
                             <>
-                              <p className="text-xs text-orange-600 font-medium mt-1">
-                                Total Expenses: {formatLKR(asset.propertyExpenses.reduce((sum, e) => sum + e.amount, 0))}
+                              <p className="text-sm text-muted-foreground">Market Value</p>
+                              <p className="font-bold text-lg text-green-600">
+                                {formatLKR(asset.financials.marketValue)}
                               </p>
-                              {(() => {
-                                const latestExpense = asset.propertyExpenses.sort((a, b) => b.taxYear.localeCompare(a.taxYear))[0];
-                                return latestExpense.marketValue && latestExpense.marketValue > 0 ? (
-                                  <p className="text-xs text-blue-600 font-medium">
-                                    Latest Valuation: {formatLKR(latestExpense.marketValue)}
-                                  </p>
-                                ) : null;
-                              })()}
+                              <p className="text-xs text-muted-foreground">
+                                Cost: {formatLKR(asset.financials.cost)}
+                              </p>
                             </>
                           )}
                         </div>

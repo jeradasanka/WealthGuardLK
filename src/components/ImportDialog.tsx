@@ -4,6 +4,7 @@
  */
 
 import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Upload, AlertCircle, CheckCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -15,9 +16,11 @@ import { storePassphrase } from '@/utils/storage';
 
 interface ImportDialogProps {
   onClose: () => void;
+  redirectToDashboard?: boolean;
 }
 
-export function ImportDialog({ onClose }: ImportDialogProps) {
+export function ImportDialog({ onClose, redirectToDashboard = false }: ImportDialogProps) {
+  const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [passphrase, setPassphrase] = useState('');
   const [loading, setLoading] = useState(false);
@@ -66,11 +69,15 @@ export function ImportDialog({ onClose }: ImportDialogProps) {
       setSuccess(true);
       setError('');
       
-      // Close dialog after 2 seconds
+      // Close dialog and redirect after 1 second
       setTimeout(() => {
         onClose();
-        window.location.reload(); // Reload to ensure all UI updates
-      }, 2000);
+        if (redirectToDashboard) {
+          navigate('/');
+        } else {
+          window.location.reload(); // Reload to ensure all UI updates
+        }
+      }, 1000);
     } catch (err) {
       console.error('Import failed:', err);
       setError('Failed to import backup. Please check your passphrase and file.');
@@ -146,7 +153,10 @@ export function ImportDialog({ onClose }: ImportDialogProps) {
             <div className="bg-green-50 border border-green-200 rounded p-3 flex items-start gap-2">
               <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-green-800">
-                Backup imported successfully! Reloading application...
+                {redirectToDashboard 
+                  ? 'Backup imported successfully! Redirecting to dashboard...'
+                  : 'Backup imported successfully! Reloading application...'
+                }
               </div>
             </div>
           )}

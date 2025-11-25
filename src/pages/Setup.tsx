@@ -134,7 +134,7 @@ export function Setup() {
         </Card>
         
         {/* Import Dialog */}
-        {showImport && <ImportDialog onClose={() => setShowImport(false)} />}
+        {showImport && <ImportDialog onClose={() => setShowImport(false)} redirectToDashboard={true} />}
       </div>
     );
   }

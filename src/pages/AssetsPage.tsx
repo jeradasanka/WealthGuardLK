@@ -151,6 +151,46 @@ export function AssetsPage() {
     }
   };
 
+  const getFullCategoryLabel = (category: string) => {
+    switch (category) {
+      case 'A':
+        return 'Immovable Properties';
+      case 'Bi':
+        return 'Motor Vehicles';
+      case 'Bii':
+        return 'Bank Balances / Term Deposits';
+      case 'Biii':
+        return 'Shares/Stocks/Securities';
+      case 'Biv':
+        return 'Cash in Hand';
+      case 'Bv':
+        return 'Loans Given & Amount Receivable';
+      case 'Bvi':
+        return 'Gold, Silver, Gems, Jewellery';
+      case 'C':
+        return 'Properties Held as Part of Business';
+      default:
+        return 'Assets';
+    }
+  };
+
+  // Group assets by category
+  const groupAssetsByCategory = () => {
+    const categories = ['A', 'Bi', 'Bii', 'Biii', 'Biv', 'Bv', 'Bvi', 'C'];
+    const grouped: Record<string, Asset[]> = {};
+    
+    categories.forEach(category => {
+      const assetsInCategory = activeAssets.filter(asset => asset.cageCategory === category);
+      if (assetsInCategory.length > 0) {
+        grouped[category] = assetsInCategory;
+      }
+    });
+    
+    return grouped;
+  };
+
+  const assetsByCategory = groupAssetsByCategory();
+
   const handleDeleteAsset = async (id: string) => {
     if (confirm('Are you sure you want to delete this asset?')) {
       removeAsset(id);
@@ -440,8 +480,32 @@ export function AssetsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
-              {activeAssets.map((asset) => (
+            <div className="space-y-8">
+              {Object.entries(assetsByCategory).map(([category, assets]) => (
+                <div key={category} className="space-y-3">
+                  {/* Category Header */}
+                  <div className="flex items-center gap-3 pb-2 border-b-2 border-blue-200">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      {getAssetIcon(category)}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-blue-900">
+                        {getFullCategoryLabel(category)}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Cage {category} • {assets.length} {assets.length === 1 ? 'asset' : 'assets'}
+                      </p>
+                    </div>
+                    <div className="ml-auto text-right">
+                      <p className="text-sm font-semibold text-green-700">
+                        Total: {formatLKR(assets.filter(a => !a.closed && !a.disposed).reduce((sum, a) => sum + a.financials.marketValue, 0))}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Assets in this category */}
+                  <div className="space-y-3 pl-4">
+                    {assets.map((asset) => (
                 <Card key={asset.id} className={(asset.closed || asset.disposed) ? 'opacity-60 bg-gray-50' : ''}>
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between">
@@ -584,6 +648,9 @@ export function AssetsPage() {
                     </div>
                   </CardContent>
                 </Card>
+              ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}

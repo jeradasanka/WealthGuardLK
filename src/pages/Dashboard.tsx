@@ -5,10 +5,11 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, FileText, Building2, Wallet, TrendingUp, Settings, Download, ArrowLeft } from 'lucide-react';
+import { Shield, FileText, Building2, Wallet, TrendingUp, Settings, Download, ArrowLeft, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DangerMeter } from '@/components/DangerMeter';
+import { PDFImportWizard } from '@/components/PDFImportWizard';
 import { useStore } from '@/stores/useStore';
 import { hasSavedData } from '@/utils/storage';
 import { formatLKR } from '@/lib/taxEngine';
@@ -19,6 +20,7 @@ export function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [selectedEntityId, setSelectedEntityId] = useState<string | 'family'>('family');
+  const [showImportWizard, setShowImportWizard] = useState(false);
   
   const entities = useStore((state) => state.entities);
   const assets = useStore((state) => state.assets);
@@ -191,6 +193,10 @@ export function Dashboard() {
               )}
             </div>
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowImportWizard(true)}>
+                <Upload className="w-4 h-4 mr-2" />
+                Import PDF
+              </Button>
               <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
                 <Download className="w-4 h-4 mr-2" />
                 Export
@@ -413,6 +419,12 @@ export function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* PDF Import Wizard */}
+      <PDFImportWizard 
+        open={showImportWizard} 
+        onClose={() => setShowImportWizard(false)} 
+      />
     </div>
   );
 }

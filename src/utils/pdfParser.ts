@@ -1,4 +1,8 @@
 import { ParsedTaxData } from '@/types/import';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 /**
  * Parse PDF buffer and extract tax-related data
@@ -11,8 +15,12 @@ export async function parseTaxPDF(file: File): Promise<ParsedTaxData> {
     
     const text = await extractTextFromPDF(file);
     
+    console.log('Extracted PDF text:', text.substring(0, 500)); // Debug: show first 500 chars
+    
     // Extract tax year from filename or content
     const taxYear = extractTaxYear(text, file.name);
+    
+    console.log('Detected tax year:', taxYear); // Debug
     
     // Parse different sections
     const parsedData: ParsedTaxData = {
@@ -25,6 +33,8 @@ export async function parseTaxPDF(file: File): Promise<ParsedTaxData> {
       liabilities: extractLiabilities(text),
     };
     
+    console.log('Parsed data:', parsedData); // Debug: show parsed result
+    
     return parsedData;
   } catch (error) {
     console.error('Error parsing PDF:', error);
@@ -33,18 +43,33 @@ export async function parseTaxPDF(file: File): Promise<ParsedTaxData> {
 }
 
 async function extractTextFromPDF(file: File): Promise<string> {
-  // For now, we'll use FileReader to get text
-  // In production, you might want to use pdf.js library
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      // This is a simplified version - in reality, PDF binary needs proper parsing
-      resolve(result);
-    };
-    reader.onerror = () => reject(new Error('Failed to read file'));
-    reader.readAsText(file);
-  });
+  try {
+    // Read file as ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer();
+    
+    // Load PDF document
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    
+    let fullText = '';
+    
+    // Extract text from all pages
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      
+      // Combine all text items
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+      
+      fullText += pageText + '\n';
+    }
+    
+    return fullText;
+  } catch (error) {
+    console.error('Error extracting text from PDF:', error);
+    throw new Error('Failed to extract text from PDF');
+  }
 }
 
 function extractTaxYear(text: string, filename: string): string {

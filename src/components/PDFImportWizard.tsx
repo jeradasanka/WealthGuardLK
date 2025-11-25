@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { ParsedTaxData, ImportPreview, ImportConflict } from '@/types/import';
 import { parseTaxPDF } from '@/utils/pdfParser';
 import { useStore } from '@/stores/useStore';
-import { formatLKR } from '@/lib/formatters';
+import { formatLKR } from '@/lib/taxEngine';
 
 interface PDFImportWizardProps {
   open: boolean;

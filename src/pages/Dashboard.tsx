@@ -12,6 +12,7 @@ import { DangerMeter } from '@/components/DangerMeter';
 import { useStore } from '@/stores/useStore';
 import { hasSavedData } from '@/utils/storage';
 import { formatLKR } from '@/lib/taxEngine';
+import { formatTaxYear, getRecentTaxYears } from '@/lib/taxYear';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -143,11 +144,11 @@ export function Dashboard() {
                       saveToStorage();
                     }}
                   >
-                    <option value="2025">2025/2026</option>
-                    <option value="2024">2024/2025</option>
-                    <option value="2023">2023/2024</option>
-                    <option value="2022">2022/2023</option>
-                    <option value="2021">2021/2022</option>
+                    {getRecentTaxYears(6).map((year) => (
+                      <option key={year} value={year}>
+                        {formatTaxYear(year)}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

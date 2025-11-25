@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useStore } from '@/stores/useStore';
 import type { BusinessIncome } from '@/types';
 import { formatLKR } from '@/lib/taxEngine';
+import { formatTaxYear } from '@/lib/taxYear';
 
 interface BusinessIncomeFormProps {
   income?: BusinessIncome;
@@ -87,7 +88,7 @@ export function BusinessIncomeForm({ income, onSave, onCancel }: BusinessIncomeF
       <CardHeader>
         <CardTitle>Schedule 2 - Business Income</CardTitle>
         <CardDescription>
-          Income from business or profession - Gains and Profits (Cage 201-299)
+          Income from business, profession, or vocation (Cage 201-299) • Tax Year: {formatTaxYear(currentTaxYear)}
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useStore } from '@/stores/useStore';
 import type { InvestmentIncome } from '@/types';
 import { formatLKR } from '@/lib/taxEngine';
+import { formatTaxYear } from '@/lib/taxYear';
 
 interface InvestmentIncomeFormProps {
   income?: InvestmentIncome;
@@ -87,7 +88,7 @@ export function InvestmentIncomeForm({ income, onSave, onCancel }: InvestmentInc
       <CardHeader>
         <CardTitle>Schedule 3 - Investment Income</CardTitle>
         <CardDescription>
-          Income from investments including interest, dividends, and rent (Cage 301-399)
+          Income from rent, interest, dividends, and other investments (Cage 301-399) • Tax Year: {formatTaxYear(currentTaxYear)}
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -10,10 +10,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useStore } from '@/stores/useStore';
 import { computeTax } from '@/lib/taxEngine';
 import { DangerMeter } from '@/components/DangerMeter';
+import { formatTaxYear } from '@/lib/taxYear';
 
 export function TaxComputationPage() {
   const navigate = useNavigate();
-  const { entities, incomes, assets, liabilities } = useStore();
+  const { entities, incomes, assets, liabilities, currentTaxYear } = useStore();
 
   const entity = entities[0];
   const totalAssets = assets.reduce((sum, a) => sum + a.marketValue, 0);
@@ -55,7 +56,7 @@ export function TaxComputationPage() {
         <Card>
           <CardHeader>
             <CardTitle>Schedule 8 - Income Tax Computation</CardTitle>
-            <CardDescription>Tax Year: {entity.taxYear}</CardDescription>
+            <CardDescription>Tax Year: {formatTaxYear(currentTaxYear)}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Part A: Income from All Sources */}

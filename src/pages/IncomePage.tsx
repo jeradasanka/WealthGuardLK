@@ -13,6 +13,7 @@ import { EmploymentIncomeForm } from '@/components/EmploymentIncomeForm';
 import { BusinessIncomeForm } from '@/components/BusinessIncomeForm';
 import { InvestmentIncomeForm } from '@/components/InvestmentIncomeForm';
 import { formatLKR } from '@/lib/taxEngine';
+import { formatTaxYear } from '@/lib/taxYear';
 import type { Income, EmploymentIncome, BusinessIncome, InvestmentIncome } from '@/types';
 
 export function IncomePage() {
@@ -134,7 +135,7 @@ export function IncomePage() {
             </Button>
             <h1 className="text-3xl font-bold">Income Management</h1>
             <p className="text-muted-foreground">
-              Tax Year {currentTaxYear} • {currentYearIncomes.length} income source(s)
+              Tax Year {formatTaxYear(currentTaxYear)} • {currentYearIncomes.length} income source(s)
             </p>
           </div>
         </div>

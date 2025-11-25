@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useStore } from '@/stores/useStore';
 import type { EmploymentIncome, TaxEntity } from '@/types';
 import { formatLKR } from '@/lib/taxEngine';
+import { formatTaxYear } from '@/lib/taxYear';
 
 interface EmploymentIncomeFormProps {
   income?: EmploymentIncome;
@@ -82,7 +83,7 @@ export function EmploymentIncomeForm({ income, onSave, onCancel }: EmploymentInc
       <CardHeader>
         <CardTitle>Schedule 1 - Employment Income</CardTitle>
         <CardDescription>
-          Income from employment including salary, wages, and benefits (Cage 101-199)
+          Income from employment including salary, wages, and benefits (Cage 101-199) • Tax Year: {formatTaxYear(currentTaxYear)}
         </CardDescription>
       </CardHeader>
       <CardContent>

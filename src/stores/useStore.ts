@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import type { AppState, TaxEntity, Asset, Liability, Income } from '@/types';
 import { saveState, loadState } from '@/utils/storage';
+import { getCurrentTaxYear } from '@/lib/taxYear';
 
 interface StoreState extends AppState {
   passphrase: string | null;
@@ -51,7 +52,7 @@ const initialState: AppState = {
   assets: [],
   liabilities: [],
   incomes: [],
-  currentTaxYear: new Date().getFullYear().toString(),
+  currentTaxYear: getCurrentTaxYear(),
   jointAssetSplitRatio: {},
   isEncrypted: false,
 };

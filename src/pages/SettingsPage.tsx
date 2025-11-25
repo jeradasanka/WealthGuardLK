@@ -17,7 +17,7 @@ import { deriveKey } from '@/utils/crypto';
 
 export function SettingsPage() {
   const navigate = useNavigate();
-  const { entities, updateEntity, removeEntity, passphrase, setPassphrase, saveToStorage } = useStore();
+  const { entities, updateEntity, removeEntity, passphrase, setPassphrase, saveToStorage, addEntity } = useStore();
   const [showExport, setShowExport] = useState(false);
   const [showPassphraseChange, setShowPassphraseChange] = useState(false);
   const [oldPassphrase, setOldPassphrase] = useState('');
@@ -298,9 +298,17 @@ export function SettingsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-2xl w-full">
             <EntityForm
-              onSave={() => {
-                setShowAddFamily(false);
+              onSave={(entityData) => {
+                const newEntity = {
+                  ...entityData,
+                  id: crypto.randomUUID(),
+                  createdAt: new Date().toISOString(),
+                  taxYear: entities[0]?.taxYear || '2024',
+                  type: 'individual' as const,
+                };
+                addEntity(newEntity);
                 saveToStorage();
+                setShowAddFamily(false);
               }}
               onCancel={() => setShowAddFamily(false)}
             />

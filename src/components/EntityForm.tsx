@@ -20,6 +20,7 @@ export function EntityForm({ entity, onSave, onCancel }: EntityFormProps) {
   const [formData, setFormData] = useState({
     name: entity?.name || '',
     tin: entity?.tin || '',
+    nic: entity?.nic || '',
     mobile: entity?.mobile || '',
     email: entity?.email || '',
     role: entity?.role || ('primary' as 'primary' | 'spouse'),
@@ -58,37 +59,46 @@ export function EntityForm({ entity, onSave, onCancel }: EntityFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="tin">Tax Identification Number (TIN) *</Label>
+            <Label htmlFor="tin">Tax Identification Number (TIN)</Label>
             <Input
               id="tin"
               value={formData.tin}
               onChange={handleChange('tin')}
-              required
               placeholder="123456789V or 123456789012"
               maxLength={12}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="mobile">Mobile Number *</Label>
+            <Label htmlFor="nic">NIC Number *</Label>
+            <Input
+              id="nic"
+              value={formData.nic}
+              onChange={handleChange('nic')}
+              required
+              placeholder="987654321V or 199012345678"
+              maxLength={12}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="mobile">Mobile Number</Label>
             <Input
               id="mobile"
               type="tel"
               value={formData.mobile}
               onChange={handleChange('mobile')}
-              required
               placeholder="0771234567"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email Address *</Label>
+            <Label htmlFor="email">Email Address</Label>
             <Input
               id="email"
               type="email"
               value={formData.email}
               onChange={handleChange('email')}
-              required
               placeholder="name@example.com"
             />
           </div>

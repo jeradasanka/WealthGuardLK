@@ -1,17 +1,49 @@
 /**
- * Storage utilities for IndexedDB using idb-keyval
+ * Storage utilities using encrypted cookies
  * Implements encrypted storage as per SRS Section 2.1
  */
 
-import { get, set, del, clear } from 'idb-keyval';
 import { encrypt, decrypt } from './crypto';
 import type { AppState } from '@/types';
 
 const STORAGE_KEY = 'wealthguard_lk_data';
 const PASSPHRASE_KEY = 'wealthguard_lk_passphrase_hash';
 
+// Cookie expiration: 10 years
+const COOKIE_MAX_AGE = 10 * 365 * 24 * 60 * 60;
+
 /**
- * Saves application state to IndexedDB with encryption
+ * Set a cookie value
+ */
+function setCookie(name: string, value: string): void {
+  document.cookie = `${name}=${encodeURIComponent(value)}; max-age=${COOKIE_MAX_AGE}; path=/; SameSite=Strict; Secure`;
+}
+
+/**
+ * Get a cookie value
+ */
+function getCookie(name: string): string | null {
+  const nameEQ = name + "=";
+  const cookies = document.cookie.split(';');
+  for (let i = 0; i < cookies.length; i++) {
+    let cookie = cookies[i].trim();
+    if (cookie.indexOf(nameEQ) === 0) {
+      return decodeURIComponent(cookie.substring(nameEQ.length));
+    }
+  }
+  return null;
+}
+
+/**
+ * Delete a cookie
+ */
+function deleteCookie(name: string): void {
+  document.cookie = `${name}=; max-age=0; path=/`;
+}
+
+
+/**
+ * Saves application state to cookies with encryption
  */
 export async function saveState(
   state: AppState,
@@ -21,13 +53,13 @@ export async function saveState(
     const jsonData = JSON.stringify(state);
     const encryptedData = await encrypt(jsonData, passphrase);
     
-    await set(STORAGE_KEY, encryptedData);
+    setCookie(STORAGE_KEY, encryptedData);
     
     // Store a hash of the passphrase for validation (not the passphrase itself)
     const passphraseHash = await hashPassphrase(passphrase);
-    await set(PASSPHRASE_KEY, passphraseHash);
+    setCookie(PASSPHRASE_KEY, passphraseHash);
     
-    console.log('State saved successfully');
+    console.log('State saved successfully to cookies');
   } catch (error) {
     console.error('Failed to save state:', error);
     throw new Error('Failed to save data. Please try again.');
@@ -35,11 +67,11 @@ export async function saveState(
 }
 
 /**
- * Loads application state from IndexedDB and decrypts it
+ * Loads application state from cookies and decrypts it
  */
 export async function loadState(passphrase: string): Promise<AppState | null> {
   try {
-    const encryptedData = await get<string>(STORAGE_KEY);
+    const encryptedData = getCookie(STORAGE_KEY);
     
     if (!encryptedData) {
       return null; // No saved data
@@ -54,7 +86,7 @@ export async function loadState(passphrase: string): Promise<AppState | null> {
     const jsonData = await decrypt(encryptedData, passphrase);
     const state = JSON.parse(jsonData) as AppState;
     
-    console.log('State loaded successfully');
+    console.log('State loaded successfully from cookies');
     return state;
   } catch (error) {
     console.error('Failed to load state:', error);
@@ -66,15 +98,16 @@ export async function loadState(passphrase: string): Promise<AppState | null> {
  * Checks if there is saved data
  */
 export async function hasSavedData(): Promise<boolean> {
-  const data = await get<string>(STORAGE_KEY);
-  return data !== undefined;
+  const data = getCookie(STORAGE_KEY);
+  return data !== null;
 }
+
 
 /**
  * Exports encrypted data as a downloadable file
  */
 export async function exportData(passphrase: string): Promise<Blob> {
-  const encryptedData = await get<string>(STORAGE_KEY);
+  const encryptedData = getCookie(STORAGE_KEY);
   
   if (!encryptedData) {
     throw new Error('No data to export');
@@ -95,9 +128,9 @@ export async function importData(
   const state = JSON.parse(jsonData) as AppState;
   
   // Save the imported data
-  await set(STORAGE_KEY, encryptedData);
+  setCookie(STORAGE_KEY, encryptedData);
   const passphraseHash = await hashPassphrase(passphrase);
-  await set(PASSPHRASE_KEY, passphraseHash);
+  setCookie(PASSPHRASE_KEY, passphraseHash);
   
   return state;
 }
@@ -106,7 +139,8 @@ export async function importData(
  * Clears all stored data (use with caution)
  */
 export async function clearAllData(): Promise<void> {
-  await clear();
+  deleteCookie(STORAGE_KEY);
+  deleteCookie(PASSPHRASE_KEY);
   console.log('All data cleared');
 }
 
@@ -125,7 +159,7 @@ async function hashPassphrase(passphrase: string): Promise<string> {
  * Verifies if a passphrase is correct
  */
 async function verifyPassphrase(passphrase: string): Promise<boolean> {
-  const storedHash = await get<string>(PASSPHRASE_KEY);
+  const storedHash = getCookie(PASSPHRASE_KEY);
   
   if (!storedHash) {
     return true; // No passphrase set yet

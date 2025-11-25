@@ -54,11 +54,23 @@ export function Dashboard() {
   // Filter data based on selected entity
   const filteredAssets = selectedEntityId === 'family' 
     ? assets 
-    : assets.filter((a) => a.ownerId === selectedEntityId);
+    : assets.filter((a) => {
+        // Include assets owned directly by this entity
+        if (a.ownerId === selectedEntityId) return true;
+        // Include assets with joint ownership where this entity has a share
+        if (a.ownershipShares && a.ownershipShares.some((s) => s.entityId === selectedEntityId)) return true;
+        return false;
+      });
   
   const filteredLiabilities = selectedEntityId === 'family'
     ? liabilities
-    : liabilities.filter((l) => l.ownerId === selectedEntityId);
+    : liabilities.filter((l) => {
+        // Include liabilities owned directly by this entity
+        if (l.ownerId === selectedEntityId) return true;
+        // Include liabilities with joint ownership where this entity has a share
+        if (l.ownershipShares && l.ownershipShares.some((s) => s.entityId === selectedEntityId)) return true;
+        return false;
+      });
   
   const filteredIncomes = selectedEntityId === 'family'
     ? incomes
@@ -66,9 +78,31 @@ export function Dashboard() {
 
   const totalAssetValue = filteredAssets
     .filter((a) => !a.disposed)
-    .reduce((sum, a) => sum + a.financials.marketValue, 0);
+    .reduce((sum, a) => {
+      // For individual view, calculate based on ownership percentage
+      if (selectedEntityId !== 'family' && a.ownershipShares && a.ownershipShares.length > 0) {
+        const ownershipShare = a.ownershipShares.find((s) => s.entityId === selectedEntityId);
+        if (ownershipShare) {
+          return sum + (a.financials.marketValue * ownershipShare.percentage / 100);
+        }
+        return sum;
+      }
+      // For family view or single owner, use full value
+      return sum + a.financials.marketValue;
+    }, 0);
 
-  const totalLiabilities = filteredLiabilities.reduce((sum, l) => sum + l.currentBalance, 0);
+  const totalLiabilities = filteredLiabilities.reduce((sum, l) => {
+    // For individual view, calculate based on ownership percentage
+    if (selectedEntityId !== 'family' && l.ownershipShares && l.ownershipShares.length > 0) {
+      const ownershipShare = l.ownershipShares.find((s) => s.entityId === selectedEntityId);
+      if (ownershipShare) {
+        return sum + (l.currentBalance * ownershipShare.percentage / 100);
+      }
+      return sum;
+    }
+    // For family view or single owner, use full value
+    return sum + l.currentBalance;
+  }, 0);
 
   const currentYearIncome = filteredIncomes
     .filter((i) => i.taxYear === currentTaxYear)

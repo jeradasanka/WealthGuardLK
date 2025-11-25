@@ -12,7 +12,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import type { Asset, PropertyExpense } from '@/types';
 import { formatLKR } from '@/lib/taxEngine';
 import { useStore } from '@/stores/useStore';
-import { getTaxYearsFromStart } from '@/lib/taxYear';
+import { getCurrentTaxYear, getTaxYearForDate, formatTaxYear } from '@/lib/taxYear';
 
 interface PropertyExpenseFormProps {
   asset: Asset;
@@ -36,7 +36,20 @@ export function PropertyExpenseForm({ asset, onClose }: PropertyExpenseFormProps
     notes: '',
   });
 
-  const taxYears = getTaxYearsFromStart(entities[0]?.taxYear || '2022');
+  // Get available tax years from acquisition date to current year
+  const getAvailableTaxYears = () => {
+    const acquisitionYear = parseInt(getTaxYearForDate(asset.meta.dateAcquired));
+    const currentYear = parseInt(getCurrentTaxYear());
+    const years: string[] = [];
+    
+    for (let year = currentYear; year >= acquisitionYear; year--) {
+      years.push(year.toString());
+    }
+    
+    return years;
+  };
+
+  const taxYears = getAvailableTaxYears();
 
   const handleAddExpense = () => {
     const expense: PropertyExpense = {
@@ -175,7 +188,7 @@ export function PropertyExpenseForm({ asset, onClose }: PropertyExpenseFormProps
                 >
                   {taxYears.map((year) => (
                     <option key={year} value={year}>
-                      {year}
+                      {formatTaxYear(year)}
                     </option>
                   ))}
                 </select>
@@ -245,7 +258,7 @@ export function PropertyExpenseForm({ asset, onClose }: PropertyExpenseFormProps
                           {expense.expenseType}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          Tax Year {expense.taxYear}
+                          Tax Year {formatTaxYear(expense.taxYear)}
                         </span>
                       </div>
                       <p className="font-semibold mt-1">{expense.description}</p>

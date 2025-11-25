@@ -12,7 +12,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import type { Asset, JewelleryTransaction } from '@/types';
 import { formatLKR } from '@/lib/taxEngine';
 import { useStore } from '@/stores/useStore';
-import { getTaxYearsFromStart } from '@/lib/taxYear';
+import { getCurrentTaxYear, getTaxYearForDate, formatTaxYear } from '@/lib/taxYear';
 
 interface JewelleryTransactionFormProps {
   asset: Asset;
@@ -39,7 +39,20 @@ export function JewelleryTransactionForm({ asset, onClose }: JewelleryTransactio
     notes: '',
   });
 
-  const taxYears = getTaxYearsFromStart(entities[0]?.taxYear || '2022');
+  // Get available tax years from acquisition date to current year
+  const getAvailableTaxYears = () => {
+    const acquisitionYear = parseInt(getTaxYearForDate(asset.meta.dateAcquired));
+    const currentYear = parseInt(getCurrentTaxYear());
+    const years: string[] = [];
+    
+    for (let year = currentYear; year >= acquisitionYear; year--) {
+      years.push(year.toString());
+    }
+    
+    return years;
+  };
+
+  const taxYears = getAvailableTaxYears();
 
   const handleAddTransaction = () => {
     const transaction: JewelleryTransaction = {
@@ -165,7 +178,7 @@ export function JewelleryTransactionForm({ asset, onClose }: JewelleryTransactio
                 >
                   {taxYears.map((year) => (
                     <option key={year} value={year}>
-                      {year}
+                      {formatTaxYear(year)}
                     </option>
                   ))}
                 </select>
@@ -274,7 +287,7 @@ export function JewelleryTransactionForm({ asset, onClose }: JewelleryTransactio
                           {transaction.type.toUpperCase()}
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          Tax Year {transaction.taxYear}
+                          Tax Year {formatTaxYear(transaction.taxYear)}
                         </span>
                       </div>
                       <p className="font-semibold mt-1">{transaction.description}</p>

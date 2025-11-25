@@ -24,6 +24,7 @@ export interface FundingSource {
 export interface Asset {
   id: string;
   ownerId: string;
+  ownershipShares?: { entityId: string; percentage: number }[]; // Multiple owners with percentages
   cageCategory: '701' | '711' | '721'; // Immovable Property, Vehicle, Bank/Financial
   meta: {
     description: string;
@@ -54,6 +55,7 @@ export interface Asset {
 export interface Liability {
   id: string;
   ownerId: string;
+  ownershipShares?: { entityId: string; percentage: number }[]; // Multiple owners with percentages
   description: string;
   lenderName: string;
   originalAmount: number;

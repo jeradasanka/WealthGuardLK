@@ -26,6 +26,8 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
 
   const [formData, setFormData] = useState({
     ownerId: liability?.ownerId || entities[0]?.id || '',
+    ownershipShares: liability?.ownershipShares || [],
+    multipleOwners: (liability?.ownershipShares && liability.ownershipShares.length > 0) || false,
     lenderName: liability?.lenderName || '',
     originalAmount: liability?.originalAmount || 0,
     currentBalance: liability?.currentBalance || 0,
@@ -44,9 +46,19 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
       }
     }
 
+    // Validate ownership percentages if multiple owners
+    if (formData.multipleOwners && formData.ownershipShares.length > 0) {
+      const totalPercentage = formData.ownershipShares.reduce((sum, share) => sum + share.percentage, 0);
+      if (Math.abs(totalPercentage - 100) > 0.01) {
+        alert('Total ownership percentage must equal 100%');
+        return;
+      }
+    }
+
     const liabilityData: Liability = {
       id: liability?.id || crypto.randomUUID(),
-      ownerId: formData.ownerId,
+      ownerId: formData.multipleOwners ? '' : formData.ownerId,
+      ownershipShares: formData.multipleOwners ? formData.ownershipShares : undefined,
       lenderName: formData.lenderName,
       originalAmount: Number(formData.originalAmount),
       currentBalance: Number(formData.currentBalance),
@@ -93,22 +105,94 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="ownerId">Borrower *</Label>
+            <Label htmlFor="multipleOwners">Borrower Type</Label>
             <select
-              id="ownerId"
-              value={formData.ownerId}
-              onChange={handleChange('ownerId')}
-              required
+              id="multipleOwners"
+              value={formData.multipleOwners ? 'multiple' : 'single'}
+              onChange={(e) => {
+                const isMultiple = e.target.value === 'multiple';
+                setFormData((prev) => ({
+                  ...prev,
+                  multipleOwners: isMultiple,
+                  ownershipShares: isMultiple
+                    ? entities.map((entity) => ({ entityId: entity.id, percentage: 100 / entities.length }))
+                    : [],
+                }));
+              }}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
-              <option value="">Select borrower</option>
-              {entities.map((entity) => (
-                <option key={entity.id} value={entity.id}>
-                  {entity.name} ({entity.tin})
-                </option>
-              ))}
+              <option value="single">Single Borrower</option>
+              <option value="multiple">Multiple Borrowers (Joint Liability)</option>
             </select>
           </div>
+
+          {!formData.multipleOwners && (
+            <div className="space-y-2">
+              <Label htmlFor="ownerId">Borrower *</Label>
+              <select
+                id="ownerId"
+                value={formData.ownerId}
+                onChange={handleChange('ownerId')}
+                required
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">Select borrower</option>
+                {entities.map((entity) => (
+                  <option key={entity.id} value={entity.id}>
+                    {entity.name} ({entity.tin})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {formData.multipleOwners && (
+            <div className="space-y-2 border rounded-lg p-4 bg-slate-50">
+              <Label>Liability Distribution *</Label>
+              <p className="text-xs text-muted-foreground mb-3">
+                Specify liability percentage for each borrower (total must equal 100%)
+              </p>
+              {formData.ownershipShares.map((share, index) => {
+                const entity = entities.find((e) => e.id === share.entityId);
+                return (
+                  <div key={share.entityId} className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <Label className="text-sm">{entity?.name}</Label>
+                    </div>
+                    <div className="w-32">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={share.percentage}
+                        onChange={(e) => {
+                          const newShares = [...formData.ownershipShares];
+                          newShares[index].percentage = Number(e.target.value);
+                          setFormData((prev) => ({ ...prev, ownershipShares: newShares }));
+                        }}
+                        required
+                        className="text-right"
+                      />
+                    </div>
+                    <span className="text-sm font-medium">%</span>
+                  </div>
+                );
+              })}
+              <div className="pt-2 border-t mt-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium">Total:</span>
+                  <span className={`text-sm font-bold ${
+                    Math.abs(formData.ownershipShares.reduce((sum, s) => sum + s.percentage, 0) - 100) < 0.01
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}>
+                    {formData.ownershipShares.reduce((sum, s) => sum + s.percentage, 0).toFixed(2)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="lenderName">Lender Name *</Label>

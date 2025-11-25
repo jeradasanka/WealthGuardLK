@@ -259,8 +259,21 @@ export function AssetsPage() {
                         <div>
                           <p className="font-semibold">{asset.meta.description}</p>
                           <p className="text-sm text-muted-foreground">
-                            {getCategoryLabel(asset.cageCategory)} (Cage {asset.cageCategory}) • {getEntityName(asset.ownerId)}
+                            {getCategoryLabel(asset.cageCategory)} (Cage {asset.cageCategory})
+                            {asset.ownershipShares && asset.ownershipShares.length > 0 ? (
+                              <span> • Joint Ownership</span>
+                            ) : (
+                              <span> • {getEntityName(asset.ownerId)}</span>
+                            )}
                           </p>
+                          {asset.ownershipShares && asset.ownershipShares.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {asset.ownershipShares.map((share) => {
+                                const entity = entities.find((e) => e.id === share.entityId);
+                                return `${entity?.name}: ${share.percentage.toFixed(1)}%`;
+                              }).join(' • ')}
+                            </p>
+                          )}
                           <p className="text-xs text-muted-foreground">
                             Acquired: {new Date(asset.meta.dateAcquired).toLocaleDateString()}
                           </p>
@@ -344,8 +357,21 @@ export function AssetsPage() {
                           <div>
                             <p className="font-semibold">{liability.lenderName}</p>
                             <p className="text-sm text-muted-foreground">
-                              {getEntityName(liability.ownerId)} • {liability.purpose || 'General loan'}
+                              {liability.ownershipShares && liability.ownershipShares.length > 0 ? (
+                                <span>Joint Liability</span>
+                              ) : (
+                                <span>{getEntityName(liability.ownerId)}</span>
+                              )}
+                              {' • '}{liability.purpose || 'General loan'}
                             </p>
+                            {liability.ownershipShares && liability.ownershipShares.length > 0 && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {liability.ownershipShares.map((share) => {
+                                  const entity = entities.find((e) => e.id === share.entityId);
+                                  return `${entity?.name}: ${share.percentage.toFixed(1)}%`;
+                                }).join(' • ')}
+                              </p>
+                            )}
                             <p className="text-xs text-muted-foreground">
                               Acquired: {new Date(liability.dateAcquired).toLocaleDateString()}
                             </p>

@@ -15,7 +15,7 @@ export async function downloadBackup(passphrase: string, fileName?: string): Pro
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = fileName || `wealthguard_backup_${new Date().toISOString().split('T')[0]}.wgbak`;
+    link.download = fileName || `wealthguard_backup_${new Date().toISOString().split('T')[0]}.wglk`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

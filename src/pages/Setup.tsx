@@ -5,12 +5,13 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Lock, Users } from 'lucide-react';
+import { Shield, Lock, Users, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EntityForm } from '@/components/EntityForm';
+import { ImportDialog } from '@/components/ImportDialog';
 import { useStore } from '@/stores/useStore';
 import { generatePassphrase } from '@/utils/crypto';
 import type { TaxEntity } from '@/types';
@@ -21,6 +22,7 @@ export function Setup() {
   const [passphrase, setPassphraseInput] = useState('');
   const [confirmPassphrase, setConfirmPassphrase] = useState('');
   const [generatedPassphrase, setGeneratedPassphrase] = useState('');
+  const [showImport, setShowImport] = useState(false);
   
   const setStorePassphrase = useStore((state) => state.setPassphrase);
   const addEntity = useStore((state) => state.addEntity);
@@ -110,11 +112,29 @@ export function Setup() {
               </div>
             </div>
 
-            <Button onClick={() => setStep('passphrase')} className="w-full" size="lg">
-              Get Started
-            </Button>
+            <div className="space-y-2">
+              <Button onClick={() => setStep('passphrase')} className="w-full" size="lg">
+                Get Started - Create New Profile
+              </Button>
+              <Button 
+                onClick={() => setShowImport(true)} 
+                variant="outline" 
+                className="w-full" 
+                size="lg"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Import from Backup
+              </Button>
+            </div>
+            
+            <p className="text-xs text-center text-gray-500">
+              Already have a backup? Import it to restore your data and skip setup.
+            </p>
           </CardContent>
         </Card>
+        
+        {/* Import Dialog */}
+        {showImport && <ImportDialog onClose={() => setShowImport(false)} redirectToDashboard={true} />}
       </div>
     );
   }

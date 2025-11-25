@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, FileText, Building2, Wallet, TrendingUp, Settings, Download, ArrowLeft, Upload } from 'lucide-react';
+import { Shield, FileText, Building2, Wallet, TrendingUp, Settings, ArrowLeft, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DangerMeter } from '@/components/DangerMeter';
@@ -182,10 +182,6 @@ export function Dashboard() {
               <Button variant="outline" size="sm" onClick={() => setShowImportWizard(true)}>
                 <Upload className="w-4 h-4 mr-2" />
                 Import PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
-                <Download className="w-4 h-4 mr-2" />
-                Export
               </Button>
               <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
                 <Settings className="w-4 h-4" />

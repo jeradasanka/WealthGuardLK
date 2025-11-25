@@ -19,7 +19,7 @@ interface ExportDialogProps {
 }
 
 export function ExportDialog({ onClose }: ExportDialogProps) {
-  const { entities, incomes, assets, liabilities, passphrase } = useStore();
+  const { entities, incomes, assets, liabilities, passphrase, saveToStorage } = useStore();
   const [exportPassphrase, setExportPassphrase] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -47,6 +47,8 @@ export function ExportDialog({ onClose }: ExportDialogProps) {
     setLoading(true);
     setError('');
     try {
+      // Save current state to storage before exporting
+      await saveToStorage();
       await downloadBackup(exportPassphrase);
       alert('Backup downloaded successfully');
     } catch (err) {

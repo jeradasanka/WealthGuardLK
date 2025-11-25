@@ -12,23 +12,37 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useStore } from '@/stores/useStore';
 import { ExportDialog } from '@/components/ExportDialog';
+import { EntityForm } from '@/components/EntityForm';
 import { deriveKey } from '@/utils/crypto';
 
 export function SettingsPage() {
   const navigate = useNavigate();
-  const { entities, updateEntity, passphrase, setPassphrase } = useStore();
+  const { entities, updateEntity, removeEntity, passphrase, setPassphrase, saveToStorage } = useStore();
   const [showExport, setShowExport] = useState(false);
   const [showPassphraseChange, setShowPassphraseChange] = useState(false);
   const [oldPassphrase, setOldPassphrase] = useState('');
   const [newPassphrase, setNewPassphrase] = useState('');
   const [confirmPassphrase, setConfirmPassphrase] = useState('');
   const [error, setError] = useState('');
+  const [showAddFamily, setShowAddFamily] = useState(false);
+  const [editingEntity, setEditingEntity] = useState<string | null>(null);
 
   const entity = entities[0];
 
-  const handleEntityUpdate = (field: string, value: string) => {
-    if (entity) {
-      updateEntity(entity.id, { ...entity, [field]: value });
+  const handleEntityUpdate = (entityId: string, field: string, value: string) => {
+    const entityToUpdate = entities.find(e => e.id === entityId);
+    if (entityToUpdate) {
+      updateEntity(entityId, { ...entityToUpdate, [field]: value });
+    }
+  };
+
+  const handleRemoveEntity = (entityId: string) => {
+    if (entities.length <= 1) {
+      alert('Cannot remove the last entity. You must have at least one taxpayer.');
+      return;
+    }
+    if (confirm('Are you sure you want to remove this family member? This will also remove their associated income, assets, and liabilities.')) {
+      removeEntity(entityId);
     }
   };
 
@@ -52,7 +66,8 @@ export function SettingsPage() {
 
     try {
       // Derive new key to verify it works
-      await deriveKey(newPassphrase);
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      await deriveKey(newPassphrase, salt);
       setPassphrase(newPassphrase);
       setShowPassphraseChange(false);
       setOldPassphrase('');
@@ -81,56 +96,84 @@ export function SettingsPage() {
           <SettingsIcon className="h-8 w-8 text-gray-600" />
         </div>
 
-        {/* Entity Profile */}
+        {/* Family Members / Tax Entities */}
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              <CardTitle>Tax Entity Profile</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                <div>
+                  <CardTitle>Family Members / Tax Entities</CardTitle>
+                  <CardDescription>Manage individual and family taxpayer profiles</CardDescription>
+                </div>
+              </div>
+              <Button onClick={() => setShowAddFamily(true)} size="sm">
+                Add Family Member
+              </Button>
             </div>
-            <CardDescription>Your personal or business information</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="name">Name/Business Name</Label>
-              <Input
-                id="name"
-                value={entity?.name || ''}
-                onChange={(e) => handleEntityUpdate('name', e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="tin">Tax Identification Number (TIN)</Label>
-              <Input
-                id="tin"
-                value={entity?.tin || ''}
-                onChange={(e) => handleEntityUpdate('tin', e.target.value)}
-                placeholder="123456789V"
-              />
-            </div>
-            <div>
-              <Label htmlFor="nic">NIC Number</Label>
-              <Input
-                id="nic"
-                value={entity?.nic || ''}
-                onChange={(e) => handleEntityUpdate('nic', e.target.value)}
-                placeholder="987654321V or 199012345678"
-              />
-            </div>
-            <div>
-              <Label htmlFor="type">Entity Type</Label>
-              <select
-                id="type"
-                className="w-full px-3 py-2 border rounded-md"
-                value={entity?.type || 'individual'}
-                onChange={(e) => handleEntityUpdate('type', e.target.value)}
-              >
-                <option value="individual">Individual</option>
-                <option value="company">Company</option>
-                <option value="partnership">Partnership</option>
-                <option value="trust">Trust</option>
-              </select>
-            </div>
+            {entities.map((ent, index) => (
+              <div key={ent.id} className="p-4 border rounded-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-lg">
+                    {index === 0 ? '👤 Primary Taxpayer' : '👥 Family Member'}
+                  </h4>
+                  {entities.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveEntity(ent.id)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor={`name-${ent.id}`}>Name</Label>
+                    <Input
+                      id={`name-${ent.id}`}
+                      value={ent.name}
+                      onChange={(e) => handleEntityUpdate(ent.id, 'name', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor={`tin-${ent.id}`}>TIN</Label>
+                    <Input
+                      id={`tin-${ent.id}`}
+                      value={ent.tin || ''}
+                      onChange={(e) => handleEntityUpdate(ent.id, 'tin', e.target.value)}
+                      placeholder="123456789V"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor={`nic-${ent.id}`}>NIC</Label>
+                    <Input
+                      id={`nic-${ent.id}`}
+                      value={ent.nic || ''}
+                      onChange={(e) => handleEntityUpdate(ent.id, 'nic', e.target.value)}
+                      placeholder="987654321V"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor={`type-${ent.id}`}>Type</Label>
+                    <select
+                      id={`type-${ent.id}`}
+                      className="w-full px-3 py-2 border rounded-md"
+                      value={ent.type}
+                      onChange={(e) => handleEntityUpdate(ent.id, 'type', e.target.value)}
+                    >
+                      <option value="individual">Individual</option>
+                      <option value="company">Company</option>
+                      <option value="partnership">Partnership</option>
+                      <option value="trust">Trust</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
 
@@ -249,6 +292,21 @@ export function SettingsPage() {
 
       {/* Export Dialog */}
       {showExport && <ExportDialog onClose={() => setShowExport(false)} />}
+      
+      {/* Add Family Member Dialog */}
+      {showAddFamily && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full">
+            <EntityForm
+              onSave={() => {
+                setShowAddFamily(false);
+                saveToStorage();
+              }}
+              onCancel={() => setShowAddFamily(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -11,7 +11,7 @@ const KEY_LENGTH = 256;
 /**
  * Derives an encryption key from a passphrase using PBKDF2
  */
-async function deriveKey(
+export async function deriveKey(
   passphrase: string,
   salt: Uint8Array
 ): Promise<CryptoKey> {

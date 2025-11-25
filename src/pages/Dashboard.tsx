@@ -187,28 +187,79 @@ export function Dashboard() {
           </Card>
         </div>
 
-        {/* Entities Info */}
+        {/* Family Members / Individual Taxpayer Cards */}
         {entities.length > 0 && (
           <div className="mt-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Tax Entities</CardTitle>
-                <CardDescription>Registered taxpayers in this profile</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {entities.map((entity) => (
-                    <div key={entity.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                      <div>
-                        <p className="font-medium">{entity.name}</p>
-                        <p className="text-sm text-muted-foreground">TIN: {entity.tin} • {entity.role === 'primary' ? 'Primary' : 'Spouse'}</p>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold">Family Members</h2>
+              <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
+                Manage Family
+              </Button>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              {entities.map((entity, index) => {
+                // Calculate stats for this specific entity
+                const entityIncomes = incomes.filter((i) => i.ownerId === entity.id);
+                const entityAssets = assets.filter((a) => a.ownerId === entity.id && !a.disposed);
+                const entityLiabilities = liabilities.filter((l) => l.ownerId === entity.id);
+                
+                const entityTotalIncome = entityIncomes.reduce((sum, i) => sum + i.details.grossAmount, 0);
+                const entityTotalAssets = entityAssets.reduce((sum, a) => sum + a.financials.marketValue, 0);
+                const entityTotalLiabilities = entityLiabilities.reduce((sum, l) => sum + l.currentBalance, 0);
+                const entityNetWorth = entityTotalAssets - entityTotalLiabilities;
+                
+                return (
+                  <Card key={entity.id} className="border-2">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="flex items-center gap-2">
+                            {index === 0 ? '👤' : '👥'} {entity.name}
+                          </CardTitle>
+                          <CardDescription>
+                            TIN: {entity.tin || 'Not Set'} • {entity.type || 'Individual'}
+                          </CardDescription>
+                        </div>
                       </div>
-                      <Button variant="outline" size="sm">Edit</Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <p className="text-sm text-gray-600">Total Income</p>
+                          <p className="text-xl font-bold text-green-600">
+                            {formatLKR(entityTotalIncome)}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm text-gray-600">Net Worth</p>
+                          <p className="text-xl font-bold text-blue-600">
+                            {formatLKR(entityNetWorth)}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm text-gray-600">Assets</p>
+                          <p className="text-lg font-semibold">
+                            {formatLKR(entityTotalAssets)}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm text-gray-600">Liabilities</p>
+                          <p className="text-lg font-semibold text-red-600">
+                            {formatLKR(entityTotalLiabilities)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-4 pt-4 border-t text-sm text-gray-600">
+                        <div className="flex justify-between">
+                          <span>Income Entries: {entityIncomes.length}</span>
+                          <span>Assets: {entityAssets.length}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
         )}
       </main>

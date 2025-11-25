@@ -28,19 +28,39 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
     ownerId: asset?.ownerId || entities[0]?.id || '',
     ownershipShares: asset?.ownershipShares || [],
     multipleOwners: (asset?.ownershipShares && asset.ownershipShares.length > 0) || false,
-    cageCategory: asset?.cageCategory || ('701' as '701' | '711' | '721'),
+    cageCategory: asset?.cageCategory || ('A' as 'A' | 'Bi' | 'Bii' | 'Biii' | 'Biv' | 'Bv' | 'Bvi' | 'C'),
     description: asset?.meta.description || '',
     dateAcquired: asset?.meta.dateAcquired || new Date().toISOString().split('T')[0],
     cost: asset?.financials.cost || 0,
     marketValue: asset?.financials.marketValue || 0,
-    // Category-specific fields
+    // A - Immovable Properties
     address: asset?.meta.address || '',
     deedNo: asset?.meta.deedNo || '',
+    extentArea: asset?.meta.extentArea || '',
+    // Bi - Motor Vehicles
     regNo: asset?.meta.regNo || '',
     brand: asset?.meta.brand || '',
+    model: asset?.meta.model || '',
+    // Bii - Bank Balances / Term Deposits
     accountNo: asset?.meta.accountNo || '',
     bankName: asset?.meta.bankName || '',
-    // Close fields for financial assets
+    accountType: asset?.meta.accountType || '',
+    // Biii - Shares/stocks/securities
+    companyName: asset?.meta.companyName || '',
+    numberOfShares: asset?.meta.numberOfShares || 0,
+    certificateNo: asset?.meta.certificateNo || '',
+    // Bv - Loans given & amount receivable
+    borrowerName: asset?.meta.borrowerName || '',
+    agreementNo: asset?.meta.agreementNo || '',
+    interestRate: asset?.meta.interestRate || 0,
+    // Bvi - Gold, silver, gems, jewellery
+    itemType: asset?.meta.itemType || '',
+    weight: asset?.meta.weight || 0,
+    purity: asset?.meta.purity || '',
+    // C - Business properties
+    businessName: asset?.meta.businessName || '',
+    businessRegNo: asset?.meta.businessRegNo || '',
+    // Close fields for financial assets (Bii)
     isClosed: !!asset?.closed,
     closedDate: asset?.closed?.date || '',
     finalBalance: asset?.closed?.finalBalance || 0,
@@ -66,17 +86,39 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
       meta: {
         description: formData.description,
         dateAcquired: formData.dateAcquired,
-        ...(formData.cageCategory === '701' && {
+        ...(formData.cageCategory === 'A' && {
           address: formData.address,
           deedNo: formData.deedNo,
+          extentArea: formData.extentArea,
         }),
-        ...(formData.cageCategory === '711' && {
+        ...(formData.cageCategory === 'Bi' && {
           regNo: formData.regNo,
           brand: formData.brand,
+          model: formData.model,
         }),
-        ...(formData.cageCategory === '721' && {
+        ...(formData.cageCategory === 'Bii' && {
           accountNo: formData.accountNo,
           bankName: formData.bankName,
+          accountType: formData.accountType,
+        }),
+        ...(formData.cageCategory === 'Biii' && {
+          companyName: formData.companyName,
+          numberOfShares: formData.numberOfShares,
+          certificateNo: formData.certificateNo,
+        }),
+        ...(formData.cageCategory === 'Bv' && {
+          borrowerName: formData.borrowerName,
+          agreementNo: formData.agreementNo,
+          interestRate: formData.interestRate,
+        }),
+        ...(formData.cageCategory === 'Bvi' && {
+          itemType: formData.itemType,
+          weight: formData.weight,
+          purity: formData.purity,
+        }),
+        ...(formData.cageCategory === 'C' && {
+          businessName: formData.businessName,
+          businessRegNo: formData.businessRegNo,
         }),
       },
       financials: {
@@ -116,12 +158,24 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
 
   const getCategoryLabel = () => {
     switch (formData.cageCategory) {
-      case '701':
-        return 'Immovable Property';
-      case '711':
-        return 'Motor Vehicle';
-      case '721':
-        return 'Bank/Financial Asset';
+      case 'A':
+        return 'Immovable Properties';
+      case 'Bi':
+        return 'Motor Vehicles';
+      case 'Bii':
+        return 'Bank Balances / Term Deposits';
+      case 'Biii':
+        return 'Shares/Stocks/Securities';
+      case 'Biv':
+        return 'Cash in Hand';
+      case 'Bv':
+        return 'Loans Given & Amount Receivable';
+      case 'Bvi':
+        return 'Gold, Silver, Gems, Jewellery';
+      case 'C':
+        return 'Properties Held as Part of Business';
+      default:
+        return 'Asset';
     }
   };
 
@@ -234,9 +288,14 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
               required
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
-              <option value="701">Cage 701 - Immovable Property (Land, House, Building)</option>
-              <option value="711">Cage 711 - Motor Vehicles</option>
-              <option value="721">Cage 721 - Bank/Financial Assets</option>
+              <option value="A">A - Immovable Properties (Land, House, Building)</option>
+              <option value="Bi">Bi - Motor Vehicles</option>
+              <option value="Bii">Bii - Bank Balances / Term Deposits</option>
+              <option value="Biii">Biii - Shares/Stocks/Securities</option>
+              <option value="Biv">Biv - Cash in Hand</option>
+              <option value="Bv">Bv - Loans Given & Amount Receivable</option>
+              <option value="Bvi">Bvi - Gold, Silver, Gems, Jewellery</option>
+              <option value="C">C - Properties Held as Part of Business</option>
             </select>
           </div>
 
@@ -248,9 +307,15 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
               onChange={handleChange('description')}
               required
               placeholder={
-                formData.cageCategory === '701' ? 'e.g., House at Colombo' :
-                formData.cageCategory === '711' ? 'e.g., Toyota Prius' :
-                'e.g., Fixed Deposit'
+                formData.cageCategory === 'A' ? 'e.g., House at Colombo' :
+                formData.cageCategory === 'Bi' ? 'e.g., Toyota Prius 2020' :
+                formData.cageCategory === 'Bii' ? 'e.g., Fixed Deposit at Bank of Ceylon' :
+                formData.cageCategory === 'Biii' ? 'e.g., Shares in ABC Company' :
+                formData.cageCategory === 'Biv' ? 'e.g., Cash kept at home' :
+                formData.cageCategory === 'Bv' ? 'e.g., Loan given to Mr. Silva' :
+                formData.cageCategory === 'Bvi' ? 'e.g., Gold jewellery' :
+                formData.cageCategory === 'C' ? 'e.g., Shop building' :
+                'e.g., Asset description'
               }
             />
           </div>
@@ -267,7 +332,7 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
           </div>
 
           {/* Category-specific fields */}
-          {formData.cageCategory === '701' && (
+          {formData.cageCategory === 'A' && (
             <>
               <div className="space-y-2">
                 <Label htmlFor="address">Property Address *</Label>
@@ -279,19 +344,30 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
                   placeholder="Full address of property"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="deedNo">Deed Number</Label>
-                <Input
-                  id="deedNo"
-                  value={formData.deedNo}
-                  onChange={handleChange('deedNo')}
-                  placeholder="Land registry deed number"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="deedNo">Deed Number</Label>
+                  <Input
+                    id="deedNo"
+                    value={formData.deedNo}
+                    onChange={handleChange('deedNo')}
+                    placeholder="Land registry deed number"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="extentArea">Extent/Area</Label>
+                  <Input
+                    id="extentArea"
+                    value={formData.extentArea}
+                    onChange={handleChange('extentArea')}
+                    placeholder="e.g., 10 perches, 2 acres"
+                  />
+                </div>
               </div>
             </>
           )}
 
-          {formData.cageCategory === '711' && (
+          {formData.cageCategory === 'Bi' && (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -305,20 +381,28 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="brand">Brand/Model *</Label>
+                  <Label htmlFor="brand">Brand</Label>
                   <Input
                     id="brand"
                     value={formData.brand}
                     onChange={handleChange('brand')}
-                    required
-                    placeholder="e.g., Toyota Prius"
+                    placeholder="e.g., Toyota"
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="model">Model</Label>
+                <Input
+                  id="model"
+                  value={formData.model}
+                  onChange={handleChange('model')}
+                  placeholder="e.g., Prius 2020"
+                />
               </div>
             </>
           )}
 
-          {formData.cageCategory === '721' && (
+          {formData.cageCategory === 'Bii' && (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -340,6 +424,15 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
                     placeholder="Account or certificate number"
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="accountType">Account Type</Label>
+                <Input
+                  id="accountType"
+                  value={formData.accountType}
+                  onChange={handleChange('accountType')}
+                  placeholder="e.g., Savings, Current, Fixed Deposit"
+                />
               </div>
 
               {/* Account Closure Section */}
@@ -404,6 +497,144 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
                   </div>
                 </div>
               )}
+            </>
+          )}
+
+          {formData.cageCategory === 'Biii' && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="companyName">Company Name *</Label>
+                  <Input
+                    id="companyName"
+                    value={formData.companyName}
+                    onChange={handleChange('companyName')}
+                    required
+                    placeholder="Name of the company"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="numberOfShares">Number of Shares</Label>
+                  <Input
+                    id="numberOfShares"
+                    type="number"
+                    min="0"
+                    value={formData.numberOfShares}
+                    onChange={handleChange('numberOfShares')}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="certificateNo">Certificate Number</Label>
+                <Input
+                  id="certificateNo"
+                  value={formData.certificateNo}
+                  onChange={handleChange('certificateNo')}
+                  placeholder="Share certificate number"
+                />
+              </div>
+            </>
+          )}
+
+          {/* Biv - Cash in Hand has no special fields */}
+
+          {formData.cageCategory === 'Bv' && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="borrowerName">Borrower Name *</Label>
+                <Input
+                  id="borrowerName"
+                  value={formData.borrowerName}
+                  onChange={handleChange('borrowerName')}
+                  required
+                  placeholder="Name of the borrower"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="agreementNo">Agreement Number</Label>
+                  <Input
+                    id="agreementNo"
+                    value={formData.agreementNo}
+                    onChange={handleChange('agreementNo')}
+                    placeholder="Loan agreement reference"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="interestRate">Interest Rate (%)</Label>
+                  <Input
+                    id="interestRate"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.interestRate}
+                    onChange={handleChange('interestRate')}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {formData.cageCategory === 'Bvi' && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="itemType">Item Type *</Label>
+                  <Input
+                    id="itemType"
+                    value={formData.itemType}
+                    onChange={handleChange('itemType')}
+                    required
+                    placeholder="e.g., Gold, Silver, Diamond, Ruby"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="weight">Weight</Label>
+                  <Input
+                    id="weight"
+                    value={formData.weight}
+                    onChange={handleChange('weight')}
+                    placeholder="e.g., 10g, 2 carats"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="purity">Purity/Grade</Label>
+                <Input
+                  id="purity"
+                  value={formData.purity}
+                  onChange={handleChange('purity')}
+                  placeholder="e.g., 22K, 24K, 999"
+                />
+              </div>
+            </>
+          )}
+
+          {formData.cageCategory === 'C' && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="businessName">Business Name *</Label>
+                  <Input
+                    id="businessName"
+                    value={formData.businessName}
+                    onChange={handleChange('businessName')}
+                    required
+                    placeholder="Name of the business"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="businessRegNo">Business Registration Number</Label>
+                  <Input
+                    id="businessRegNo"
+                    value={formData.businessRegNo}
+                    onChange={handleChange('businessRegNo')}
+                    placeholder="Business registration or BR number"
+                  />
+                </div>
+              </div>
             </>
           )}
 

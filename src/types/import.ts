@@ -29,7 +29,7 @@ export interface ParsedTaxData {
   }>;
   assets?: Array<{
     description: string;
-    category: '701' | '711' | '721';
+    category: 'A' | 'Bi' | 'Bii' | 'Biii' | 'Biv' | 'Bv' | 'Bvi' | 'C';
     cost: number;
     marketValue: number;
     dateAcquired?: string;

@@ -20,24 +20,43 @@ export interface FundingSource {
   relatedId?: string; // ID of related income, asset, or liability
 }
 
-// Asset Object (Maps to Cages 701-721)
+// Asset Object - Statement of Assets and Liabilities
 export interface Asset {
   id: string;
   ownerId: string;
   ownershipShares?: { entityId: string; percentage: number }[]; // Multiple owners with percentages
-  cageCategory: '701' | '711' | '721'; // Immovable Property, Vehicle, Bank/Financial
+  cageCategory: 'A' | 'Bi' | 'Bii' | 'Biii' | 'Biv' | 'Bv' | 'Bvi' | 'C'; // Asset categories as per tax return
   meta: {
     description: string;
     dateAcquired: string;
-    // Immovable Property (701)
+    // A - Immovable Properties
     address?: string;
     deedNo?: string;
-    // Vehicle (711)
+    extentArea?: string;
+    // Bi - Motor Vehicles
     regNo?: string;
     brand?: string;
-    // Bank/Financial (721)
+    model?: string;
+    // Bii - Bank Balances / Term Deposits
     accountNo?: string;
     bankName?: string;
+    accountType?: string; // Savings, Current, Fixed Deposit, etc.
+    // Biii - Shares/stocks/securities
+    companyName?: string;
+    numberOfShares?: number;
+    certificateNo?: string;
+    // Biv - Cash in hand (no specific fields needed)
+    // Bv - Loans given & amount receivable
+    borrowerName?: string;
+    agreementNo?: string;
+    interestRate?: number;
+    // Bvi - Value of gold, silver, gems, jewellery
+    itemType?: string; // Gold, Silver, Gems, Jewellery
+    weight?: number;
+    purity?: string;
+    // C - Properties held as part of business
+    businessName?: string;
+    businessRegNo?: string;
   };
   financials: {
     cost: number;
@@ -45,12 +64,12 @@ export interface Asset {
     sourceOfFunds?: FundingSource[];
   };
   fundingSources?: FundingSource[];
-  balances?: FinancialAssetBalance[]; // Yearly balances for financial assets (721)
-  closed?: { // For financial assets (721) - account closure
+  balances?: FinancialAssetBalance[]; // Yearly balances for Bii (Bank/Term Deposits)
+  closed?: { // For financial assets (Bii) - account closure
     date: string;
     finalBalance: number;
   };
-  disposed?: { // For property/vehicles (701, 711) - sale/disposal
+  disposed?: { // For sale/disposal of assets
     date: string;
     salePrice: number;
   };

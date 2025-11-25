@@ -5,7 +5,7 @@
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign, TrendingUp } from 'lucide-react';
+import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign, TrendingUp, FileText, Sparkles, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
@@ -60,7 +60,7 @@ export function AssetsPage() {
         })
         .reduce((sum, a) => {
           // For financial assets, use balance from records if available
-          if (a.cageCategory === '721' && a.balances && a.balances.length > 0) {
+          if (a.cageCategory === 'Bii' && a.balances && a.balances.length > 0) {
             const yearBalance = a.balances.find((b) => b.taxYear === year);
             if (yearBalance) {
               return sum + yearBalance.closingBalance;
@@ -101,12 +101,22 @@ export function AssetsPage() {
 
   const getAssetIcon = (category: string) => {
     switch (category) {
-      case '701':
+      case 'A':
         return <Home className="w-5 h-5 text-blue-600" />;
-      case '711':
+      case 'Bi':
         return <Car className="w-5 h-5 text-green-600" />;
-      case '721':
+      case 'Bii':
         return <WalletIcon className="w-5 h-5 text-purple-600" />;
+      case 'Biii':
+        return <TrendingUp className="w-5 h-5 text-emerald-600" />;
+      case 'Biv':
+        return <WalletIcon className="w-5 h-5 text-yellow-600" />;
+      case 'Bv':
+        return <FileText className="w-5 h-5 text-orange-600" />;
+      case 'Bvi':
+        return <Sparkles className="w-5 h-5 text-amber-600" />;
+      case 'C':
+        return <Building2 className="w-5 h-5 text-indigo-600" />;
       default:
         return null;
     }
@@ -114,12 +124,22 @@ export function AssetsPage() {
 
   const getCategoryLabel = (category: string) => {
     switch (category) {
-      case '701':
+      case 'A':
         return 'Property';
-      case '711':
+      case 'Bi':
         return 'Vehicle';
-      case '721':
-        return 'Financial';
+      case 'Bii':
+        return 'Bank/Deposit';
+      case 'Biii':
+        return 'Shares/Stock';
+      case 'Biv':
+        return 'Cash';
+      case 'Bv':
+        return 'Loan Given';
+      case 'Bvi':
+        return 'Jewellery';
+      case 'C':
+        return 'Business';
       default:
         return 'Asset';
     }
@@ -436,7 +456,7 @@ export function AssetsPage() {
                           <p className="text-xs text-muted-foreground">
                             Acquired: {new Date(asset.meta.dateAcquired).toLocaleDateString()}
                           </p>
-                          {asset.cageCategory === '721' && asset.balances && asset.balances.length > 0 && (
+                          {asset.cageCategory === 'Bii' && asset.balances && asset.balances.length > 0 && (
                             <p className="text-xs text-purple-600 mt-1 font-medium">
                               {asset.balances.length} balance record{asset.balances.length > 1 ? 's' : ''} •{' '}
                               Total interest: {formatLKR(
@@ -457,7 +477,7 @@ export function AssetsPage() {
                           </p>
                         </div>
                         <div className="flex flex-col gap-2">
-                          {asset.cageCategory === '721' && (
+                          {asset.cageCategory === 'Bii' && (
                             <Button
                               variant="default"
                               size="sm"
@@ -475,7 +495,7 @@ export function AssetsPage() {
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          {asset.cageCategory !== '721' && (
+                          {asset.cageCategory !== 'Bii' && (
                             <Button
                               variant="outline"
                               size="sm"

@@ -236,9 +236,14 @@ export function generateDetailedTaxReport(
   const investmentIncomes = filteredIncomes.filter(i => i.schedule === '3');
 
   // Group assets by category
-  const immovableProperty = filteredAssets.filter(a => a.cageCategory === '701');
-  const vehicles = filteredAssets.filter(a => a.cageCategory === '711');
-  const financialAssets = filteredAssets.filter(a => a.cageCategory === '721');
+  const immovableProperty = filteredAssets.filter(a => a.cageCategory === 'A');
+  const vehicles = filteredAssets.filter(a => a.cageCategory === 'Bi');
+  const bankDeposits = filteredAssets.filter(a => a.cageCategory === 'Bii');
+  const shares = filteredAssets.filter(a => a.cageCategory === 'Biii');
+  const cash = filteredAssets.filter(a => a.cageCategory === 'Biv');
+  const loansGiven = filteredAssets.filter(a => a.cageCategory === 'Bv');
+  const jewellery = filteredAssets.filter(a => a.cageCategory === 'Bvi');
+  const businessProperty = filteredAssets.filter(a => a.cageCategory === 'C');
 
   let report = `
 ╔═══════════════════════════════════════════════════════════════════════════╗
@@ -332,7 +337,7 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
 `;
 
   if (immovableProperty.length > 0) {
-    report += `│ \n│ IMMOVABLE PROPERTY (Cage 701):\n`;
+    report += `│ \n│ A. IMMOVABLE PROPERTY:\n`;
     immovableProperty.forEach((asset, idx) => {
       report += `│ ${idx + 1}. ${asset.meta.description || 'Property'}\n`;
       report += `│    Acquired:             ${asset.meta.dateAcquired || 'N/A'}\n`;
@@ -343,7 +348,7 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
   }
 
   if (vehicles.length > 0) {
-    report += `│ \n│ MOTOR VEHICLES (Cage 711):\n`;
+    report += `│ \n│ Bi. MOTOR VEHICLES:\n`;
     vehicles.forEach((asset, idx) => {
       report += `│ ${idx + 1}. ${asset.meta.description || 'Vehicle'}\n`;
       report += `│    Acquired:             ${asset.meta.dateAcquired || 'N/A'}\n`;
@@ -353,12 +358,66 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
     });
   }
 
-  if (financialAssets.length > 0) {
-    report += `│ \n│ BANK ACCOUNTS & FINANCIAL ASSETS (Cage 721):\n`;
-    financialAssets.forEach((asset, idx) => {
-      report += `│ ${idx + 1}. ${asset.meta.description || 'Financial Asset'}\n`;
+  if (bankDeposits.length > 0) {
+    report += `│ \n│ Bii. BANK BALANCES / TERM DEPOSITS:\n`;
+    bankDeposits.forEach((asset, idx) => {
+      report += `│ ${idx + 1}. ${asset.meta.description || 'Bank Account'}\n`;
       report += `│    As at:                ${asset.meta.dateAcquired || 'N/A'}\n`;
       report += `│    Balance/Value:        ${formatLKR(asset.financials.marketValue)}\n`;
+      report += `│    ───────────────────────────────────────────────────────────────────\n`;
+    });
+  }
+
+  if (shares.length > 0) {
+    report += `│ \n│ Biii. SHARES/STOCKS/SECURITIES:\n`;
+    shares.forEach((asset, idx) => {
+      report += `│ ${idx + 1}. ${asset.meta.description || 'Shares'}\n`;
+      report += `│    Acquired:             ${asset.meta.dateAcquired || 'N/A'}\n`;
+      report += `│    Cost:                 ${formatLKR(asset.financials.cost)}\n`;
+      report += `│    Market Value:         ${formatLKR(asset.financials.marketValue)}\n`;
+      report += `│    ───────────────────────────────────────────────────────────────────\n`;
+    });
+  }
+
+  if (cash.length > 0) {
+    report += `│ \n│ Biv. CASH IN HAND:\n`;
+    cash.forEach((asset, idx) => {
+      report += `│ ${idx + 1}. ${asset.meta.description || 'Cash'}\n`;
+      report += `│    As at:                ${asset.meta.dateAcquired || 'N/A'}\n`;
+      report += `│    Amount:               ${formatLKR(asset.financials.marketValue)}\n`;
+      report += `│    ───────────────────────────────────────────────────────────────────\n`;
+    });
+  }
+
+  if (loansGiven.length > 0) {
+    report += `│ \n│ Bv. LOANS GIVEN & AMOUNTS RECEIVABLE:\n`;
+    loansGiven.forEach((asset, idx) => {
+      report += `│ ${idx + 1}. ${asset.meta.description || 'Loan Given'}\n`;
+      report += `│    Date:                 ${asset.meta.dateAcquired || 'N/A'}\n`;
+      report += `│    Amount:               ${formatLKR(asset.financials.cost)}\n`;
+      report += `│    Current Value:        ${formatLKR(asset.financials.marketValue)}\n`;
+      report += `│    ───────────────────────────────────────────────────────────────────\n`;
+    });
+  }
+
+  if (jewellery.length > 0) {
+    report += `│ \n│ Bvi. GOLD, SILVER, GEMS, JEWELLERY:\n`;
+    jewellery.forEach((asset, idx) => {
+      report += `│ ${idx + 1}. ${asset.meta.description || 'Jewellery'}\n`;
+      report += `│    Acquired:             ${asset.meta.dateAcquired || 'N/A'}\n`;
+      report += `│    Cost:                 ${formatLKR(asset.financials.cost)}\n`;
+      report += `│    Market Value:         ${formatLKR(asset.financials.marketValue)}\n`;
+      report += `│    ───────────────────────────────────────────────────────────────────\n`;
+    });
+  }
+
+  if (businessProperty.length > 0) {
+    report += `│ \n│ C. PROPERTIES HELD AS PART OF BUSINESS:\n`;
+    businessProperty.forEach((asset, idx) => {
+      report += `│ ${idx + 1}. ${asset.meta.description || 'Business Property'}\n`;
+      report += `│    Acquired:             ${asset.meta.dateAcquired || 'N/A'}\n`;
+      report += `│    Cost:                 ${formatLKR(asset.financials.cost)}\n`;
+      report += `│    Market Value:         ${formatLKR(asset.financials.marketValue)}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
   }
@@ -545,9 +604,14 @@ export function downloadDetailedTaxReportPDF(
   const investmentIncomes = filteredIncomes.filter(i => i.schedule === '3');
 
   // Group assets by category
-  const immovableProperty = filteredAssets.filter(a => a.cageCategory === '701');
-  const vehicles = filteredAssets.filter(a => a.cageCategory === '711');
-  const financialAssets = filteredAssets.filter(a => a.cageCategory === '721');
+  const immovableProperty = filteredAssets.filter(a => a.cageCategory === 'A');
+  const vehicles = filteredAssets.filter(a => a.cageCategory === 'Bi');
+  const bankDeposits = filteredAssets.filter(a => a.cageCategory === 'Bii');
+  const shares = filteredAssets.filter(a => a.cageCategory === 'Biii');
+  const cash = filteredAssets.filter(a => a.cageCategory === 'Biv');
+  const loansGiven = filteredAssets.filter(a => a.cageCategory === 'Bv');
+  const jewellery = filteredAssets.filter(a => a.cageCategory === 'Bvi');
+  const businessProperty = filteredAssets.filter(a => a.cageCategory === 'C');
 
   // Create PDF
   const doc = new jsPDF();
@@ -705,7 +769,7 @@ export function downloadDetailedTaxReportPDF(
 
   if (immovableProperty.length > 0) {
     doc.setFontSize(12);
-    doc.text('IMMOVABLE PROPERTY', margin + 5, yPos);
+    doc.text('A. IMMOVABLE PROPERTY', margin + 5, yPos);
     yPos += lineHeight;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -722,7 +786,7 @@ export function downloadDetailedTaxReportPDF(
     checkPageBreak(20);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('VEHICLES', margin + 5, yPos);
+    doc.text('Bi. MOTOR VEHICLES', margin + 5, yPos);
     yPos += lineHeight;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -735,15 +799,100 @@ export function downloadDetailedTaxReportPDF(
     });
   }
 
-  if (financialAssets.length > 0) {
+  if (bankDeposits.length > 0) {
     checkPageBreak(20);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('FINANCIAL ASSETS', margin + 5, yPos);
+    doc.text('Bii. BANK BALANCES / TERM DEPOSITS', margin + 5, yPos);
     yPos += lineHeight;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    financialAssets.forEach((asset, idx) => {
+    bankDeposits.forEach((asset, idx) => {
+      checkPageBreak(15);
+      doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   Market Value: ${formatLKR(asset.financials.marketValue)}`, margin + 10, yPos);
+      yPos += lineHeight + 2;
+    });
+  }
+
+  if (shares.length > 0) {
+    checkPageBreak(20);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Biii. SHARES/STOCKS/SECURITIES', margin + 5, yPos);
+    yPos += lineHeight;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    shares.forEach((asset, idx) => {
+      checkPageBreak(15);
+      doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   Market Value: ${formatLKR(asset.financials.marketValue)}`, margin + 10, yPos);
+      yPos += lineHeight + 2;
+    });
+  }
+
+  if (cash.length > 0) {
+    checkPageBreak(20);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Biv. CASH IN HAND', margin + 5, yPos);
+    yPos += lineHeight;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    cash.forEach((asset, idx) => {
+      checkPageBreak(15);
+      doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   Amount: ${formatLKR(asset.financials.marketValue)}`, margin + 10, yPos);
+      yPos += lineHeight + 2;
+    });
+  }
+
+  if (loansGiven.length > 0) {
+    checkPageBreak(20);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Bv. LOANS GIVEN & AMOUNTS RECEIVABLE', margin + 5, yPos);
+    yPos += lineHeight;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    loansGiven.forEach((asset, idx) => {
+      checkPageBreak(15);
+      doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   Amount: ${formatLKR(asset.financials.marketValue)}`, margin + 10, yPos);
+      yPos += lineHeight + 2;
+    });
+  }
+
+  if (jewellery.length > 0) {
+    checkPageBreak(20);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Bvi. GOLD, SILVER, GEMS, JEWELLERY', margin + 5, yPos);
+    yPos += lineHeight;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    jewellery.forEach((asset, idx) => {
+      checkPageBreak(15);
+      doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   Market Value: ${formatLKR(asset.financials.marketValue)}`, margin + 10, yPos);
+      yPos += lineHeight + 2;
+    });
+  }
+
+  if (businessProperty.length > 0) {
+    checkPageBreak(20);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('C. PROPERTIES HELD AS PART OF BUSINESS', margin + 5, yPos);
+    yPos += lineHeight;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    businessProperty.forEach((asset, idx) => {
       checkPageBreak(15);
       doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
       yPos += lineHeight;

@@ -136,16 +136,29 @@ export function Dashboard() {
       <main className="container mx-auto px-4 py-8">
         {/* Profile Header */}
         <div className="mb-6">
-          <h2 className="text-3xl font-bold text-slate-900">
-            {selectedEntityId === 'family' 
-              ? '👨‍👩‍👧‍👦 Combined Family Overview' 
-              : `${selectedEntity?.name || ''}'s Profile`}
-          </h2>
-          <p className="text-slate-600">
-            {selectedEntityId === 'family'
-              ? `Showing combined data for ${entities.length} family member${entities.length > 1 ? 's' : ''}`
-              : `Individual taxpayer view • TIN: ${selectedEntity?.tin || 'Not Set'}`}
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-bold text-slate-900">
+                {selectedEntityId === 'family' 
+                  ? '👨‍👩‍👧‍👦 Combined Family Overview' 
+                  : `${selectedEntity?.name || ''}'s Profile`}
+              </h2>
+              <p className="text-slate-600">
+                {selectedEntityId === 'family'
+                  ? `Showing combined data for ${entities.length} family member${entities.length > 1 ? 's' : ''}`
+                  : `Individual taxpayer view • TIN: ${selectedEntity?.tin || 'Not Set'}`}
+              </p>
+            </div>
+            {selectedEntityId !== 'family' && entities.length > 1 && (
+              <Button 
+                variant="outline" 
+                onClick={() => setSelectedEntityId('family')}
+                className="flex items-center gap-2"
+              >
+                ← Back to Family View
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Summary Cards */}

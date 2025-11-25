@@ -12,7 +12,7 @@ import { DangerMeter } from '@/components/DangerMeter';
 import { useStore } from '@/stores/useStore';
 import { hasSavedData } from '@/utils/storage';
 import { formatLKR } from '@/lib/taxEngine';
-import { formatTaxYear, getRecentTaxYears } from '@/lib/taxYear';
+import { formatTaxYear, getRecentTaxYears, isDateInTaxYear, getTaxYearDateRange } from '@/lib/taxYear';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -52,10 +52,20 @@ export function Dashboard() {
     return null;
   }
 
-  // Filter data based on selected entity
+  // Filter data based on selected entity and tax year
+  const { end: taxYearEnd } = getTaxYearDateRange(currentTaxYear);
+  
   const filteredAssets = selectedEntityId === 'family' 
-    ? assets 
+    ? assets.filter((a) => {
+        // Include assets acquired on or before the end of the selected tax year
+        const acquiredDate = new Date(a.meta.dateAcquired);
+        return acquiredDate <= taxYearEnd;
+      })
     : assets.filter((a) => {
+        // Filter by tax year first
+        const acquiredDate = new Date(a.meta.dateAcquired);
+        if (acquiredDate > taxYearEnd) return false;
+        
         // Include assets owned directly by this entity
         if (a.ownerId === selectedEntityId) return true;
         // Include assets with joint ownership where this entity has a share
@@ -64,8 +74,16 @@ export function Dashboard() {
       });
   
   const filteredLiabilities = selectedEntityId === 'family'
-    ? liabilities
+    ? liabilities.filter((l) => {
+        // Include liabilities acquired on or before the end of the selected tax year
+        const acquiredDate = new Date(l.dateAcquired);
+        return acquiredDate <= taxYearEnd;
+      })
     : liabilities.filter((l) => {
+        // Filter by tax year first
+        const acquiredDate = new Date(l.dateAcquired);
+        if (acquiredDate > taxYearEnd) return false;
+        
         // Include liabilities owned directly by this entity
         if (l.ownerId === selectedEntityId) return true;
         // Include liabilities with joint ownership where this entity has a share
@@ -74,8 +92,8 @@ export function Dashboard() {
       });
   
   const filteredIncomes = selectedEntityId === 'family'
-    ? incomes
-    : incomes.filter((i) => i.ownerId === selectedEntityId);
+    ? incomes.filter((i) => i.taxYear === currentTaxYear)
+    : incomes.filter((i) => i.ownerId === selectedEntityId && i.taxYear === currentTaxYear);
 
   const totalAssetValue = filteredAssets
     .filter((a) => !a.disposed)

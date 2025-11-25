@@ -161,6 +161,12 @@ export const useStore = create<StoreState>((set, get) => ({
       throw new Error('No passphrase set');
     }
     
+    console.log('Saving to storage - Current state:');
+    console.log('  Entities:', state.entities.length);
+    console.log('  Assets:', state.assets.length);
+    console.log('  Liabilities:', state.liabilities.length);
+    console.log('  Incomes:', state.incomes.length);
+    
     const appState: AppState = {
       entities: state.entities,
       assets: state.assets,
@@ -171,6 +177,8 @@ export const useStore = create<StoreState>((set, get) => ({
       isEncrypted: true,
       lastSaved: new Date().toISOString(),
     };
+    
+    console.log('AppState to be saved:', appState);
     
     await saveState(appState, state.passphrase);
     set({ lastSaved: appState.lastSaved });

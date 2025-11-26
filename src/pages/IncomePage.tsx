@@ -18,6 +18,7 @@ import type { Income, EmploymentIncome, BusinessIncome, InvestmentIncome } from 
 export function IncomePage() {
   const navigate = useNavigate();
   const incomes = useStore((state) => state.incomes);
+  const assets = useStore((state) => state.assets);
   const entities = useStore((state) => state.entities);
   const currentTaxYear = useStore((state) => state.currentTaxYear);
   const setCurrentTaxYear = useStore((state) => state.setCurrentTaxYear);
@@ -33,6 +34,65 @@ export function IncomePage() {
   const currentYearIncomes = incomes.filter((i) => i.taxYear === currentTaxYear);
   const startYear = entities.length > 0 ? (entities[0]?.taxYear || '2024') : '2024';
   const availableTaxYears = getTaxYearsFromStart(startYear);
+
+  // Calculate investment income from assets
+  const derivedInvestmentIncome = (() => {
+    const income: { type: 'interest' | 'dividend' | 'rent'; amount: number; source: string; wht: number; ownerId: string }[] = [];
+    
+    assets
+      .filter((asset) => {
+        // Filter assets for current tax year
+        const acquiredDate = new Date(asset.meta.dateAcquired);
+        const taxYearStart = new Date(`${parseInt(currentTaxYear)}-04-01`);
+        const taxYearEnd = new Date(`${parseInt(currentTaxYear) + 1}-03-31`);
+        
+        if (acquiredDate > taxYearEnd) return false;
+        if (asset.disposed && asset.disposed.date) {
+          const disposedDate = new Date(asset.disposed.date);
+          if (disposedDate < taxYearStart) return false;
+        }
+        if (asset.closed && asset.closed.date) {
+          const closedDate = new Date(asset.closed.date);
+          if (closedDate < taxYearStart) return false;
+        }
+        return true;
+      })
+      .forEach((asset) => {
+        // Extract interest from bank accounts, cash, and loans given
+        if ((asset.category === 'Bii' || asset.category === 'Biv' || asset.category === 'Bv') && asset.balances) {
+          const yearBalance = asset.balances.find((b) => b.taxYear === currentTaxYear);
+          if (yearBalance && yearBalance.interestEarned > 0) {
+            income.push({
+              type: 'interest',
+              amount: yearBalance.interestEarned,
+              source: asset.meta.accountType ? `${asset.meta.bankName || 'Account'} - ${asset.meta.accountType}` : asset.meta.bankName || 'Interest Income',
+              wht: 0, // WHT for interest is typically 0 for most deposits
+              ownerId: asset.ownerId,
+            });
+          }
+        }
+        
+        // Extract dividends from shares
+        if (asset.category === 'Biii' && asset.balances) {
+          const yearBalance = asset.balances.find((b) => b.taxYear === currentTaxYear);
+          if (yearBalance && yearBalance.interestEarned > 0) {
+            income.push({
+              type: 'dividend',
+              amount: yearBalance.interestEarned,
+              source: asset.meta.companyName || 'Dividend Income',
+              wht: 0,
+              ownerId: asset.ownerId,
+            });
+          }
+        }
+      });
+    
+    return income;
+  })();
+
+  const getEntityName = (ownerId: string) => {
+    return entities.find((e) => e.id === ownerId)?.name || 'Unknown';
+  };
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this income entry?')) {
@@ -54,10 +114,6 @@ export function IncomePage() {
   const handleFormClose = () => {
     setShowForm(null);
     setEditingIncome(null);
-  };
-
-  const getEntityName = (ownerId: string) => {
-    return entities.find((e) => e.id === ownerId)?.name || 'Unknown';
   };
 
   const getIncomeAmount = (income: Income): number => {
@@ -327,16 +383,14 @@ export function IncomePage() {
                 <div className="p-4 bg-white rounded-lg border border-purple-200">
                   <p className="text-sm text-muted-foreground mb-1">Investment Income (Schedule 3)</p>
                   <p className="text-2xl font-bold text-purple-600">
-                    {formatLKR(currentYearIncomes
-                      .filter((i) => i.schedule === '3' && (!selectedEntityForTax || i.ownerId === selectedEntityForTax))
-                      .reduce((sum, i) => sum + ((i as InvestmentIncome).details.grossAmount || 0), 0)
+                    {formatLKR(
+                      derivedInvestmentIncome
+                        .filter((i) => !selectedEntityForTax || i.ownerId === selectedEntityForTax)
+                        .reduce((sum, i) => sum + i.amount, 0)
                     )}
                   </p>
                   <p className="text-xs text-muted-foreground mt-2">
-                    WHT: {formatLKR(currentYearIncomes
-                      .filter((i) => i.schedule === '3' && (!selectedEntityForTax || i.ownerId === selectedEntityForTax))
-                      .reduce((sum, i) => sum + ((i as InvestmentIncome).details.whtDeducted || 0), 0)
-                    )}
+                    From Assets • {derivedInvestmentIncome.filter((i) => !selectedEntityForTax || i.ownerId === selectedEntityForTax).length} source(s)
                   </p>
                 </div>
               </div>
@@ -365,11 +419,12 @@ export function IncomePage() {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Investment Income (WHT)</span>
+                      <span>Investment Income (from Assets)</span>
                       <span className="font-semibold">
-                        {formatLKR(currentYearIncomes
-                          .filter((i) => i.schedule === '3' && (!selectedEntityForTax || i.ownerId === selectedEntityForTax))
-                          .reduce((sum, i) => sum + ((i as InvestmentIncome).details.grossAmount || 0), 0)
+                        {formatLKR(
+                          derivedInvestmentIncome
+                            .filter((i) => !selectedEntityForTax || i.ownerId === selectedEntityForTax)
+                            .reduce((sum, i) => sum + i.amount, 0)
                         )}
                       </span>
                     </div>
@@ -382,8 +437,11 @@ export function IncomePage() {
                     <p className="text-2xl font-bold text-amber-700">
                       {formatLKR(
                         currentYearIncomes
+                          .filter((i) => i.schedule !== '3' && (!selectedEntityForTax || i.ownerId === selectedEntityForTax))
+                          .reduce((sum, i) => sum + getIncomeAmount(i), 0) +
+                        derivedInvestmentIncome
                           .filter((i) => !selectedEntityForTax || i.ownerId === selectedEntityForTax)
-                          .reduce((sum, i) => sum + getIncomeAmount(i), 0)
+                          .reduce((sum, i) => sum + i.amount, 0)
                       )}
                     </p>
                   </div>
@@ -414,6 +472,58 @@ export function IncomePage() {
         </Card>
 
         {/* Income List */}
+        {/* Derived Investment Income Section */}
+        {derivedInvestmentIncome.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-xl font-bold">Investment Income (Derived from Assets)</h2>
+              <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">Auto-calculated</span>
+            </div>
+            <div className="space-y-3">
+              {derivedInvestmentIncome
+                .filter((income) => !selectedEntityForTax || income.ownerId === selectedEntityForTax)
+                .map((income, idx) => (
+                <Card key={`derived-${idx}`} className="border-l-4 border-l-purple-500">
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-purple-50 rounded-lg">
+                          <TrendingUp className="w-5 h-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="font-semibold">
+                            {income.type === 'interest' && 'Interest Income'}
+                            {income.type === 'dividend' && 'Dividend Income'}
+                            {income.type === 'rent' && 'Rental Income'}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {getEntityName(income.ownerId)} • {income.source}
+                          </p>
+                          <p className="text-xs text-purple-600 mt-1">
+                            Derived from Assets & Liabilities page
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Amount</p>
+                        <p className="font-bold text-lg text-purple-600">
+                          {formatLKR(income.amount)}
+                        </p>
+                        {income.wht > 0 && (
+                          <p className="text-xs text-orange-600 mt-1">
+                            WHT: {formatLKR(income.wht)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Manual Income List */}
         {currentYearIncomes.filter((i) => i.schedule !== '3').length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
@@ -423,10 +533,12 @@ export function IncomePage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {currentYearIncomes
-              .filter((i) => i.schedule !== '3' && (!selectedEntityForTax || i.ownerId === selectedEntityForTax))
-              .map((income) => (
+          <div>
+            <h2 className="text-xl font-bold mb-4">Manual Income Entries</h2>
+            <div className="space-y-4">
+              {currentYearIncomes
+                .filter((i) => i.schedule !== '3' && (!selectedEntityForTax || i.ownerId === selectedEntityForTax))
+                .map((income) => (
               <Card key={income.id}>
                 <CardContent className="py-4">
                   <div className="flex items-center justify-between">
@@ -478,6 +590,7 @@ export function IncomePage() {
                 </CardContent>
               </Card>
             ))}
+            </div>
           </div>
         )}
       </div>

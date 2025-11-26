@@ -41,7 +41,9 @@ export function AssetsPage() {
   const [expenseAsset, setExpenseAsset] = useState<Asset | null>(null);
   const [pendingAsset, setPendingAsset] = useState<Asset | null>(null);
 
-  // Show all assets including closed ones
+  // Show all assets in the list (including sold/closed)
+  const allAssets = assets;
+  // Active assets for calculations (exclude disposed)
   const activeAssets = assets.filter((a) => !a.disposed);
   
   // Helper function to get display value for an asset
@@ -255,7 +257,7 @@ export function AssetsPage() {
     const grouped: Record<string, Asset[]> = {};
     
     categories.forEach(category => {
-      const assetsInCategory = activeAssets.filter(asset => asset.cageCategory === category);
+      const assetsInCategory = allAssets.filter(asset => asset.cageCategory === category);
       if (assetsInCategory.length > 0) {
         grouped[category] = assetsInCategory;
       }
@@ -436,7 +438,7 @@ export function AssetsPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-green-600">{formatLKR(totalAssetValue)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{activeAssets.length} items</p>
+              <p className="text-xs text-muted-foreground mt-1">{allAssets.length} items ({activeAssets.length} active)</p>
             </CardContent>
           </Card>
 
@@ -544,7 +546,7 @@ export function AssetsPage() {
             </Button>
           </div>
 
-          {activeAssets.length === 0 ? (
+          {allAssets.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <p className="text-muted-foreground">

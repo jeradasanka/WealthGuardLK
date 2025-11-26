@@ -391,10 +391,10 @@ export function Dashboard() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Assets Cost ({currentTaxYear})</CardDescription>
+              <CardDescription>Total Assets Cost</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-blue-600">{formatLKR(totalAssetCost)}</p>
@@ -404,7 +404,7 @@ export function Dashboard() {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Assets Market Value ({currentTaxYear})</CardDescription>
+              <CardDescription>Total Assets Market Value</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-green-600">{formatLKR(totalAssetValue)}</p>
@@ -414,31 +414,41 @@ export function Dashboard() {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Outstanding Loans ({currentTaxYear})</CardDescription>
+              <CardDescription>Total Liabilities</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-red-600">{formatLKR(totalLiabilities)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{filteredLiabilities.length} loans (remaining balance)</p>
+              <p className="text-xs text-muted-foreground mt-1">{filteredLiabilities.length} loans</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Net Worth ({currentTaxYear})</CardDescription>
+              <CardDescription>Net Worth</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-blue-600">{formatLKR(netWorth)}</p>
-              <p className="text-xs text-muted-foreground mt-1">Assets - Liabilities</p>
+              <p className={`text-2xl font-bold ${netWorth >= 0 ? 'text-blue-600' : 'text-red-600'}`}>{formatLKR(netWorth)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Market Value - Liabilities</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Income ({currentTaxYear})</CardDescription>
+              <CardDescription>Total Income</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-purple-600">{formatLKR(currentYearIncome)}</p>
               <p className="text-xs text-muted-foreground mt-1">{incomes.filter(i => i.taxYear === currentTaxYear).length} sources</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Tax Year</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-slate-700">{formatTaxYear(currentTaxYear)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Current reporting period</p>
             </CardContent>
           </Card>
         </div>

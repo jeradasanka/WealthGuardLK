@@ -182,11 +182,19 @@ function extractBusinessIncome(text: string) {
 function extractInvestmentIncome(text: string) {
   const incomes = [];
   
-  // Extract interest income total
-  const interestMatches = text.matchAll(/I-INTEREST\s+\d+\s+\d+\s+([\d,]+\.?\d*)/gi);
+  // 1. Interest Income
+  // Pattern: I-INTEREST [Cage] [Cage] [Amount]
+  // Also look for WHT if available in the same line or section
+  const interestMatches = text.matchAll(/I-INTEREST\s+(?:.*?)\s+([\d,]+\.?\d*)/gi);
   let totalInterest = 0;
   for (const match of interestMatches) {
-    totalInterest += parseAmount(match[1]);
+    // Ensure we're capturing the amount column, not a cage number
+    // Amounts usually have commas or decimals, cage numbers usually don't (unless they are 3 digits)
+    // This is a heuristic.
+    const amount = parseAmount(match[1]);
+    if (amount > 1000) { // Filter out likely cage numbers
+       totalInterest += amount;
+    }
   }
   
   if (totalInterest > 0) {
@@ -195,6 +203,47 @@ function extractInvestmentIncome(text: string) {
       dividends: 0,
       interest: totalInterest,
       rent: 0,
+      wht: 0, // Placeholder, hard to extract WHT without column structure
+    });
+  }
+
+  // 2. Dividend Income
+  const dividendMatches = text.matchAll(/D-DIVIDEND\s+(?:.*?)\s+([\d,]+\.?\d*)/gi);
+  let totalDividend = 0;
+  for (const match of dividendMatches) {
+    const amount = parseAmount(match[1]);
+    if (amount > 1000) {
+      totalDividend += amount;
+    }
+  }
+
+  if (totalDividend > 0) {
+    incomes.push({
+      source: 'Dividend Income',
+      dividends: totalDividend,
+      interest: 0,
+      rent: 0,
+      wht: 0,
+    });
+  }
+
+  // 3. Rent Income
+  const rentMatches = text.matchAll(/R-RENT\s+(?:.*?)\s+([\d,]+\.?\d*)/gi);
+  let totalRent = 0;
+  for (const match of rentMatches) {
+    const amount = parseAmount(match[1]);
+    if (amount > 1000) {
+      totalRent += amount;
+    }
+  }
+
+  if (totalRent > 0) {
+    incomes.push({
+      source: 'Rent Income',
+      dividends: 0,
+      interest: 0,
+      rent: totalRent,
+      wht: 0,
     });
   }
   
@@ -205,24 +254,27 @@ function extractAssets(text: string) {
   const assets = [];
   
   // Extract immovable property (land/house)
-  const propertyMatch = text.match(/A\s+1\s+([A-Z0-9\s,\/\-\(\)]+?)\s+(\d{4}-\d{2}-\d{2})\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)/);
-  if (propertyMatch) {
+  // Pattern: A 1 [Description] [Date] [Cost] [Market Value]
+  const propertyMatches = text.matchAll(/A\s+1\s+([A-Z0-9\s,\/\-\(\)\.]+?)\s+(\d{4}-\d{2}-\d{2})\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)/gi);
+  for (const match of propertyMatches) {
     assets.push({
-      description: propertyMatch[1].trim(),
+      description: match[1].trim(),
       category: 'A' as const,
-      cost: parseAmount(propertyMatch[3]),
-      marketValue: parseAmount(propertyMatch[4]),
-      dateAcquired: propertyMatch[2],
+      cost: parseAmount(match[3]),
+      marketValue: parseAmount(match[4]),
+      dateAcquired: match[2],
     });
   }
   
   // Extract bank balances
-  const bankMatches = text.matchAll(/A\s+\d+\s+([A-Z\s]+BANK[A-Z\s]*)\s+(\d+)\s+[A-Z\s]+\s+[\d,]+\.?\d*\s+[\d,]+\.?\d*\s+([\d,]+\.?\d*)/gi);
+  // Pattern: A [Code] [Bank Name] [Account No] [Type] [Balance]
+  // Relaxed pattern to catch more variations
+  const bankMatches = text.matchAll(/A\s+\d+\s+([A-Z\s\-\.]+(?:BANK|FINANCE|PLC)[A-Z\s\-\.]*)\s+(\d+)\s+.*?\s+([\d,]+\.?\d*)\s*$/gim);
   for (const match of bankMatches) {
     const balance = parseAmount(match[3]);
     if (balance > 0) {
       assets.push({
-        description: `${match[1].trim()} - Account ${match[2]}`,
+        description: `${match[1].trim()} - ${match[2]}`,
         category: 'Bii' as const,
         cost: balance,
         marketValue: balance,
@@ -231,7 +283,7 @@ function extractAssets(text: string) {
   }
   
   // Extract cash in hand
-  const cashMatch = text.match(/iv\. Cash in hand.*?(\d+)\s+([\d,]+\.?\d*)/i);
+  const cashMatch = text.match(/(?:iv\.|4\.)\s*Cash in hand.*?(\d+)\s+([\d,]+\.?\d*)/i);
   if (cashMatch) {
     const cashAmount = parseAmount(cashMatch[2]);
     if (cashAmount > 0) {
@@ -245,7 +297,7 @@ function extractAssets(text: string) {
   }
   
   // Extract loans given
-  const loansGivenMatch = text.match(/v\. Loans given.*?(\d+)\s+([\d,]+\.?\d*)/i);
+  const loansGivenMatch = text.match(/(?:v\.|5\.)\s*Loans given.*?(\d+)\s+([\d,]+\.?\d*)/i);
   if (loansGivenMatch) {
     const loanAmount = parseAmount(loansGivenMatch[2]);
     if (loanAmount > 0) {
@@ -259,7 +311,7 @@ function extractAssets(text: string) {
   }
   
   // Extract gold, gems, jewelry
-  const valuablesMatch = text.match(/vi\. Value of gold.*?(\d+)\s+([\d,]+\.?\d*)/i);
+  const valuablesMatch = text.match(/(?:vi\.|6\.)\s*Value of gold.*?(\d+)\s+([\d,]+\.?\d*)/i);
   if (valuablesMatch) {
     const valuablesAmount = parseAmount(valuablesMatch[2]);
     if (valuablesAmount > 0) {
@@ -279,18 +331,28 @@ function extractLiabilities(text: string) {
   const liabilities = [];
   
   // Extract housing loans and other liabilities
-  const liabilityMatches = text.matchAll(/A\s+\d+\s+([A-Z\s\-0-9]+?)\s+[A-Z]+\s+(\d{4}-\d{2}-\d{2})?\s*([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)/g);
+  // Look for lines in Liability section (usually starts with L or in a specific table)
+  // RAMIS often lists them under "Liabilities" or similar headers
+  // We'll look for the pattern: [Description] [Lender] [Date] [Original] [Balance]
+  // But often it's just mixed. We'll stick to the "A ..." pattern if it appears there (sometimes liabilities are mixed in older forms)
+  // OR look for specific keywords like "LOAN" followed by amounts.
+  
+  const liabilityMatches = text.matchAll(/(?:LOAN|MORTGAGE|CREDIT CARD)\s+([A-Z\s\-0-9]+?)\s+(\d{4}-\d{2}-\d{2})?\s*([\d,]+\.?\d*)\s+([\d,]+\.?\d*)/gi);
   
   for (const match of liabilityMatches) {
-    const description = match[1].trim();
-    // Only process if it looks like a loan/liability
-    if (description.includes('LOAN') || description.includes('HOUSING')) {
+    const description = match[0].trim(); // Full match includes LOAN/MORTGAGE
+    const lender = match[1].trim();
+    const date = match[2] || new Date().toISOString().split('T')[0];
+    const original = parseAmount(match[3]);
+    const balance = parseAmount(match[4]);
+    
+    if (balance > 0) {
       liabilities.push({
         description: description,
-        lenderName: description.split('-')[0].trim() || 'Unknown Lender',
-        originalAmount: parseAmount(match[3]),
-        currentBalance: parseAmount(match[4]),
-        dateAcquired: match[2] || new Date().toISOString().split('T')[0],
+        lenderName: lender || 'Unknown Lender',
+        originalAmount: original,
+        currentBalance: balance,
+        dateAcquired: date,
       });
     }
   }

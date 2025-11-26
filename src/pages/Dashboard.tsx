@@ -73,6 +73,7 @@ export function Dashboard() {
 
   // Filter data based on selected entity and tax year
   const { start: taxYearStart, end: taxYearEnd } = getTaxYearDateRange(currentTaxYear);
+  const taxYearEndString = `${parseInt(currentTaxYear) + 1}-03-31`;
   
   const filteredAssets = selectedEntityId === 'family' 
     ? filterAssetsForTaxYear(assets, currentTaxYear)
@@ -84,13 +85,11 @@ export function Dashboard() {
   const filteredLiabilities = selectedEntityId === 'family'
     ? liabilities.filter((l) => {
         // Liability must be acquired before or during the tax year
-        const acquiredDate = new Date(l.dateAcquired);
-        return acquiredDate <= new Date(taxYearEnd);
+        return l.dateAcquired <= taxYearEndString;
       })
     : liabilities.filter((l) => {
         // Liability must be acquired before or during the tax year
-        const acquiredDate = new Date(l.dateAcquired);
-        if (acquiredDate > new Date(taxYearEnd)) return false;
+        if (l.dateAcquired > taxYearEndString) return false;
         
         // Include liabilities owned directly by this entity
         if (l.ownerId === selectedEntityId) return true;
@@ -118,7 +117,11 @@ export function Dashboard() {
   };
 
   const totalAssetValue = filteredAssets
-    .filter((a) => !a.disposed)
+    .filter((a) => {
+      const isDisposedBeforeYearEnd = a.disposed && a.disposed.date && a.disposed.date <= taxYearEndString;
+      const isClosedBeforeYearEnd = a.closed && a.closed.date && a.closed.date <= taxYearEndString;
+      return !isDisposedBeforeYearEnd && !isClosedBeforeYearEnd;
+    })
     .reduce((sum, a) => {
       const assetValue = getAssetDisplayValue(a);
       
@@ -136,7 +139,11 @@ export function Dashboard() {
   
   // Calculate total cost of assets (including property expenses)
   const totalAssetCost = filteredAssets
-    .filter((a) => !a.disposed)
+    .filter((a) => {
+      const isDisposedBeforeYearEnd = a.disposed && a.disposed.date && a.disposed.date <= taxYearEndString;
+      const isClosedBeforeYearEnd = a.closed && a.closed.date && a.closed.date <= taxYearEndString;
+      return !isDisposedBeforeYearEnd && !isClosedBeforeYearEnd;
+    })
     .reduce((sum, a) => {
       let cost = a.financials.cost;
       // Add property expenses to the cost
@@ -151,7 +158,6 @@ export function Dashboard() {
         if (ownershipShare) {
           return sum + (cost * ownershipShare.percentage / 100);
         }
-        return sum;
         return sum;
       }
       // For family view or single owner, use full cost

@@ -88,6 +88,91 @@ The app will be available at `http://localhost:5173`
 - **Export**: Encrypted JSON backup (.wglk files)
 - **Import**: Restore data from backup during setup or from settings
 - **IRD Schedule 7**: CSV export for WHT certificates
+## 📊 Data Structures & Calculations
+
+### 1. Data Models
+
+The application uses a strictly typed data model defined in `src/types/index.ts`.
+
+#### Tax Entity (`TaxEntity`)
+Represents a taxpayer (Individual, Partnership, Company).
+- **Key Fields**: `id`, `name`, `tin`, `type`, `role` (primary/spouse).
+- **Usage**: All assets, liabilities, and incomes are linked to an `ownerId` corresponding to a Tax Entity.
+
+#### Asset (`Asset`)
+Represents a physical or financial asset owned by an entity.
+- **Categories (`cageCategory`)**: Maps directly to IRD Return of Income schedules:
+  - `A`: Immovable Properties
+  - `Bi`: Motor Vehicles
+  - `Bii`: Bank Balances / Term Deposits
+  - `Biii`: Shares/Stocks
+  - `Biv`: Cash in Hand
+  - `Bv`: Loans Given
+  - `Bvi`: Jewellery/Gold
+  - `C`: Business Properties
+- **Valuation**: Tracks both `cost` (for acquisition proof) and `marketValue` (for net worth).
+- **Joint Ownership**: Supports `ownershipShares` to split value between family members.
+
+#### Liability (`Liability`)
+Represents a debt obligation.
+- **Key Fields**: `originalAmount`, `currentBalance`, `lenderName`, `securityGiven`.
+- **Payment Tracking**: Records principal and interest payments to calculate reducing balance.
+
+#### Income (`Income`)
+Represents an income source for a specific tax year.
+- **Schedules**:
+  - `1`: Employment (Gross Remuneration, Non-Cash Benefits, APIT)
+  - `2`: Business (Net Profit/Loss)
+  - `3`: Investment (Interest, Dividends, Rent, WHT)
+
+### 2. Calculation Logic
+
+#### 🧮 Tax Computation (FR-08, FR-09)
+Implemented in `src/lib/taxEngine.ts`.
+
+1.  **Total Income**: Sum of Employment + Business + Investment Income.
+    *   *Note*: Investment income includes manually entered records AND derived interest/dividends from Asset balances.
+    *   *Rent Relief*: 25% deduction applied automatically to Rent income.
+2.  **Taxable Income**:
+    `Total Income - Personal Relief - Solar Relief`
+    *   *Personal Relief*: Rs. 1,200,000 (for 2024/2025).
+    *   *Solar Relief*: Lower of Investment or Rs. 600,000.
+3.  **Tax on Income**: Calculated using progressive tax bands (2024 rates):
+    *   First Rs. 500,000 @ 6%
+    *   Next Rs. 500,000 @ 12%
+    *   ...up to Balance @ 36%
+4.  **Tax Payable**:
+    `Tax on Income - Tax Credits (APIT + WHT)`
+
+#### ⚠️ Audit Risk / Danger Meter (FR-10)
+Detects "Unexplained Wealth" by balancing Inflows vs. Outflows for the current tax year.
+
+**Formula**: `Risk Score = Outflows - Inflows`
+
+*   **Outflows**:
+    *   (+) Cost of Assets acquired in current year
+    *   (+) Property Expenses (Renovations/Improvements)
+    *   (+) Loan Payments (Principal + Interest)
+    *   (+) Estimated Living Expenses
+*   **Inflows**:
+    *   (+) Net Income (Total Income - APIT - WHT)
+    *   (+) New Loans taken in current year
+    *   (+) Asset Disposals (Sale Proceeds)
+
+**Risk Levels**:
+*   🟢 **Safe**: Risk Score ≤ 0 (Inflows cover Outflows)
+*   🟡 **Warning**: Risk Score > 0 but ≤ 500,000
+*   🔴 **Danger**: Risk Score > 500,000 (High risk of audit)
+
+#### 💰 Net Worth
+Displayed on the Dashboard.
+
+*   **Total Assets**: Sum of Market Values of all active assets.
+    *   *Property Valuation*: Uses the latest market value recorded in Property Expenses, or falls back to initial market value.
+*   **Total Liabilities**: Sum of Current Balances.
+    *   *Balance Calculation*: `Original Amount - Sum(Principal Payments)`
+*   **Net Worth**: `Total Assets - Total Liabilities`
+
 ## 🔒 Security Architecture
 
 ```

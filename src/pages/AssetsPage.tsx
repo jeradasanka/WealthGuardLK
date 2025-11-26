@@ -30,7 +30,6 @@ export function AssetsPage() {
   const removeAsset = useStore((state) => state.removeAsset);
   const removeLiability = useStore((state) => state.removeLiability);
   const updateLiability = useStore((state) => state.updateLiability);
-  const disposeAsset = useStore((state) => state.disposeAsset);
   const saveToStorage = useStore((state) => state.saveToStorage);
 
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -270,14 +269,6 @@ export function AssetsPage() {
   const handleDeleteAsset = async (id: string) => {
     if (confirm('Are you sure you want to delete this asset?')) {
       removeAsset(id);
-      await saveToStorage();
-    }
-  };
-
-  const handleDisposeAsset = async (id: string) => {
-    const salePrice = prompt('Enter sale price:');
-    if (salePrice && !Number.isNaN(Number(salePrice))) {
-      disposeAsset(id, new Date().toISOString().split('T')[0], Number(salePrice));
       await saveToStorage();
     }
   };
@@ -751,15 +742,6 @@ export function AssetsPage() {
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          {!asset.closed && !asset.disposed && asset.cageCategory !== 'Bii' && asset.cageCategory !== 'Biv' && asset.cageCategory !== 'Bv' && asset.cageCategory !== 'Bvi' && asset.cageCategory !== 'A' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDisposeAsset(asset.id)}
-                            >
-                              Sell
-                            </Button>
-                          )}
                         </div>
                       </div>
                     </div>

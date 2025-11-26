@@ -16,20 +16,102 @@ import type {
 } from '@/types';
 import { isDateInTaxYear } from './taxYear';
 
-// Tax rates for progressive taxation (as of 2024/2025)
-const TAX_BRACKETS = [
-  { limit: 0, rate: 0 },
-  { limit: 1200000, rate: 0 }, // Personal relief automatically applied
-  { limit: 1700000, rate: 0.06 },
-  { limit: 2200000, rate: 0.12 },
-  { limit: 2700000, rate: 0.18 },
-  { limit: 3200000, rate: 0.24 },
-  { limit: 3700000, rate: 0.30 },
-  { limit: Infinity, rate: 0.36 },
-];
+// Tax year configurations with personal relief and brackets
+interface TaxYearConfig {
+  personalRelief: number;
+  brackets: { limit: number; rate: number }[];
+}
 
-const PERSONAL_RELIEF = 1200000; // Rs. 1,200,000
+const TAX_YEAR_CONFIGS: { [year: string]: TaxYearConfig } = {
+  '2020': {
+    personalRelief: 3000000, // Rs. 3,000,000
+    brackets: [
+      { limit: 0, rate: 0 },
+      { limit: 3000000, rate: 0.06 },
+      { limit: 6000000, rate: 0.12 },
+      { limit: Infinity, rate: 0.18 },
+    ],
+  },
+  '2021': {
+    personalRelief: 3000000, // Rs. 3,000,000
+    brackets: [
+      { limit: 0, rate: 0 },
+      { limit: 3000000, rate: 0.06 },
+      { limit: 6000000, rate: 0.12 },
+      { limit: Infinity, rate: 0.18 },
+    ],
+  },
+  '2022': {
+    // Split year - using average for simplicity, actual calculation needs period-based computation
+    personalRelief: 1200000, // Simplified (actual: pro-rated)
+    brackets: [
+      { limit: 0, rate: 0 },
+      { limit: 500000, rate: 0.06 },
+      { limit: 1000000, rate: 0.12 },
+      { limit: 1500000, rate: 0.18 },
+      { limit: 2000000, rate: 0.24 },
+      { limit: 2500000, rate: 0.30 },
+      { limit: Infinity, rate: 0.36 },
+    ],
+  },
+  '2023': {
+    personalRelief: 1200000, // Rs. 1,200,000
+    brackets: [
+      { limit: 0, rate: 0 },
+      { limit: 500000, rate: 0.06 },
+      { limit: 1000000, rate: 0.12 },
+      { limit: 1500000, rate: 0.18 },
+      { limit: 2000000, rate: 0.24 },
+      { limit: 2500000, rate: 0.30 },
+      { limit: Infinity, rate: 0.36 },
+    ],
+  },
+  '2024': {
+    personalRelief: 1200000, // Rs. 1,200,000
+    brackets: [
+      { limit: 0, rate: 0 },
+      { limit: 500000, rate: 0.06 },
+      { limit: 1000000, rate: 0.12 },
+      { limit: 1500000, rate: 0.18 },
+      { limit: 2000000, rate: 0.24 },
+      { limit: 2500000, rate: 0.30 },
+      { limit: Infinity, rate: 0.36 },
+    ],
+  },
+  '2025': {
+    personalRelief: 1800000, // Rs. 1,800,000
+    brackets: [
+      { limit: 0, rate: 0 },
+      { limit: 1000000, rate: 0.06 },
+      { limit: 1500000, rate: 0.18 },
+      { limit: 2000000, rate: 0.24 },
+      { limit: 2500000, rate: 0.30 },
+      { limit: Infinity, rate: 0.36 },
+    ],
+  },
+};
+
 const MAX_SOLAR_RELIEF = 600000; // Rs. 600,000
+
+/**
+ * Get tax configuration for a specific year
+ */
+export function getTaxConfig(taxYear: string): TaxYearConfig {
+  const year = parseInt(taxYear);
+  
+  // Return config for the year, defaulting to 2024 if not found
+  if (TAX_YEAR_CONFIGS[year.toString()]) {
+    return TAX_YEAR_CONFIGS[year.toString()];
+  }
+  
+  // For future years beyond 2025, use 2025 config
+  if (year >= 2025) {
+    return TAX_YEAR_CONFIGS['2025'];
+  }
+  
+  // For years before 2020, use 2020 config
+  return TAX_YEAR_CONFIGS['2020'];
+}
 
 /**
  * Filter assets relevant to a specific tax year
@@ -133,18 +215,18 @@ export function calculateTotalIncome(
     switch (income.schedule) {
       case '1': {
         const emp = income as EmploymentIncome;
-        employmentIncome += emp.details.grossRemuneration + emp.details.nonCashBenefits;
-        totalAPIT += emp.details.apitDeducted;
+        employmentIncome += (emp.details.grossRemuneration || 0) + (emp.details.nonCashBenefits || 0);
+        totalAPIT += (emp.details.apitDeducted || 0);
         break;
       }
       case '2': {
         const bus = income as BusinessIncome;
-        businessIncome += bus.details.netProfit; // Cage 203
+        businessIncome += (bus.details.netProfit || 0); // Cage 203
         break;
       }
       case '3': {
         const inv = income as InvestmentIncome;
-        let incomeAmount = inv.details.grossAmount;
+        let incomeAmount = (inv.details.grossAmount || 0);
         
         // Apply 25% relief for rent income (FR-04)
         if (inv.type === 'rent') {
@@ -153,7 +235,7 @@ export function calculateTotalIncome(
         }
         
         investmentIncome += incomeAmount;
-        totalWHT += inv.details.whtDeducted;
+        totalWHT += (inv.details.whtDeducted || 0);
         break;
       }
     }
@@ -179,13 +261,14 @@ export function calculateTotalIncome(
 }
 
 /**
- * Calculates tax using progressive rates (FR-09)
+ * Calculates tax using progressive rates for a specific tax year (FR-09)
  */
-export function calculateProgressiveTax(taxableIncome: number): number {
+export function calculateProgressiveTax(taxableIncome: number, taxYear: string = '2024'): number {
+  const config = getTaxConfig(taxYear);
   let tax = 0;
   let previousLimit = 0;
 
-  for (const bracket of TAX_BRACKETS) {
+  for (const bracket of config.brackets) {
     if (taxableIncome <= previousLimit) break;
 
     const applicableIncome = Math.min(
@@ -215,6 +298,9 @@ export function computeTax(
     totalWHT,
   } = calculateTotalIncome(incomes, assets, currentTaxYear);
 
+  // Get tax configuration for the year
+  const config = getTaxConfig(currentTaxYear);
+
   // Calculate reliefs
   const solarRelief = Math.min(solarInvestment, MAX_SOLAR_RELIEF);
   
@@ -224,11 +310,11 @@ export function computeTax(
   // Taxable Income = Assessable Income - Personal Relief - Solar Relief
   const taxableIncome = Math.max(
     0,
-    assessableIncome - PERSONAL_RELIEF - solarRelief
+    assessableIncome - config.personalRelief - solarRelief
   );
   
   // Calculate tax on taxable income
-  const taxOnIncome = calculateProgressiveTax(taxableIncome);
+  const taxOnIncome = calculateProgressiveTax(taxableIncome, currentTaxYear);
   
   // Tax Payable = Tax on Income - Tax Credits (APIT + WHT)
   const taxPayable = Math.max(
@@ -239,7 +325,7 @@ export function computeTax(
   return {
     assessableIncome,
     reliefs: {
-      personalRelief: PERSONAL_RELIEF,
+      personalRelief: config.personalRelief,
       solarRelief,
     },
     taxableIncome,
@@ -303,7 +389,7 @@ export function calculateAuditRisk(
 
   // Calculate risk score (include property expenses in outflows, subtract tax already paid from inflows)
   const outflows = assetGrowth + propertyExpenses + estimatedLivingExpenses + loanPayments;
-  const inflows = incomeBreakdown.totalIncome - (incomeBreakdown.totalAPIT + incomeBreakdown.totalWHT) + newLoans;
+  const inflows = incomeBreakdown.totalIncome - ((incomeBreakdown.totalAPIT || 0) + (incomeBreakdown.totalWHT || 0)) + newLoans;
   const riskScore = outflows - inflows;
 
   // Determine risk level
@@ -323,7 +409,7 @@ export function calculateAuditRisk(
     businessIncome: incomeBreakdown.businessIncome,
     investmentIncome: incomeBreakdown.investmentIncome,
     totalIncome: incomeBreakdown.totalIncome,
-    taxDeducted: incomeBreakdown.totalAPIT + incomeBreakdown.totalWHT,
+    taxDeducted: (incomeBreakdown.totalAPIT || 0) + (incomeBreakdown.totalWHT || 0),
     newLoans,
     riskScore,
     riskLevel,

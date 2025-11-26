@@ -682,13 +682,23 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="itemType">Item Type *</Label>
-                  <Input
+                  <select
                     id="itemType"
                     value={formData.itemType}
-                    onChange={handleChange('itemType')}
+                    onChange={(e) => setFormData({ ...formData, itemType: e.target.value })}
                     required
-                    placeholder="e.g., Gold, Silver, Diamond, Ruby"
-                  />
+                    className="w-full rounded-md border px-3 py-2"
+                  >
+                    <option value="">Select item type</option>
+                    <option value="Gold">Gold</option>
+                    <option value="Silver">Silver</option>
+                    <option value="Gems">Gems</option>
+                    <option value="Jewellery">Jewellery</option>
+                    <option value="Diamond">Diamond</option>
+                    <option value="Ruby">Ruby</option>
+                    <option value="Sapphire">Sapphire</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="weight">Weight</Label>

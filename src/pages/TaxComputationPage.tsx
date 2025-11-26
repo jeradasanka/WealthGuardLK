@@ -21,7 +21,7 @@ export function TaxComputationPage() {
   const totalLiabilities = liabilities.reduce((sum, l) => sum + l.currentBalance, 0);
   const personalRelief = 1200000; // Rs. 1.2M standard relief
 
-  const taxComputation = computeTax(incomes, totalAssets, totalLiabilities, assets, liabilities, personalRelief);
+  const taxComputation = computeTax(incomes, assets, currentTaxYear);
 
   // Group incomes by schedule
   const employmentIncomes = incomes.filter((i) => i.type === 'employment');

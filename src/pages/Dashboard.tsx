@@ -12,7 +12,7 @@ import { DangerMeter } from '@/components/DangerMeter';
 import { PDFImportWizard } from '@/components/PDFImportWizard';
 import { useStore } from '@/stores/useStore';
 import { hasSavedData } from '@/utils/storage';
-import { formatLKR } from '@/lib/taxEngine';
+import { formatLKR, filterAssetsForTaxYear, calculateTotalIncome } from '@/lib/taxEngine';
 import { formatTaxYear, getTaxYearsFromStart, getTaxYearDateRange } from '@/lib/taxYear';
 import { downloadDetailedTaxReport, downloadDetailedTaxReportPDF } from '@/utils/export';
 
@@ -75,56 +75,11 @@ export function Dashboard() {
   const { start: taxYearStart, end: taxYearEnd } = getTaxYearDateRange(currentTaxYear);
   
   const filteredAssets = selectedEntityId === 'family' 
-    ? assets.filter((a) => {
-        // Asset must be acquired before or during the tax year
-        const acquiredDate = new Date(a.meta.dateAcquired);
-        if (acquiredDate > new Date(taxYearEnd)) return false;
-        
-        // If disposed, must be disposed after the tax year start
-        if (a.disposed && a.disposed.date) {
-          const disposedDate = new Date(a.disposed.date);
-          if (disposedDate < new Date(taxYearStart)) return false;
-        } else if (a.disposed) {
-          return false; // Disposed but no date, exclude
-        }
-        
-        // If closed (financial asset), must be closed after the tax year start
-        if (a.closed && a.closed.date) {
-          const closedDate = new Date(a.closed.date);
-          if (closedDate < new Date(taxYearStart)) return false;
-        } else if (a.closed) {
-          return false; // Closed but no date, exclude
-        }
-        
-        return true;
-      })
-    : assets.filter((a) => {
-        // Asset must be acquired before or during the tax year
-        const acquiredDate = new Date(a.meta.dateAcquired);
-        if (acquiredDate > new Date(taxYearEnd)) return false;
-        
-        // If disposed, must be disposed after the tax year start
-        if (a.disposed && a.disposed.date) {
-          const disposedDate = new Date(a.disposed.date);
-          if (disposedDate < new Date(taxYearStart)) return false;
-        } else if (a.disposed) {
-          return false; // Disposed but no date, exclude
-        }
-        
-        // If closed (financial asset), must be closed after the tax year start
-        if (a.closed && a.closed.date) {
-          const closedDate = new Date(a.closed.date);
-          if (closedDate < new Date(taxYearStart)) return false;
-        } else if (a.closed) {
-          return false; // Closed but no date, exclude
-        }
-        
-        // Include assets owned directly by this entity
-        if (a.ownerId === selectedEntityId) return true;
-        // Include assets with joint ownership where this entity has a share
-        if (a.ownershipShares && a.ownershipShares.some((s) => s.entityId === selectedEntityId)) return true;
-        return false;
-      });
+    ? filterAssetsForTaxYear(assets, currentTaxYear)
+    : filterAssetsForTaxYear(assets, currentTaxYear).filter((a) => 
+        a.ownerId === selectedEntityId || 
+        (a.ownershipShares && a.ownershipShares.some((s) => s.entityId === selectedEntityId))
+      );
   
   const filteredLiabilities = selectedEntityId === 'family'
     ? liabilities.filter((l) => {
@@ -226,18 +181,12 @@ export function Dashboard() {
     return sum + balanceAtYearEnd;
   }, 0);
 
-  const currentYearIncome = filteredIncomes
-    .filter((i) => i.taxYear === currentTaxYear)
-    .reduce((sum, income) => {
-      if (income.schedule === '1') {
-        return sum + income.details.grossRemuneration;
-      } else if (income.schedule === '2') {
-        return sum + income.details.netProfit;
-      } else if (income.schedule === '3') {
-        return sum + income.details.grossAmount;
-      }
-      return sum;
-    }, 0);
+  const incomeSummary = calculateTotalIncome(
+    filteredIncomes.filter((i) => i.taxYear === currentTaxYear),
+    filteredAssets,
+    currentTaxYear
+  );
+  const currentYearIncome = incomeSummary.totalIncome;
 
   const netWorth = totalAssetValue - totalLiabilities;
   

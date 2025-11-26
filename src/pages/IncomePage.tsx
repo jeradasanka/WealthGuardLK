@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useStore } from '@/stores/useStore';
 import { EmploymentIncomeForm } from '@/components/EmploymentIncomeForm';
 import { BusinessIncomeForm } from '@/components/BusinessIncomeForm';
-import { formatLKR, calculateTotalIncome } from '@/lib/taxEngine';
+import { formatLKR, calculateTotalIncome, calculateDerivedInvestmentIncome } from '@/lib/taxEngine';
 import { formatTaxYear, getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Income, EmploymentIncome, BusinessIncome, InvestmentIncome } from '@/types';
 
@@ -36,48 +36,12 @@ export function IncomePage() {
   const availableTaxYears = getTaxYearsFromStart(startYear);
 
   // Calculate investment income from assets
-  const derivedInvestmentIncome = (() => {
-    const income: { type: 'interest' | 'dividend' | 'rent'; amount: number; source: string; wht: number; ownerId: string }[] = [];
-    
-    // Process all assets - let the balance taxYear determine if it applies to current year
-    assets.forEach((asset) => {
-      // Extract interest from bank accounts, cash, and loans given
-      if ((asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && asset.balances) {
-        const yearBalance = asset.balances.find((b) => {
-          // Match both "2024" and "2024/2025" formats
-          return b.taxYear === currentTaxYear || b.taxYear.startsWith(currentTaxYear);
-        });
-        if (yearBalance && yearBalance.interestEarned > 0) {
-          income.push({
-            type: 'interest',
-            amount: yearBalance.interestEarned,
-            source: asset.meta.accountType ? `${asset.meta.bankName || 'Account'} - ${asset.meta.accountType}` : asset.meta.bankName || 'Interest Income',
-            wht: 0, // WHT for interest is typically 0 for most deposits
-            ownerId: asset.ownerId,
-          });
-        }
-      }
-      
-      // Extract dividends from shares
-      if (asset.cageCategory === 'Biii' && asset.balances) {
-        const yearBalance = asset.balances.find((b) => {
-          // Match both "2024" and "2024/2025" formats
-          return b.taxYear === currentTaxYear || b.taxYear.startsWith(currentTaxYear);
-        });
-        if (yearBalance && yearBalance.interestEarned > 0) {
-          income.push({
-            type: 'dividend',
-            amount: yearBalance.interestEarned,
-            source: asset.meta.companyName || 'Dividend Income',
-            wht: 0,
-            ownerId: asset.ownerId,
-          });
-        }
-      }
-    });
-    
-    return income;
-  })();
+  const derivedInvestmentIncome = calculateDerivedInvestmentIncome(assets, currentTaxYear);
+
+  // Calculate total income summary for the selected entity (or all)
+  const filteredIncomes = currentYearIncomes.filter(i => !selectedEntityForTax || i.ownerId === selectedEntityForTax);
+  const filteredAssets = assets.filter(a => !selectedEntityForTax || a.ownerId === selectedEntityForTax);
+  const incomeSummary = calculateTotalIncome(filteredIncomes, filteredAssets, currentTaxYear);
 
   const getEntityName = (ownerId: string) => {
     return entities.find((e) => e.id === ownerId)?.name || 'Unknown';
@@ -344,16 +308,10 @@ export function IncomePage() {
                 <div className="p-4 bg-white rounded-lg border border-blue-200">
                   <p className="text-sm text-muted-foreground mb-1">Employment Income (Schedule 1)</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    {formatLKR(currentYearIncomes
-                      .filter((i) => i.schedule === '1' && (!selectedEntityForTax || i.ownerId === selectedEntityForTax))
-                      .reduce((sum, i) => sum + (((i as EmploymentIncome).details.grossRemuneration + (i as EmploymentIncome).details.nonCashBenefits) || 0), 0)
-                    )}
+                    {formatLKR(incomeSummary.employmentIncome)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-2">
-                    APIT: {formatLKR(currentYearIncomes
-                      .filter((i) => i.schedule === '1' && (!selectedEntityForTax || i.ownerId === selectedEntityForTax))
-                      .reduce((sum, i) => sum + ((i as EmploymentIncome).details.apitDeducted || 0), 0)
-                    )}
+                    APIT: {formatLKR(incomeSummary.totalAPIT)}
                   </p>
                 </div>
 
@@ -361,10 +319,7 @@ export function IncomePage() {
                 <div className="p-4 bg-white rounded-lg border border-green-200">
                   <p className="text-sm text-muted-foreground mb-1">Business Income (Schedule 2)</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {formatLKR(currentYearIncomes
-                      .filter((i) => i.schedule === '2' && (!selectedEntityForTax || i.ownerId === selectedEntityForTax))
-                      .reduce((sum, i) => sum + ((i as BusinessIncome).details.netProfit || 0), 0)
-                    )}
+                    {formatLKR(incomeSummary.businessIncome)}
                   </p>
                 </div>
 
@@ -372,11 +327,7 @@ export function IncomePage() {
                 <div className="p-4 bg-white rounded-lg border border-purple-200">
                   <p className="text-sm text-muted-foreground mb-1">Investment Income (Schedule 3)</p>
                   <p className="text-2xl font-bold text-purple-600">
-                    {formatLKR(
-                      derivedInvestmentIncome
-                        .filter((i) => !selectedEntityForTax || i.ownerId === selectedEntityForTax)
-                        .reduce((sum, i) => sum + i.amount, 0)
-                    )}
+                    {formatLKR(incomeSummary.investmentIncome)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-2">
                     From Assets • {derivedInvestmentIncome.filter((i) => !selectedEntityForTax || i.ownerId === selectedEntityForTax).length} source(s)
@@ -392,29 +343,19 @@ export function IncomePage() {
                     <div className="flex justify-between">
                       <span>Employment Income (APIT)</span>
                       <span className="font-semibold">
-                        {formatLKR(currentYearIncomes
-                          .filter((i) => i.schedule === '1' && (!selectedEntityForTax || i.ownerId === selectedEntityForTax))
-                          .reduce((sum, i) => sum + (((i as EmploymentIncome).details.grossRemuneration + (i as EmploymentIncome).details.nonCashBenefits) || 0), 0)
-                        )}
+                        {formatLKR(incomeSummary.employmentIncome)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Business Income</span>
                       <span className="font-semibold">
-                        {formatLKR(currentYearIncomes
-                          .filter((i) => i.schedule === '2' && (!selectedEntityForTax || i.ownerId === selectedEntityForTax))
-                          .reduce((sum, i) => sum + ((i as BusinessIncome).details.netProfit || 0), 0)
-                        )}
+                        {formatLKR(incomeSummary.businessIncome)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Investment Income (from Assets)</span>
                       <span className="font-semibold">
-                        {formatLKR(
-                          derivedInvestmentIncome
-                            .filter((i) => !selectedEntityForTax || i.ownerId === selectedEntityForTax)
-                            .reduce((sum, i) => sum + i.amount, 0)
-                        )}
+                        {formatLKR(incomeSummary.investmentIncome)}
                       </span>
                     </div>
                   </div>
@@ -424,14 +365,7 @@ export function IncomePage() {
                   <div className="flex justify-between items-center mb-4">
                     <p className="font-bold">Total Assessable Income</p>
                     <p className="text-2xl font-bold text-amber-700">
-                      {formatLKR(
-                        currentYearIncomes
-                          .filter((i) => i.schedule !== '3' && (!selectedEntityForTax || i.ownerId === selectedEntityForTax))
-                          .reduce((sum, i) => sum + getIncomeAmount(i), 0) +
-                        derivedInvestmentIncome
-                          .filter((i) => !selectedEntityForTax || i.ownerId === selectedEntityForTax)
-                          .reduce((sum, i) => sum + i.amount, 0)
-                      )}
+                      {formatLKR(incomeSummary.totalIncome)}
                     </p>
                   </div>
                 </div>

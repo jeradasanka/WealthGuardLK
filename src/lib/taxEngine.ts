@@ -32,9 +32,89 @@ const PERSONAL_RELIEF = 1200000; // Rs. 1,200,000
 const MAX_SOLAR_RELIEF = 600000; // Rs. 600,000
 
 /**
- * Calculates total income from all schedules
+ * Filter assets relevant to a specific tax year
  */
-export function calculateTotalIncome(incomes: Income[]): {
+export function filterAssetsForTaxYear(assets: Asset[], taxYear: string): Asset[] {
+  const taxYearStart = new Date(`${parseInt(taxYear)}-04-01`);
+  const taxYearEnd = new Date(`${parseInt(taxYear) + 1}-03-31`);
+
+  return assets.filter((asset) => {
+    const acquiredDate = new Date(asset.meta.dateAcquired);
+    
+    if (acquiredDate > taxYearEnd) return false;
+    
+    if (asset.disposed && asset.disposed.date) {
+      const disposedDate = new Date(asset.disposed.date);
+      if (disposedDate < taxYearStart) return false;
+    } else if (asset.disposed) {
+      return false; // Disposed but no date, exclude
+    }
+    
+    if (asset.closed && asset.closed.date) {
+      const closedDate = new Date(asset.closed.date);
+      if (closedDate < taxYearStart) return false;
+    } else if (asset.closed) {
+      return false; // Closed but no date, exclude
+    }
+    
+    return true;
+  });
+}
+
+/**
+ * Calculate investment income derived from assets (Interest, Dividends)
+ */
+export function calculateDerivedInvestmentIncome(assets: Asset[], taxYear: string): { type: 'interest' | 'dividend' | 'rent'; amount: number; source: string; wht: number; ownerId: string }[] {
+  const income: { type: 'interest' | 'dividend' | 'rent'; amount: number; source: string; wht: number; ownerId: string }[] = [];
+  
+  // We process all assets and check their balances for the specific tax year
+  assets.forEach((asset) => {
+    // Extract interest from bank accounts, cash, and loans given
+    if ((asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && asset.balances) {
+      const yearBalance = asset.balances.find((b) => {
+        // Match both "2024" and "2024/2025" formats
+        return b.taxYear === taxYear || b.taxYear.startsWith(taxYear);
+      });
+      if (yearBalance && yearBalance.interestEarned > 0) {
+        income.push({
+          type: 'interest',
+          amount: yearBalance.interestEarned,
+          source: asset.meta.accountType ? `${asset.meta.bankName || 'Account'} - ${asset.meta.accountType}` : asset.meta.bankName || 'Interest Income',
+          wht: 0, // WHT for interest is typically 0 for most deposits
+          ownerId: asset.ownerId,
+        });
+      }
+    }
+    
+    // Extract dividends from shares
+    if (asset.cageCategory === 'Biii' && asset.balances) {
+      const yearBalance = asset.balances.find((b) => {
+        // Match both "2024" and "2024/2025" formats
+        return b.taxYear === taxYear || b.taxYear.startsWith(taxYear);
+      });
+      if (yearBalance && yearBalance.interestEarned > 0) {
+        income.push({
+          type: 'dividend',
+          amount: yearBalance.interestEarned,
+          source: asset.meta.companyName || 'Dividend Income',
+          wht: 0,
+          ownerId: asset.ownerId,
+        });
+      }
+    }
+  });
+  
+  return income;
+}
+
+/**
+ * Calculates total income from all schedules, including derived income from assets
+ */
+export function calculateTotalIncome(
+  incomes: Income[], 
+  assets: Asset[] = [], 
+  currentTaxYear: string = '2024'
+): {
   employmentIncome: number;
   businessIncome: number;
   investmentIncome: number;
@@ -48,6 +128,7 @@ export function calculateTotalIncome(incomes: Income[]): {
   let totalAPIT = 0;
   let totalWHT = 0;
 
+  // Process manual income entries
   incomes.forEach((income) => {
     switch (income.schedule) {
       case '1': {
@@ -77,6 +158,15 @@ export function calculateTotalIncome(incomes: Income[]): {
       }
     }
   });
+
+  // Process derived investment income from assets
+  if (assets.length > 0) {
+    const derivedIncomes = calculateDerivedInvestmentIncome(assets, currentTaxYear);
+    derivedIncomes.forEach(inc => {
+      investmentIncome += inc.amount;
+      totalWHT += inc.wht;
+    });
+  }
 
   return {
     employmentIncome,
@@ -115,13 +205,15 @@ export function calculateProgressiveTax(taxableIncome: number): number {
  */
 export function computeTax(
   incomes: Income[],
+  assets: Asset[] = [],
+  currentTaxYear: string = '2024',
   solarInvestment: number = 0
 ): TaxComputation {
   const {
     totalIncome,
     totalAPIT,
     totalWHT,
-  } = calculateTotalIncome(incomes);
+  } = calculateTotalIncome(incomes, assets, currentTaxYear);
 
   // Calculate reliefs
   const solarRelief = Math.min(solarInvestment, MAX_SOLAR_RELIEF);
@@ -204,7 +296,9 @@ export function calculateAuditRisk(
 
   // Calculate declared income with breakdown
   const incomeBreakdown = calculateTotalIncome(
-    incomes.filter((i) => i.taxYear === currentYear)
+    incomes.filter((i) => i.taxYear === currentYear),
+    assets,
+    currentYear
   );
 
   // Calculate risk score (include property expenses in outflows, subtract tax already paid from inflows)

@@ -32,7 +32,8 @@ export function IncomePage() {
   const [selectedEntityForTax, setSelectedEntityForTax] = useState<string | null>(null);
 
   const currentYearIncomes = incomes.filter((i) => i.taxYear === currentTaxYear);
-  const availableTaxYears = getTaxYearsFromStart();
+  const startYear = entities.length > 0 ? (entities[0]?.taxYear || '2024') : '2024';
+  const availableTaxYears = getTaxYearsFromStart(startYear);
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this income entry?')) {

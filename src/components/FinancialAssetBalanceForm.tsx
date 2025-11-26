@@ -73,7 +73,7 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
       id: crypto.randomUUID(),
       taxYear: selectedYear,
       closingBalance: parseFloat(closingBalance),
-      interestEarned: asset.cageCategory === 'Bii' ? (parseFloat(interestEarned) || 0) : 0,
+      interestEarned: (asset.category === 'Bii' || asset.category === 'Biv' || asset.category === 'Bv') ? (parseFloat(interestEarned) || 0) : 0,
     };
 
     const updatedAsset: Asset = {
@@ -180,7 +180,7 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
                 />
               </div>
 
-              {asset.cageCategory === 'Bii' && (
+              {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && (
                 <div className="col-span-2">
                   <Label>Interest Earned</Label>
                   <Input
@@ -190,7 +190,9 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
                     placeholder="0.00"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Total interest income earned during the tax year
+                    {asset.cageCategory === 'Bii' && 'Total interest income earned during the tax year'}
+                    {asset.cageCategory === 'Biv' && 'Total interest or income earned on cash holdings during the tax year'}
+                    {asset.cageCategory === 'Bv' && 'Total interest earned on loans given during the tax year'}
                   </p>
                 </div>
               )}
@@ -231,7 +233,7 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
                       <Card key={balance.id} className="bg-gray-50">
                         <CardContent className="pt-4">
                           <div className="flex items-start justify-between">
-                            <div className={`flex-1 grid gap-4 ${asset.cageCategory === 'Bii' ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                            <div className={`flex-1 grid gap-4 ${(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') ? 'grid-cols-4' : 'grid-cols-3'}`}>
                               <div>
                                 <p className="text-sm font-semibold text-blue-600">
                                   {formatTaxYear(balance.taxYear)}
@@ -252,13 +254,15 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
                                 </p>
                                 <p className="text-xs text-muted-foreground">Closing</p>
                               </div>
-                              {asset.cageCategory === 'Bii' && (
+                              {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && (
                                 <div>
                                   <p className="text-sm font-semibold text-purple-600">
                                     {formatLKR(balance.interestEarned)}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
-                                    Interest (Income)
+                                    {asset.cageCategory === 'Bii' && 'Interest'}
+                                    {asset.cageCategory === 'Biv' && 'Interest'}
+                                    {asset.cageCategory === 'Bv' && 'Interest Income'}
                                   </p>
                                 </div>
                               )}
@@ -287,7 +291,7 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
             <div className="bg-green-50 rounded-lg p-4">
               <h4 className="font-semibold mb-2">Summary</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
-                {asset.cageCategory === 'Bii' && (
+                {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && (
                   <div>
                     <span className="text-muted-foreground">Total Interest Earned:</span>
                     <p className="font-bold text-lg text-green-600">

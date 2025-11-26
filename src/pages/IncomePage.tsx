@@ -59,7 +59,7 @@ export function IncomePage() {
       })
       .forEach((asset) => {
         // Extract interest from bank accounts, cash, and loans given
-        if ((asset.category === 'Bii' || asset.category === 'Biv' || asset.category === 'Bv') && asset.balances) {
+        if ((asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && asset.balances) {
           const yearBalance = asset.balances.find((b) => b.taxYear === currentTaxYear);
           if (yearBalance && yearBalance.interestEarned > 0) {
             income.push({
@@ -73,7 +73,7 @@ export function IncomePage() {
         }
         
         // Extract dividends from shares
-        if (asset.category === 'Biii' && asset.balances) {
+        if (asset.cageCategory === 'Biii' && asset.balances) {
           const yearBalance = asset.balances.find((b) => b.taxYear === currentTaxYear);
           if (yearBalance && yearBalance.interestEarned > 0) {
             income.push({
@@ -483,7 +483,7 @@ export function IncomePage() {
               {derivedInvestmentIncome
                 .filter((income) => !selectedEntityForTax || income.ownerId === selectedEntityForTax)
                 .map((income, idx) => (
-                <Card key={`derived-${idx}`} className="border-l-4 border-l-purple-500">
+                <Card key={`derived-${idx}`} className="border-l-4 border-l-purple-500 opacity-75 bg-purple-50">
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">

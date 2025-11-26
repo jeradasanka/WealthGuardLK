@@ -5,7 +5,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, FileText, Building2, Wallet, Settings, ArrowLeft, Upload, Download, ChevronDown } from 'lucide-react';
+import { FileText, Building2, Wallet, Settings, ArrowLeft, Upload, Download, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DangerMeter } from '@/components/DangerMeter';
@@ -232,7 +232,7 @@ export function Dashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Shield className="w-8 h-8 text-blue-600" />
+              <img src="/icon.png" alt="WealthGuard LK Logo" className="w-8 h-8" />
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">WealthGuard LK</h1>
                 <div className="flex items-center gap-2">

@@ -72,7 +72,7 @@ export function Setup() {
         <Card className="max-w-2xl w-full">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <Shield className="w-16 h-16 text-blue-600" />
+              <img src="/icon.png" alt="WealthGuard LK Logo" className="w-16 h-16" />
             </div>
             <CardTitle className="text-3xl">Welcome to WealthGuard LK</CardTitle>
             <CardDescription className="text-base mt-2">

@@ -5,7 +5,7 @@
 
 import type { InvestmentIncome, Income, Asset, Liability, TaxEntity } from '@/types';
 import { exportData } from './storage';
-import { computeTax, formatLKR, calculateTotalIncome, calculateAuditRisk } from '@/lib/taxEngine';
+import { computeTax, formatLKR, calculateTotalIncome, calculateAuditRisk, getTaxBreakdown } from '@/lib/taxEngine';
 import { jsPDF } from 'jspdf';
 
 /**
@@ -588,6 +588,7 @@ export function downloadDetailedTaxReportPDF(
   
   // Calculate tax
   const taxComputation = computeTax(filteredIncomes, 0);
+  const taxBreakdown = getTaxBreakdown(taxComputation.taxableIncome, taxYear);
   
   // Calculate audit risk
   const auditRisk = calculateAuditRisk(
@@ -955,9 +956,20 @@ export function downloadDetailedTaxReportPDF(
   yPos += lineHeight + 2;
   
   doc.setFont('helvetica', 'normal');
-  doc.text(`Income Tax (Progressive Rates): ${formatLKR(taxComputation.taxOnIncome)}`, margin + 5, yPos);
+  doc.text('Income Tax Calculation:', margin + 5, yPos);
+  yPos += lineHeight;
+  
+  taxBreakdown.forEach((bracket: { range: string; rate: string; amount: number; tax: number }) => {
+    checkPageBreak(10);
+    doc.text(`  ${bracket.range} @ ${bracket.rate}: ${formatLKR(bracket.tax)}`, margin + 10, yPos);
+    yPos += lineHeight;
+  });
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text(`  Total Tax on Income: ${formatLKR(taxComputation.taxOnIncome)}`, margin + 10, yPos);
   yPos += lineHeight + 2;
   
+  doc.setFont('helvetica', 'normal');
   doc.text('Less: Tax Credits', margin + 5, yPos);
   yPos += lineHeight;
   doc.text(`  APIT Deducted: ${formatLKR(taxComputation.taxCredits.apit)}`, margin + 10, yPos);
@@ -1016,14 +1028,17 @@ export function downloadDetailedTaxReportPDF(
   yPos += lineHeight;
   doc.setFont('helvetica', 'normal');
   doc.text(`Declared Income:`, margin + 10, yPos);
-  doc.text(formatLKR(auditRisk.declaredIncome), margin + 90, yPos);
+  doc.text(formatLKR(auditRisk.totalIncome), margin + 90, yPos);
+  yPos += lineHeight;
+  doc.text(`Less: Tax Deducted:`, margin + 10, yPos);
+  doc.text(`- ${formatLKR(auditRisk.taxDeducted)}`, margin + 90, yPos);
   yPos += lineHeight;
   doc.text(`New Loans:`, margin + 10, yPos);
   doc.text(formatLKR(auditRisk.newLoans), margin + 90, yPos);
   yPos += lineHeight;
   doc.setFont('helvetica', 'bold');
   doc.text(`Total Inflows:`, margin + 10, yPos);
-  doc.text(formatLKR(auditRisk.declaredIncome + auditRisk.newLoans), margin + 90, yPos);
+  doc.text(formatLKR(auditRisk.totalIncome - auditRisk.taxDeducted + auditRisk.newLoans), margin + 90, yPos);
   yPos += lineHeight + 3;
   
   doc.setFont('helvetica', 'normal');

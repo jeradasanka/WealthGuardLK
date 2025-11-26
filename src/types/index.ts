@@ -10,6 +10,8 @@ export interface TaxEntity {
   taxYear: string;
   role?: 'primary' | 'spouse';
   createdAt: string;
+  taxPayable?: { [taxYear: string]: number }; // Manual total tax payable per tax year
+  totalTaxOnIncome?: { [taxYear: string]: number }; // Total tax payable before credits (manual or calculated)
 }
 
 // Source of funds for asset acquisition (FR-07)

@@ -202,14 +202,14 @@ export function calculateAuditRisk(
     return sum + yearPayments;
   }, 0);
 
-  // Calculate declared income
-  const { totalIncome } = calculateTotalIncome(
+  // Calculate declared income with breakdown
+  const incomeBreakdown = calculateTotalIncome(
     incomes.filter((i) => i.taxYear === currentYear)
   );
 
-  // Calculate risk score (include property expenses in outflows)
+  // Calculate risk score (include property expenses in outflows, subtract tax already paid from inflows)
   const outflows = assetGrowth + propertyExpenses + estimatedLivingExpenses + loanPayments;
-  const inflows = totalIncome + newLoans;
+  const inflows = incomeBreakdown.totalIncome - (incomeBreakdown.totalAPIT + incomeBreakdown.totalWHT) + newLoans;
   const riskScore = outflows - inflows;
 
   // Determine risk level
@@ -224,9 +224,13 @@ export function calculateAuditRisk(
     assetGrowth,
     propertyExpenses,
     estimatedLivingExpenses,
-    declaredIncome: totalIncome,
-    newLoans,
     loanPayments,
+    employmentIncome: incomeBreakdown.employmentIncome,
+    businessIncome: incomeBreakdown.businessIncome,
+    investmentIncome: incomeBreakdown.investmentIncome,
+    totalIncome: incomeBreakdown.totalIncome,
+    taxDeducted: incomeBreakdown.totalAPIT + incomeBreakdown.totalWHT,
+    newLoans,
     riskScore,
     riskLevel,
   };

@@ -74,30 +74,81 @@ export function DangerMeter({ estimatedLivingExpenses = 0 }: DangerMeterProps) {
         <CardDescription>{getRiskMessage()}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Asset Growth</p>
-            <p className="text-lg font-bold">{formatLKR(auditRisk.assetGrowth)}</p>
+        {/* Two Column Layout: Outflows vs Inflows */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* OUTFLOWS */}
+          <div className="space-y-3">
+            <h3 className="font-semibold text-sm uppercase tracking-wide text-red-700 border-b pb-2">
+              Outflows (Expenses)
+            </h3>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-muted-foreground">Asset Growth</p>
+                <p className="font-semibold">{formatLKR(auditRisk.assetGrowth)}</p>
+              </div>
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-muted-foreground">Property Expenses</p>
+                <p className="font-semibold">{formatLKR(auditRisk.propertyExpenses)}</p>
+              </div>
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-muted-foreground">Living Expenses</p>
+                <p className="font-semibold">{formatLKR(auditRisk.estimatedLivingExpenses)}</p>
+              </div>
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-muted-foreground">Loan Payments</p>
+                <p className="font-semibold">{formatLKR(auditRisk.loanPayments)}</p>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t font-bold">
+                <p className="text-sm">Total Outflows</p>
+                <p className="text-red-600">
+                  {formatLKR(
+                    auditRisk.assetGrowth +
+                    auditRisk.propertyExpenses +
+                    auditRisk.estimatedLivingExpenses +
+                    auditRisk.loanPayments
+                  )}
+                </p>
+              </div>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Property Expenses</p>
-            <p className="text-lg font-bold">{formatLKR(auditRisk.propertyExpenses)}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Living Expenses</p>
-            <p className="text-lg font-bold">{formatLKR(auditRisk.estimatedLivingExpenses)}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Loan Payments</p>
-            <p className="text-lg font-bold">{formatLKR(auditRisk.loanPayments)}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Declared Income</p>
-            <p className="text-lg font-bold">{formatLKR(auditRisk.declaredIncome)}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">New Loans</p>
-            <p className="text-lg font-bold">{formatLKR(auditRisk.newLoans)}</p>
+
+          {/* INFLOWS */}
+          <div className="space-y-3">
+            <h3 className="font-semibold text-sm uppercase tracking-wide text-green-700 border-b pb-2">
+              Inflows (Sources)
+            </h3>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-muted-foreground">Employment Income</p>
+                <p className="font-semibold">{formatLKR(auditRisk.employmentIncome)}</p>
+              </div>
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-muted-foreground">Business Income</p>
+                <p className="font-semibold">{formatLKR(auditRisk.businessIncome)}</p>
+              </div>
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-muted-foreground">Investment Income</p>
+                <p className="font-semibold">{formatLKR(auditRisk.investmentIncome)}</p>
+              </div>
+              <div className="flex justify-between items-center text-orange-600">
+                <p className="text-sm">Less: Tax Deducted</p>
+                <p className="font-semibold">- {formatLKR(auditRisk.taxDeducted)}</p>
+              </div>
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-muted-foreground">New Loans</p>
+                <p className="font-semibold">{formatLKR(auditRisk.newLoans)}</p>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t font-bold">
+                <p className="text-sm">Total Inflows</p>
+                <p className="text-green-600">
+                  {formatLKR(
+                    auditRisk.totalIncome -
+                    auditRisk.taxDeducted +
+                    auditRisk.newLoans
+                  )}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -108,7 +159,7 @@ export function DangerMeter({ estimatedLivingExpenses = 0 }: DangerMeterProps) {
             {auditRisk.riskScore > 0 ? ' Unexplained' : ' Surplus'}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Formula: (Asset Growth + Property Expenses + Living Expenses + Loan Payments) - (Income + New Loans)
+            Formula: Total Outflows - Total Inflows (after tax)
           </p>
         </div>
       </CardContent>

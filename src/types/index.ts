@@ -210,10 +210,14 @@ export interface AuditRisk {
   assetGrowth: number;
   propertyExpenses: number; // Property expenses (repairs, construction, etc.) for the year
   estimatedLivingExpenses: number;
-  declaredIncome: number;
-  newLoans: number;
   loanPayments: number; // Total loan payments (principal + interest) for the year
-  riskScore: number; // (assetGrowth + propertyExpenses + expenses + loanPayments) - (income + newLoans)
+  employmentIncome: number;
+  businessIncome: number;
+  investmentIncome: number;
+  totalIncome: number;
+  taxDeducted: number; // APIT + WHT
+  newLoans: number;
+  riskScore: number; // (assetGrowth + propertyExpenses + expenses + loanPayments) - (income - tax + newLoans)
   riskLevel: 'safe' | 'warning' | 'danger';
 }
 

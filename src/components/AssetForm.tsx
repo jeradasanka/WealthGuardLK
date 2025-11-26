@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Trash2 } from 'lucide-react';
 import { useStore } from '@/stores/useStore';
 import type { Asset } from '@/types';
-import { formatLKR } from '@/lib/taxEngine';
+import { formatLKR, calculatePreciousItemMarketValue } from '@/lib/taxEngine';
 
 interface AssetFormProps {
   asset?: Asset;
@@ -21,6 +21,7 @@ interface AssetFormProps {
 
 export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
   const entities = useStore((state) => state.entities);
+  const currentTaxYear = useStore((state) => state.currentTaxYear);
   const addAsset = useStore((state) => state.addAsset);
   const updateAsset = useStore((state) => state.updateAsset);
   const removeAsset = useStore((state) => state.removeAsset);
@@ -129,11 +130,21 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
       },
       financials: {
         cost: Number(formData.cost),
-        // For Biv (Cash), Bii (Bank), Bv (Loans Given), market value equals cost
+        // Auto-calculate market value based on category
         marketValue: formData.isClosed ? 0 : formData.isSold ? 0 :
+          // For Biv (Cash), Bii (Bank), Bv (Loans Given), market value equals cost
           (formData.cageCategory === 'Biv' || formData.cageCategory === 'Bii' || formData.cageCategory === 'Bv') 
-            ? Number(formData.cost) 
-            : Number(formData.marketValue),
+            ? Number(formData.cost)
+          // For Bvi (Jewellery), auto-calculate using price appreciation
+          : formData.cageCategory === 'Bvi'
+            ? calculatePreciousItemMarketValue(
+                Number(formData.cost),
+                formData.itemType || 'Other',
+                formData.dateAcquired.substring(0, 4),
+                (parseInt(currentTaxYear) + 1).toString()
+              )
+          // For other categories, use user-entered market value
+          : Number(formData.marketValue),
         sourceOfFunds: asset?.financials.sourceOfFunds,
       },
       fundingSources: asset?.fundingSources,
@@ -682,13 +693,23 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="itemType">Item Type *</Label>
-                  <Input
+                  <select
                     id="itemType"
                     value={formData.itemType}
-                    onChange={handleChange('itemType')}
+                    onChange={(e) => setFormData({ ...formData, itemType: e.target.value })}
                     required
-                    placeholder="e.g., Gold, Silver, Diamond, Ruby"
-                  />
+                    className="w-full rounded-md border px-3 py-2"
+                  >
+                    <option value="">Select item type</option>
+                    <option value="Gold">Gold</option>
+                    <option value="Silver">Silver</option>
+                    <option value="Gems">Gems</option>
+                    <option value="Jewellery">Jewellery</option>
+                    <option value="Diamond">Diamond</option>
+                    <option value="Ruby">Ruby</option>
+                    <option value="Sapphire">Sapphire</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="weight">Weight</Label>
@@ -708,6 +729,13 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
                   onChange={handleChange('purity')}
                   placeholder="e.g., 22K, 24K, 999"
                 />
+              </div>
+
+              {/* Auto-calculation notice */}
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-800">
+                  ℹ️ <strong>Market value will be calculated automatically</strong> based on the item type, acquisition date, and current commodity prices (2015-2025 appreciation data).
+                </p>
               </div>
 
               {/* Sold Section for Jewellery */}
@@ -829,7 +857,7 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
             </div>
 
             {/* Only show market value for categories that need it */}
-            {formData.cageCategory !== 'Biv' && formData.cageCategory !== 'Bii' && formData.cageCategory !== 'Bv' && (
+            {formData.cageCategory !== 'Biv' && formData.cageCategory !== 'Bii' && formData.cageCategory !== 'Bv' && formData.cageCategory !== 'Bvi' && (
               <div className="space-y-2">
                 <Label htmlFor="marketValue">Current Market Value *</Label>
                 <Input

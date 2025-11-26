@@ -5,7 +5,7 @@
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign, TrendingUp, FileText, Sparkles, Building2 } from 'lucide-react';
+import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign, TrendingUp, FileText, Building2, Gem } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
@@ -13,20 +13,20 @@ import { AssetForm } from '@/components/AssetForm';
 import { LiabilityForm } from '@/components/LiabilityForm';
 import { LiabilityPaymentForm } from '@/components/LiabilityPaymentForm';
 import { FinancialAssetBalanceForm } from '@/components/FinancialAssetBalanceForm';
-import { JewelleryTransactionForm } from '@/components/JewelleryTransactionForm';
 import { PropertyExpenseForm } from '@/components/PropertyExpenseForm';
 import { SourceOfFundsWizard } from '@/components/SourceOfFundsWizard';
-import { formatLKR } from '@/lib/taxEngine';
+import { formatLKR, getJewelleryMarketValue } from '@/lib/taxEngine';
 import { getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Asset, Liability, FundingSource } from '@/types';
 
-type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment' | 'manage-balances' | 'manage-jewellery-transactions' | 'manage-property-expenses';
+type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment' | 'manage-balances' | 'manage-property-expenses';
 
 export function AssetsPage() {
   const navigate = useNavigate();
   const assets = useStore((state) => state.assets);
   const liabilities = useStore((state) => state.liabilities);
   const entities = useStore((state) => state.entities);
+  const currentTaxYear = useStore((state) => state.currentTaxYear);
   const removeAsset = useStore((state) => state.removeAsset);
   const removeLiability = useStore((state) => state.removeLiability);
   const updateLiability = useStore((state) => state.updateLiability);
@@ -54,6 +54,10 @@ export function AssetsPage() {
       if (latestExpense.marketValue && latestExpense.marketValue > 0) {
         return latestExpense.marketValue;
       }
+    }
+    // For jewellery, calculate market value based on price appreciation
+    if (asset.cageCategory === 'Bvi') {
+      return getJewelleryMarketValue(asset, currentTaxYear);
     }
     // Otherwise use the asset's market value
     return asset.financials.marketValue;
@@ -144,6 +148,11 @@ export function AssetsPage() {
             }
           }
           
+          // For jewellery (Bvi), calculate market value using appreciation
+          if (a.cageCategory === 'Bvi') {
+            return sum + getJewelleryMarketValue(a, year);
+          }
+          
           return sum + a.financials.marketValue;
         }, 0);
       
@@ -187,7 +196,7 @@ export function AssetsPage() {
       case 'Bv':
         return <FileText className="w-5 h-5 text-orange-600" />;
       case 'Bvi':
-        return <Sparkles className="w-5 h-5 text-amber-600" />;
+        return <Gem className="w-5 h-5 text-amber-600" />;
       case 'C':
         return <Building2 className="w-5 h-5 text-indigo-600" />;
       default:
@@ -348,10 +357,6 @@ export function AssetsPage() {
 
   if (viewMode === 'manage-balances' && balanceAsset) {
     return <FinancialAssetBalanceForm asset={balanceAsset} onClose={handleFormClose} />;
-  }
-
-  if (viewMode === 'manage-jewellery-transactions' && transactionAsset) {
-    return <JewelleryTransactionForm asset={transactionAsset} onClose={handleFormClose} />;
   }
 
   if (viewMode === 'manage-property-expenses' && expenseAsset) {
@@ -689,13 +694,20 @@ export function AssetsPage() {
                             }
                           })() : (
                             <>
-                              <p className="text-sm text-muted-foreground">Market Value</p>
+                              <p className="text-sm text-muted-foreground">
+                                {asset.cageCategory === 'Bvi' ? 'Calculated Market Value' : 'Market Value'}
+                              </p>
                               <p className="font-bold text-lg text-green-600">
-                                {formatLKR(asset.financials.marketValue)}
+                                {formatLKR(getAssetDisplayValue(asset))}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                Cost: {formatLKR(asset.financials.cost)}
+                                {asset.cageCategory === 'Bvi' ? 'Original Cost' : 'Cost'}: {formatLKR(asset.financials.cost)}
                               </p>
+                              {asset.cageCategory === 'Bvi' && asset.meta.itemType && (
+                                <p className="text-xs text-amber-600 font-medium">
+                                  {asset.meta.itemType} • Auto-valued
+                                </p>
+                              )}
                             </>
                           )}
                         </div>
@@ -715,20 +727,6 @@ export function AssetsPage() {
                               }
                             >
                               <TrendingUp className="w-4 h-4" />
-                            </Button>
-                          )}
-                          {asset.cageCategory === 'Bvi' && (
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => {
-                                setTransactionAsset(asset);
-                                setViewMode('manage-jewellery-transactions');
-                              }}
-                              className="bg-amber-600 hover:bg-amber-700"
-                              title="Manage yearly jewellery purchases and sales"
-                            >
-                              <Sparkles className="w-4 h-4" />
                             </Button>
                           )}
                           {asset.cageCategory === 'A' && (

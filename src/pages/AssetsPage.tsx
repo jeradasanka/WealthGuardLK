@@ -5,7 +5,7 @@
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign, TrendingUp, FileText, Building2 } from 'lucide-react';
+import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign, TrendingUp, FileText, Building2, Gem } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
@@ -186,7 +186,7 @@ export function AssetsPage() {
       case 'Bv':
         return <FileText className="w-5 h-5 text-orange-600" />;
       case 'Bvi':
-        return <Sparkles className="w-5 h-5 text-amber-600" />;
+        return <Gem className="w-5 h-5 text-amber-600" />;
       case 'C':
         return <Building2 className="w-5 h-5 text-indigo-600" />;
       default:

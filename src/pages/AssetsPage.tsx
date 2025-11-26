@@ -5,7 +5,7 @@
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign, TrendingUp, FileText, Sparkles, Building2 } from 'lucide-react';
+import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign, TrendingUp, FileText, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
@@ -13,14 +13,13 @@ import { AssetForm } from '@/components/AssetForm';
 import { LiabilityForm } from '@/components/LiabilityForm';
 import { LiabilityPaymentForm } from '@/components/LiabilityPaymentForm';
 import { FinancialAssetBalanceForm } from '@/components/FinancialAssetBalanceForm';
-import { JewelleryTransactionForm } from '@/components/JewelleryTransactionForm';
 import { PropertyExpenseForm } from '@/components/PropertyExpenseForm';
 import { SourceOfFundsWizard } from '@/components/SourceOfFundsWizard';
 import { formatLKR } from '@/lib/taxEngine';
 import { getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Asset, Liability, FundingSource } from '@/types';
 
-type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment' | 'manage-balances' | 'manage-jewellery-transactions' | 'manage-property-expenses';
+type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment' | 'manage-balances' | 'manage-property-expenses';
 
 export function AssetsPage() {
   const navigate = useNavigate();
@@ -348,10 +347,6 @@ export function AssetsPage() {
 
   if (viewMode === 'manage-balances' && balanceAsset) {
     return <FinancialAssetBalanceForm asset={balanceAsset} onClose={handleFormClose} />;
-  }
-
-  if (viewMode === 'manage-jewellery-transactions' && transactionAsset) {
-    return <JewelleryTransactionForm asset={transactionAsset} onClose={handleFormClose} />;
   }
 
   if (viewMode === 'manage-property-expenses' && expenseAsset) {
@@ -715,20 +710,6 @@ export function AssetsPage() {
                               }
                             >
                               <TrendingUp className="w-4 h-4" />
-                            </Button>
-                          )}
-                          {asset.cageCategory === 'Bvi' && (
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => {
-                                setTransactionAsset(asset);
-                                setViewMode('manage-jewellery-transactions');
-                              }}
-                              className="bg-amber-600 hover:bg-amber-700"
-                              title="Manage yearly jewellery purchases and sales"
-                            >
-                              <Sparkles className="w-4 h-4" />
                             </Button>
                           )}
                           {asset.cageCategory === 'A' && (

@@ -5,7 +5,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, FileText, Building2, Wallet, TrendingUp, Settings, ArrowLeft, Upload, Download, ChevronDown } from 'lucide-react';
+import { Shield, FileText, Building2, Wallet, Settings, ArrowLeft, Upload, Download, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DangerMeter } from '@/components/DangerMeter';
@@ -483,19 +483,6 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <Button className="w-full">Manage Assets & Liabilities</Button>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/tax-computation')}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
-                Tax Computation
-              </CardTitle>
-              <CardDescription>View tax calculation and reliefs</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full">Calculate Tax</Button>
             </CardContent>
           </Card>
         </div>

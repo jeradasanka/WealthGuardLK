@@ -19,6 +19,19 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selection, setSelection] = useState<{
+    employmentIncome: boolean[];
+    businessIncome: boolean[];
+    investmentIncome: boolean[];
+    assets: boolean[];
+    liabilities: boolean[];
+  }>({
+    employmentIncome: [],
+    businessIncome: [],
+    investmentIncome: [],
+    assets: [],
+    liabilities: [],
+  });
   
   const entities = useStore((state) => state.entities);
   const addIncome = useStore((state) => state.addIncome);
@@ -55,6 +68,15 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
       const previewData = generatePreview(data);
       setPreview(previewData);
       
+      // Initialize selection (all selected by default)
+      setSelection({
+        employmentIncome: new Array(data.employmentIncome?.length || 0).fill(true),
+        businessIncome: new Array(data.businessIncome?.length || 0).fill(true),
+        investmentIncome: new Array(data.investmentIncome?.length || 0).fill(true),
+        assets: new Array(data.assets?.length || 0).fill(true),
+        liabilities: new Array(data.liabilities?.length || 0).fill(true),
+      });
+
       setStep('preview');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse PDF');
@@ -111,8 +133,9 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
       
       // Import employment income
       if (parsedData.employmentIncome && parsedData.employmentIncome.length > 0) {
-        console.log('Importing employment income:', parsedData.employmentIncome.length);
-        parsedData.employmentIncome.forEach(income => {
+        const selectedItems = parsedData.employmentIncome.filter((_, idx) => selection.employmentIncome[idx]);
+        console.log('Importing employment income:', selectedItems.length);
+        selectedItems.forEach(income => {
           addIncome({
             id: crypto.randomUUID(),
             ownerId: selectedEntityId,
@@ -134,8 +157,9 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
 
       // Import business income
       if (parsedData.businessIncome && parsedData.businessIncome.length > 0) {
-        console.log('Importing business income:', parsedData.businessIncome.length);
-        parsedData.businessIncome.forEach(income => {
+        const selectedItems = parsedData.businessIncome.filter((_, idx) => selection.businessIncome[idx]);
+        console.log('Importing business income:', selectedItems.length);
+        selectedItems.forEach(income => {
           addIncome({
             id: crypto.randomUUID(),
             ownerId: selectedEntityId,
@@ -155,8 +179,9 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
 
       // Import investment income
       if (parsedData.investmentIncome && parsedData.investmentIncome.length > 0) {
-        console.log('Importing investment income:', parsedData.investmentIncome.length);
-        parsedData.investmentIncome.forEach(income => {
+        const selectedItems = parsedData.investmentIncome.filter((_, idx) => selection.investmentIncome[idx]);
+        console.log('Importing investment income:', selectedItems.length);
+        selectedItems.forEach(income => {
           addIncome({
             id: crypto.randomUUID(),
             ownerId: selectedEntityId,
@@ -176,8 +201,9 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
 
       // Import assets
       if (parsedData.assets && parsedData.assets.length > 0) {
-        console.log('Importing assets:', parsedData.assets.length);
-        parsedData.assets.forEach(asset => {
+        const selectedItems = parsedData.assets.filter((_, idx) => selection.assets[idx]);
+        console.log('Importing assets:', selectedItems.length);
+        selectedItems.forEach(asset => {
           addAsset({
             id: crypto.randomUUID(),
             ownerId: selectedEntityId,
@@ -196,8 +222,9 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
 
       // Import liabilities
       if (parsedData.liabilities && parsedData.liabilities.length > 0) {
-        console.log('Importing liabilities:', parsedData.liabilities.length);
-        parsedData.liabilities.forEach(liability => {
+        const selectedItems = parsedData.liabilities.filter((_, idx) => selection.liabilities[idx]);
+        console.log('Importing liabilities:', selectedItems.length);
+        selectedItems.forEach(liability => {
           addLiability({
             id: crypto.randomUUID(),
             ownerId: selectedEntityId,
@@ -233,6 +260,13 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
     setPreview(null);
     setError(null);
     onClose();
+  };
+
+  const toggleSelection = (category: keyof typeof selection, index: number) => {
+    setSelection(prev => ({
+      ...prev,
+      [category]: prev[category].map((val, i) => i === index ? !val : val)
+    }));
   };
 
   return (
@@ -333,8 +367,16 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
                   <div className="rounded-lg border p-3">
                     <h4 className="font-medium text-sm mb-2">Employment Income ({parsedData.employmentIncome.length})</h4>
                     {parsedData.employmentIncome.map((income, idx) => (
-                      <div key={idx} className="text-sm text-muted-foreground">
-                        {income.employerName}: {formatLKR(income.grossRemuneration)}
+                      <div key={idx} className="flex items-start gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={selection.employmentIncome[idx]}
+                          onChange={() => toggleSelection('employmentIncome', idx)}
+                          className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <div className="text-sm text-muted-foreground">
+                          {income.employerName}: {formatLKR(income.grossRemuneration)}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -344,8 +386,16 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
                   <div className="rounded-lg border p-3">
                     <h4 className="font-medium text-sm mb-2">Business Income ({parsedData.businessIncome.length})</h4>
                     {parsedData.businessIncome.map((income, idx) => (
-                      <div key={idx} className="text-sm text-muted-foreground">
-                        {income.businessName}: {formatLKR(income.netProfit)}
+                      <div key={idx} className="flex items-start gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={selection.businessIncome[idx]}
+                          onChange={() => toggleSelection('businessIncome', idx)}
+                          className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <div className="text-sm text-muted-foreground">
+                          {income.businessName}: {formatLKR(income.netProfit)}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -355,8 +405,16 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
                   <div className="rounded-lg border p-3">
                     <h4 className="font-medium text-sm mb-2">Investment Income ({parsedData.investmentIncome.length})</h4>
                     {parsedData.investmentIncome.map((income, idx) => (
-                      <div key={idx} className="text-sm text-muted-foreground">
-                        {income.source}: {formatLKR((income.dividends || 0) + (income.interest || 0) + (income.rent || 0))}
+                      <div key={idx} className="flex items-start gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={selection.investmentIncome[idx]}
+                          onChange={() => toggleSelection('investmentIncome', idx)}
+                          className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <div className="text-sm text-muted-foreground">
+                          {income.source}: {formatLKR((income.dividends || 0) + (income.interest || 0) + (income.rent || 0))}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -366,8 +424,16 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
                   <div className="rounded-lg border p-3">
                     <h4 className="font-medium text-sm mb-2">Assets ({parsedData.assets.length})</h4>
                     {parsedData.assets.map((asset, idx) => (
-                      <div key={idx} className="text-sm text-muted-foreground">
-                        {asset.description}: {formatLKR(asset.marketValue)}
+                      <div key={idx} className="flex items-start gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={selection.assets[idx]}
+                          onChange={() => toggleSelection('assets', idx)}
+                          className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <div className="text-sm text-muted-foreground">
+                          {asset.description}: {formatLKR(asset.marketValue)}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -377,8 +443,16 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
                   <div className="rounded-lg border p-3">
                     <h4 className="font-medium text-sm mb-2">Liabilities ({parsedData.liabilities.length})</h4>
                     {parsedData.liabilities.map((liability, idx) => (
-                      <div key={idx} className="text-sm text-muted-foreground">
-                        {liability.description}: {formatLKR(liability.currentBalance)}
+                      <div key={idx} className="flex items-start gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={selection.liabilities[idx]}
+                          onChange={() => toggleSelection('liabilities', idx)}
+                          className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <div className="text-sm text-muted-foreground">
+                          {liability.description}: {formatLKR(liability.amount)}
+                        </div>
                       </div>
                     ))}
                   </div>

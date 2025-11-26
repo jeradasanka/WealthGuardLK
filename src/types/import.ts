@@ -26,6 +26,7 @@ export interface ParsedTaxData {
     dividends?: number;
     interest?: number;
     rent?: number;
+    wht?: number;
   }>;
   assets?: Array<{
     description: string;

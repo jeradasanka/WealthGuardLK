@@ -472,31 +472,33 @@ export function Dashboard() {
                   return false;
                 });
                 
-                const entityTotalIncome = entityIncomes.reduce((sum, i) => sum + i.details.grossAmount, 0);
+                const entityTotalIncome = calculateTotalIncome(entityIncomes, entityAssets, currentTaxYear).totalIncome;
                 
                 // Calculate assets with ownership percentage
                 const entityTotalAssets = entityAssets.reduce((sum, a) => {
+                  const marketValue = a.financials.marketValue || 0;
                   if (!a.ownershipShares) {
                     // Fully owned by this entity
-                    return sum + a.financials.marketValue;
+                    return sum + marketValue;
                   } else {
                     // Jointly owned - get this entity's share
                     const ownershipShare = a.ownershipShares.find((s) => s.entityId === entity.id);
                     const percentage = ownershipShare ? ownershipShare.percentage : 0;
-                    return sum + (a.financials.marketValue * percentage / 100);
+                    return sum + (marketValue * percentage / 100);
                   }
                 }, 0);
                 
                 // Calculate liabilities with ownership percentage
                 const entityTotalLiabilities = entityLiabilities.reduce((sum, l) => {
+                  const currentBalance = l.currentBalance || 0;
                   if (!l.ownershipShares) {
                     // Fully owned by this entity
-                    return sum + l.currentBalance;
+                    return sum + currentBalance;
                   } else {
                     // Jointly owned - get this entity's share
                     const ownershipShare = l.ownershipShares.find((s) => s.entityId === entity.id);
                     const percentage = ownershipShare ? ownershipShare.percentage : 0;
-                    return sum + (l.currentBalance * percentage / 100);
+                    return sum + (currentBalance * percentage / 100);
                   }
                 }, 0);
                 

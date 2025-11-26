@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useStore } from '@/stores/useStore';
 import type { Liability } from '@/types';
 import { formatLKR } from '@/lib/taxEngine';
+import { Trash2 } from 'lucide-react';
 
 interface LiabilityFormProps {
   liability?: Liability;
@@ -22,6 +23,7 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
   const entities = useStore((state) => state.entities);
   const addLiability = useStore((state) => state.addLiability);
   const updateLiability = useStore((state) => state.updateLiability);
+  const removeLiability = useStore((state) => state.removeLiability);
   const saveToStorage = useStore((state) => state.saveToStorage);
 
   const [formData, setFormData] = useState({
@@ -92,6 +94,29 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+  };
+
+  const handleDelete = () => {
+    if (!liability?.id) return;
+    
+    const verification = window.prompt(
+      `⚠️ WARNING: You are about to permanently delete this liability.\n\n` +
+      `Lender: ${formData.lenderName || 'Untitled'}\n` +
+      `Purpose: ${formData.purpose || 'Not specified'}\n` +
+      `Acquired: ${formData.dateAcquired}\n` +
+      `Original Amount: ${formatLKR(formData.originalAmount)}\n` +
+      `Current Balance: ${formatLKR(liability.currentBalance)}\n\n` +
+      `This action CANNOT be undone. All data including payment history will be permanently lost.\n\n` +
+      `To confirm deletion, type DELETE in capital letters:`
+    );
+    
+    if (verification === 'DELETE') {
+      removeLiability(liability.id);
+      saveToStorage();
+      onCancel?.(); // Close form and return to list
+    } else if (verification !== null) {
+      alert('Deletion cancelled. The verification text did not match.');
+    }
   };
 
   return (
@@ -325,6 +350,16 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
             {onCancel && (
               <Button type="button" variant="outline" onClick={onCancel}>
                 Cancel
+              </Button>
+            )}
+            {liability && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleDelete}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4" />
               </Button>
             )}
           </div>

@@ -5,7 +5,7 @@
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign, TrendingUp, FileText, Building2, Gem } from 'lucide-react';
+import { Plus, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign, TrendingUp, FileText, Building2, Gem } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
@@ -28,7 +28,6 @@ export function AssetsPage() {
   const entities = useStore((state) => state.entities);
   const currentTaxYear = useStore((state) => state.currentTaxYear);
   const removeAsset = useStore((state) => state.removeAsset);
-  const removeLiability = useStore((state) => state.removeLiability);
   const updateLiability = useStore((state) => state.updateLiability);
   const saveToStorage = useStore((state) => state.saveToStorage);
 
@@ -271,13 +270,6 @@ export function AssetsPage() {
   const handleDeleteAsset = async (id: string) => {
     if (confirm('Are you sure you want to delete this asset?')) {
       removeAsset(id);
-      await saveToStorage();
-    }
-  };
-
-  const handleDeleteLiability = async (id: string) => {
-    if (confirm('Are you sure you want to delete this liability?')) {
-      removeLiability(id);
       await saveToStorage();
     }
   };
@@ -853,15 +845,9 @@ export function AssetsPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => handleEditLiability(liability)}
+                              title="Edit liability"
                             >
                               <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteLiability(liability.id)}
-                            >
-                              <Trash2 className="w-4 h-4 text-red-600" />
                             </Button>
                           </div>
                         </div>

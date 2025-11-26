@@ -11,7 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useStore } from '@/stores/useStore';
 import { EmploymentIncomeForm } from '@/components/EmploymentIncomeForm';
 import { BusinessIncomeForm } from '@/components/BusinessIncomeForm';
-import { InvestmentIncomeForm } from '@/components/InvestmentIncomeForm';
 import { formatLKR, calculateTotalIncome } from '@/lib/taxEngine';
 import { formatTaxYear, getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Income, EmploymentIncome, BusinessIncome, InvestmentIncome } from '@/types';
@@ -43,6 +42,11 @@ export function IncomePage() {
   };
 
   const handleEdit = (income: Income) => {
+    // Prevent editing Schedule 3 (Investment Income)
+    if (income.schedule === '3') {
+      alert('Investment income is managed through the Assets & Liabilities page. Please go to Assets page to modify interest, dividend, and rental income.');
+      return;
+    }
     setEditingIncome(income);
     setShowForm(income.schedule);
   };
@@ -94,6 +98,36 @@ export function IncomePage() {
   };
 
   if (showForm) {
+    if (showForm === '3') {
+      // Redirect back for Schedule 3
+      setShowForm(null);
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+          <div className="max-w-3xl mx-auto">
+            <Card>
+              <CardContent className="py-12 text-center space-y-4">
+                <p className="text-lg font-semibold">Investment Income Management</p>
+                <p className="text-muted-foreground">
+                  Investment income (interest, dividends, and rental income) is automatically calculated from your assets and liabilities records.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  To record or modify investment income sources, please go to the Assets & Liabilities page where you can:
+                </p>
+                <ul className="text-sm text-muted-foreground space-y-1 max-w-md mx-auto">
+                  <li>• Add interest earned on bank accounts and loans given</li>
+                  <li>• Record dividend income from shares</li>
+                  <li>• Record rental income from immovable properties</li>
+                </ul>
+                <Button variant="outline" onClick={() => navigate('/')}>
+                  ← Back to Dashboard
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
         <div className="max-w-3xl mx-auto">
@@ -110,13 +144,6 @@ export function IncomePage() {
           {showForm === '2' && (
             <BusinessIncomeForm
               income={editingIncome as BusinessIncome}
-              onSave={handleFormClose}
-              onCancel={handleFormClose}
-            />
-          )}
-          {showForm === '3' && (
-            <InvestmentIncomeForm
-              income={editingIncome as InvestmentIncome}
               onSave={handleFormClose}
               onCancel={handleFormClose}
             />
@@ -227,8 +254,7 @@ export function IncomePage() {
           </Card>
 
           <Card
-            className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-purple-200"
-            onClick={() => setShowForm('3')}
+            className="border-2 border-purple-200 bg-purple-50 opacity-75"
           >
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -238,10 +264,18 @@ export function IncomePage() {
               <CardDescription>Investment Income</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Investment Income
-              </Button>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Investment income is automatically derived from your assets.
+                </p>
+                <Button 
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => navigate('/assets')}
+                >
+                  Manage in Assets
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -380,18 +414,18 @@ export function IncomePage() {
         </Card>
 
         {/* Income List */}
-        {currentYearIncomes.length === 0 ? (
+        {currentYearIncomes.filter((i) => i.schedule !== '3').length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">
-                No income entries for {formatTaxYear(currentTaxYear)}. Click one of the cards above to add income.
+                No manual income entries for {formatTaxYear(currentTaxYear)}. Click one of the cards above to add employment or business income.
               </p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
             {currentYearIncomes
-              .filter((i) => !selectedEntityForTax || i.ownerId === selectedEntityForTax)
+              .filter((i) => i.schedule !== '3' && (!selectedEntityForTax || i.ownerId === selectedEntityForTax))
               .map((income) => (
               <Card key={income.id}>
                 <CardContent className="py-4">

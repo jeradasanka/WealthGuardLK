@@ -10,6 +10,7 @@ export interface TaxEntity {
   taxYear: string;
   role?: 'primary' | 'spouse';
   createdAt: string;
+  taxDeductions?: { [taxYear: string]: number }; // Manual tax deductions per tax year
 }
 
 // Source of funds for asset acquisition (FR-07)

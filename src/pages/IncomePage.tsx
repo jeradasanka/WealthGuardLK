@@ -3,7 +3,7 @@
  * Lists and manages all income entries across schedules
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Edit, Briefcase, Building2, TrendingUp, ArrowLeft, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ export function IncomePage() {
   const currentTaxYear = useStore((state) => state.currentTaxYear);
   const setCurrentTaxYear = useStore((state) => state.setCurrentTaxYear);
   const removeIncome = useStore((state) => state.removeIncome);
+  const updateEntity = useStore((state) => state.updateEntity);
   const saveToStorage = useStore((state) => state.saveToStorage);
 
   const [showForm, setShowForm] = useState<'1' | '2' | '3' | null>(null);
@@ -104,6 +105,40 @@ export function IncomePage() {
       return `Investment (${inv.type})`;
     }
     return 'Unknown';
+  };
+
+  // Load manual tax deduction when entity or tax year changes
+  useEffect(() => {
+    if (selectedEntityForTax) {
+      const entity = entities.find(e => e.id === selectedEntityForTax);
+      if (entity && entity.taxDeductions) {
+        setManualTaxDeducted(entity.taxDeductions[currentTaxYear] || 0);
+      } else {
+        setManualTaxDeducted(0);
+      }
+    } else {
+      // Sum of all entities' deductions for this year
+      const totalDeduction = entities.reduce((sum, e) => {
+        return sum + (e.taxDeductions?.[currentTaxYear] || 0);
+      }, 0);
+      setManualTaxDeducted(totalDeduction);
+    }
+  }, [selectedEntityForTax, currentTaxYear, entities]);
+
+  const handleManualTaxChange = async (amount: number) => {
+    setManualTaxDeducted(amount);
+    
+    if (selectedEntityForTax) {
+      const entity = entities.find(e => e.id === selectedEntityForTax);
+      if (entity) {
+        const updatedDeductions = {
+          ...(entity.taxDeductions || {}),
+          [currentTaxYear]: amount
+        };
+        updateEntity(entity.id, { taxDeductions: updatedDeductions });
+        await saveToStorage();
+      }
+    }
   };
 
   if (showForm) {
@@ -375,10 +410,11 @@ export function IncomePage() {
                   <div className="flex gap-2">
                     <input
                       type="number"
-                      value={manualTaxDeducted}
-                      onChange={(e) => setManualTaxDeducted(Math.max(0, parseFloat(e.target.value) || 0))}
-                      placeholder="Enter tax already deducted"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      value={manualTaxDeducted || ''}
+                      onChange={(e) => handleManualTaxChange(Math.max(0, parseFloat(e.target.value) || 0))}
+                      placeholder={selectedEntityForTax ? "Enter tax already deducted" : "Select an entity to edit"}
+                      disabled={!selectedEntityForTax}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-gray-100 disabled:text-gray-500"
                     />
                     <div className="text-right">
                       <p className="text-xs text-muted-foreground">Entered</p>
@@ -386,7 +422,9 @@ export function IncomePage() {
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Note: This is the actual tax already deducted (APIT + WHT). Update this field with the total tax you've already paid.
+                    {!selectedEntityForTax 
+                      ? "Select a specific tax profile above to edit manual tax deductions." 
+                      : "Note: This is the actual tax already deducted (APIT + WHT). Update this field with the total tax you've already paid."}
                   </p>
                 </div>
               </div>

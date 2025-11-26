@@ -3,25 +3,23 @@
  * Displays Schedule 8 tax computation with progressive rates and reliefs
  */
 
-import { ArrowLeft, Calculator, FileText, Download } from 'lucide-react';
+import { ArrowLeft, Calculator, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
-import { computeTax } from '@/lib/taxEngine';
+import { computeTax, getTaxBreakdown } from '@/lib/taxEngine';
 import { DangerMeter } from '@/components/DangerMeter';
 import { formatTaxYear } from '@/lib/taxYear';
 
 export function TaxComputationPage() {
   const navigate = useNavigate();
-  const { entities, incomes, assets, liabilities, currentTaxYear } = useStore();
-
-  const entity = entities[0];
-  const totalAssets = assets.reduce((sum, a) => sum + a.marketValue, 0);
-  const totalLiabilities = liabilities.reduce((sum, l) => sum + l.currentBalance, 0);
-  const personalRelief = 1200000; // Rs. 1.2M standard relief
+  const { incomes, assets, currentTaxYear } = useStore();
 
   const taxComputation = computeTax(incomes, assets, currentTaxYear);
+  const taxBreakdown = getTaxBreakdown(taxComputation.taxableIncome, currentTaxYear);
+  const totalReliefs = taxComputation.reliefs.personalRelief + taxComputation.reliefs.solarRelief;
+  const totalTaxCredits = taxComputation.taxCredits.apit + taxComputation.taxCredits.wht;
 
   // Group incomes by schedule
   const employmentIncomes = incomes.filter((i) => i.type === 'employment');
@@ -88,19 +86,19 @@ export function TaxComputationPage() {
               <div className="space-y-2">
                 <div className="flex justify-between py-2">
                   <span className="text-gray-700">Personal Relief (Cage 401)</span>
-                  <span className="font-mono">Rs. {personalRelief.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono">Rs. {taxComputation.reliefs.personalRelief.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
                 </div>
-                {taxComputation.totalReliefs > personalRelief && (
+                {taxComputation.reliefs.solarRelief > 0 && (
                   <div className="flex justify-between py-2">
-                    <span className="text-gray-700">Other Reliefs (Cage 316 Rent, etc.)</span>
+                    <span className="text-gray-700">Solar Relief</span>
                     <span className="font-mono">
-                      Rs. {(taxComputation.totalReliefs - personalRelief).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
+                      Rs. {taxComputation.reliefs.solarRelief.toLocaleString('en-LK', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                 )}
                 <div className="flex justify-between py-3 border-t font-semibold">
                   <span>Total Reliefs</span>
-                  <span className="font-mono">Rs. {taxComputation.totalReliefs.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono">Rs. {totalReliefs.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>
@@ -119,57 +117,17 @@ export function TaxComputationPage() {
             <div>
               <h3 className="font-semibold text-lg mb-3 border-b pb-2">Part D: Progressive Tax Calculation</h3>
               <div className="space-y-2">
-                <div className="flex justify-between py-2">
-                  <span className="text-gray-600">First Rs. 500,000 @ 6%</span>
-                  <span className="font-mono text-sm">
-                    {taxComputation.taxableIncome > 0 
-                      ? `Rs. ${Math.min(taxComputation.taxableIncome, 500000) * 0.06}`.toLocaleString('en-LK', { minimumFractionDigits: 2 })
-                      : 'Rs. 0.00'}
-                  </span>
-                </div>
-                {taxComputation.taxableIncome > 500000 && (
-                  <div className="flex justify-between py-2">
-                    <span className="text-gray-600">Next Rs. 500,000 @ 12%</span>
+                {taxBreakdown.map((bracket, index) => (
+                  <div key={index} className="flex justify-between py-2">
+                    <span className="text-gray-600">{bracket.range} @ {bracket.rate}</span>
                     <span className="font-mono text-sm">
-                      Rs. {(Math.min(taxComputation.taxableIncome - 500000, 500000) * 0.12).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
+                      Rs. {bracket.tax.toLocaleString('en-LK', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
-                )}
-                {taxComputation.taxableIncome > 1000000 && (
-                  <div className="flex justify-between py-2">
-                    <span className="text-gray-600">Next Rs. 500,000 @ 18%</span>
-                    <span className="font-mono text-sm">
-                      Rs. {(Math.min(taxComputation.taxableIncome - 1000000, 500000) * 0.18).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                )}
-                {taxComputation.taxableIncome > 1500000 && (
-                  <div className="flex justify-between py-2">
-                    <span className="text-gray-600">Next Rs. 500,000 @ 24%</span>
-                    <span className="font-mono text-sm">
-                      Rs. {(Math.min(taxComputation.taxableIncome - 1500000, 500000) * 0.24).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                )}
-                {taxComputation.taxableIncome > 2000000 && (
-                  <div className="flex justify-between py-2">
-                    <span className="text-gray-600">Next Rs. 500,000 @ 30%</span>
-                    <span className="font-mono text-sm">
-                      Rs. {(Math.min(taxComputation.taxableIncome - 2000000, 500000) * 0.30).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                )}
-                {taxComputation.taxableIncome > 2500000 && (
-                  <div className="flex justify-between py-2">
-                    <span className="text-gray-600">Balance @ 36%</span>
-                    <span className="font-mono text-sm">
-                      Rs. {((taxComputation.taxableIncome - 2500000) * 0.36).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                )}
+                ))}
                 <div className="flex justify-between py-3 border-t-2 border-gray-300 font-semibold text-lg">
                   <span>Tax on Taxable Income</span>
-                  <span className="font-mono">Rs. {taxComputation.taxBeforeCredits.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono">Rs. {taxComputation.taxOnIncome.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>
@@ -180,15 +138,15 @@ export function TaxComputationPage() {
               <div className="space-y-2">
                 <div className="flex justify-between py-2">
                   <span className="text-gray-700">APIT Deducted (Cage 903)</span>
-                  <span className="font-mono">Rs. {taxComputation.totalTaxCredits.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono">Rs. {taxComputation.taxCredits.apit.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between py-2">
                   <span className="text-gray-700">WHT Deducted (Cage 908)</span>
-                  <span className="font-mono">Rs. 0.00</span>
+                  <span className="font-mono">Rs. {taxComputation.taxCredits.wht.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between py-3 border-t font-semibold">
                   <span>Total Tax Credits</span>
-                  <span className="font-mono">Rs. {taxComputation.totalTaxCredits.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
+                  <span className="font-mono">Rs. {totalTaxCredits.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>
@@ -199,13 +157,13 @@ export function TaxComputationPage() {
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Final Tax Payable/Refundable</p>
                   <p className="font-semibold text-2xl">
-                    {taxComputation.finalTaxPayable >= 0 ? 'Tax Payable' : 'Tax Refund'}
+                    {taxComputation.taxPayable >= 0 ? 'Tax Payable' : 'Tax Refund'}
                   </p>
                 </div>
                 <span className={`font-mono text-3xl font-bold ${
-                  taxComputation.finalTaxPayable >= 0 ? 'text-red-600' : 'text-green-600'
+                  taxComputation.taxPayable >= 0 ? 'text-red-600' : 'text-green-600'
                 }`}>
-                  Rs. {Math.abs(taxComputation.finalTaxPayable).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
+                  Rs. {Math.abs(taxComputation.taxPayable).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>

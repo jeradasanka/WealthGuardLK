@@ -453,3 +453,43 @@ export function formatLKR(amount: number | undefined | null): string {
     maximumFractionDigits: 2,
   })}`;
 }
+
+/**
+ * Returns the detailed tax breakdown by bracket
+ */
+export function getTaxBreakdown(taxableIncome: number, taxYear: string = '2024'): {
+  range: string;
+  rate: string;
+  amount: number;
+  tax: number;
+}[] {
+  const config = getTaxConfig(taxYear);
+  let previousLimit = 0;
+  const breakdown = [];
+
+  // Filter out the 0-limit placeholder if it exists
+  const activeBrackets = config.brackets.filter(b => b.limit > 0 || b.rate > 0);
+
+  for (const bracket of activeBrackets) {
+    if (taxableIncome <= previousLimit) break;
+
+    const range = bracket.limit === Infinity ? Infinity : bracket.limit - previousLimit;
+    const applicableIncome = Math.min(
+      taxableIncome - previousLimit,
+      range
+    );
+
+    const taxAmount = applicableIncome * bracket.rate;
+    
+    breakdown.push({
+      range: bracket.limit === Infinity ? 'Balance' : `Next ${range.toLocaleString()}`,
+      rate: `${(bracket.rate * 100).toFixed(0)}%`,
+      amount: applicableIncome,
+      tax: taxAmount
+    });
+
+    previousLimit = bracket.limit;
+  }
+
+  return breakdown;
+}

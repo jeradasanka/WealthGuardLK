@@ -20,24 +20,43 @@ export interface FundingSource {
   relatedId?: string; // ID of related income, asset, or liability
 }
 
-// Asset Object (Maps to Cages 701-721)
+// Asset Object - Statement of Assets and Liabilities
 export interface Asset {
   id: string;
   ownerId: string;
   ownershipShares?: { entityId: string; percentage: number }[]; // Multiple owners with percentages
-  cageCategory: '701' | '711' | '721'; // Immovable Property, Vehicle, Bank/Financial
+  cageCategory: 'A' | 'Bi' | 'Bii' | 'Biii' | 'Biv' | 'Bv' | 'Bvi' | 'C'; // Asset categories as per tax return
   meta: {
     description: string;
     dateAcquired: string;
-    // Immovable Property (701)
+    // A - Immovable Properties
     address?: string;
     deedNo?: string;
-    // Vehicle (711)
+    extentArea?: string;
+    // Bi - Motor Vehicles
     regNo?: string;
     brand?: string;
-    // Bank/Financial (721)
+    model?: string;
+    // Bii - Bank Balances / Term Deposits
     accountNo?: string;
     bankName?: string;
+    accountType?: string; // Savings, Current, Fixed Deposit, etc.
+    // Biii - Shares/stocks/securities
+    companyName?: string;
+    numberOfShares?: number;
+    certificateNo?: string;
+    // Biv - Cash in hand (no specific fields needed)
+    // Bv - Loans given & amount receivable
+    borrowerName?: string;
+    agreementNo?: string;
+    interestRate?: number;
+    // Bvi - Value of gold, silver, gems, jewellery
+    itemType?: string; // Gold, Silver, Gems, Jewellery
+    weight?: number;
+    purity?: string;
+    // C - Properties held as part of business
+    businessName?: string;
+    businessRegNo?: string;
   };
   financials: {
     cost: number;
@@ -45,7 +64,14 @@ export interface Asset {
     sourceOfFunds?: FundingSource[];
   };
   fundingSources?: FundingSource[];
-  disposed?: {
+  balances?: FinancialAssetBalance[]; // Yearly balances for Bii (Bank/Term Deposits), Biv (Cash), Bv (Loans Given)
+  jewelleryTransactions?: JewelleryTransaction[]; // Yearly purchases/sales for Bvi (Jewellery)
+  propertyExpenses?: PropertyExpense[]; // Yearly expenses for A (Immovable Properties)
+  closed?: { // For financial assets (Bii, Biv, Bv) - account closure
+    date: string;
+    finalBalance: number;
+  };
+  disposed?: { // For sale/disposal of assets (A, Bvi, etc.)
     date: string;
     salePrice: number;
   };
@@ -60,6 +86,41 @@ export interface LiabilityPayment {
   totalPaid: number;
   balanceAfterPayment: number;
   taxYear: string;
+  notes?: string;
+}
+
+// Balance record for financial assets (bank accounts, investments, etc.)
+export interface FinancialAssetBalance {
+  id: string;
+  taxYear: string;
+  closingBalance: number; // Balance as of March 31 of the tax year
+  interestEarned: number; // Interest income for the year
+  notes?: string;
+}
+
+// Yearly transaction record for jewellery (Bvi) - purchases and sales
+export interface JewelleryTransaction {
+  id: string;
+  taxYear: string;
+  type: 'purchase' | 'sale';
+  date: string;
+  description: string;
+  itemType?: string; // Gold, Silver, Gems, Jewellery
+  weight?: number;
+  purity?: string;
+  amount: number; // Purchase cost or sale price
+  notes?: string;
+}
+
+// Yearly expense record for immovable properties (A) - repairs, construction, etc.
+export interface PropertyExpense {
+  id: string;
+  taxYear: string;
+  date: string;
+  description: string;
+  expenseType: 'repair' | 'construction' | 'renovation' | 'maintenance' | 'other';
+  amount: number;
+  marketValue?: number; // Market valuation for this year
   notes?: string;
 }
 
@@ -147,11 +208,16 @@ export interface TaxComputation {
 // Audit Risk (The Danger Meter)
 export interface AuditRisk {
   assetGrowth: number;
+  propertyExpenses: number; // Property expenses (repairs, construction, etc.) for the year
   estimatedLivingExpenses: number;
-  declaredIncome: number;
-  newLoans: number;
   loanPayments: number; // Total loan payments (principal + interest) for the year
-  riskScore: number; // (assetGrowth + expenses + loanPayments) - (income + newLoans)
+  employmentIncome: number;
+  businessIncome: number;
+  investmentIncome: number;
+  totalIncome: number;
+  taxDeducted: number; // APIT + WHT
+  newLoans: number;
+  riskScore: number; // (assetGrowth + propertyExpenses + expenses + loanPayments) - (income - tax + newLoans)
   riskLevel: 'safe' | 'warning' | 'danger';
 }
 

@@ -14,6 +14,7 @@ import type {
   Asset,
   Liability,
 } from '@/types';
+import { isDateInTaxYear } from './taxYear';
 
 // Tax rates for progressive taxation (as of 2024/2025)
 const TAX_BRACKETS = [
@@ -170,17 +171,27 @@ export function calculateAuditRisk(
   currentYear: string,
   estimatedLivingExpenses: number = 0
 ): AuditRisk {
-  // Calculate asset growth (assets acquired in current year)
+  // Calculate asset growth (assets acquired in current tax year)
   const assetGrowth = assets
-    .filter((a) => a.meta.dateAcquired.startsWith(currentYear) && !a.disposed)
+    .filter((a) => isDateInTaxYear(a.meta.dateAcquired, currentYear) && !a.disposed)
     .reduce((sum, a) => sum + a.financials.cost, 0);
 
-  // Calculate new loans (liabilities in current year)
+  // Calculate property expenses made in current tax year
+  const propertyExpenses = assets
+    .filter((a) => a.cageCategory === 'A' && a.propertyExpenses && a.propertyExpenses.length > 0)
+    .reduce((sum, a) => {
+      const yearExpenses = a.propertyExpenses!
+        .filter((e) => e.taxYear === currentYear)
+        .reduce((total, e) => total + e.amount, 0);
+      return sum + yearExpenses;
+    }, 0);
+
+  // Calculate new loans (liabilities taken in current tax year)
   const newLoans = liabilities
-    .filter((l) => l.dateAcquired.startsWith(currentYear))
+    .filter((l) => isDateInTaxYear(l.dateAcquired, currentYear))
     .reduce((sum, l) => sum + l.originalAmount, 0);
 
-  // Calculate loan payments made in current year (principal + interest)
+  // Calculate loan payments made in current tax year (principal + interest)
   const loanPayments = liabilities.reduce((sum, l) => {
     if (!l.payments || l.payments.length === 0) return sum;
     
@@ -191,14 +202,14 @@ export function calculateAuditRisk(
     return sum + yearPayments;
   }, 0);
 
-  // Calculate declared income
-  const { totalIncome } = calculateTotalIncome(
+  // Calculate declared income with breakdown
+  const incomeBreakdown = calculateTotalIncome(
     incomes.filter((i) => i.taxYear === currentYear)
   );
 
-  // Calculate risk score
-  const outflows = assetGrowth + estimatedLivingExpenses + loanPayments;
-  const inflows = totalIncome + newLoans;
+  // Calculate risk score (include property expenses in outflows, subtract tax already paid from inflows)
+  const outflows = assetGrowth + propertyExpenses + estimatedLivingExpenses + loanPayments;
+  const inflows = incomeBreakdown.totalIncome - (incomeBreakdown.totalAPIT + incomeBreakdown.totalWHT) + newLoans;
   const riskScore = outflows - inflows;
 
   // Determine risk level
@@ -211,10 +222,15 @@ export function calculateAuditRisk(
 
   return {
     assetGrowth,
+    propertyExpenses,
     estimatedLivingExpenses,
-    declaredIncome: totalIncome,
-    newLoans,
     loanPayments,
+    employmentIncome: incomeBreakdown.employmentIncome,
+    businessIncome: incomeBreakdown.businessIncome,
+    investmentIncome: incomeBreakdown.investmentIncome,
+    totalIncome: incomeBreakdown.totalIncome,
+    taxDeducted: incomeBreakdown.totalAPIT + incomeBreakdown.totalWHT,
+    newLoans,
     riskScore,
     riskLevel,
   };

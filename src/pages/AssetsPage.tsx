@@ -5,19 +5,22 @@
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign } from 'lucide-react';
+import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign, TrendingUp, FileText, Sparkles, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
 import { AssetForm } from '@/components/AssetForm';
 import { LiabilityForm } from '@/components/LiabilityForm';
 import { LiabilityPaymentForm } from '@/components/LiabilityPaymentForm';
+import { FinancialAssetBalanceForm } from '@/components/FinancialAssetBalanceForm';
+import { JewelleryTransactionForm } from '@/components/JewelleryTransactionForm';
+import { PropertyExpenseForm } from '@/components/PropertyExpenseForm';
 import { SourceOfFundsWizard } from '@/components/SourceOfFundsWizard';
 import { formatLKR } from '@/lib/taxEngine';
 import { getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Asset, Liability, FundingSource } from '@/types';
 
-type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment';
+type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment' | 'manage-balances' | 'manage-jewellery-transactions' | 'manage-property-expenses';
 
 export function AssetsPage() {
   const navigate = useNavigate();
@@ -34,28 +37,115 @@ export function AssetsPage() {
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [editingLiability, setEditingLiability] = useState<Liability | null>(null);
   const [paymentLiability, setPaymentLiability] = useState<Liability | null>(null);
+  const [balanceAsset, setBalanceAsset] = useState<Asset | null>(null);
+  const [transactionAsset, setTransactionAsset] = useState<Asset | null>(null);
+  const [expenseAsset, setExpenseAsset] = useState<Asset | null>(null);
   const [pendingAsset, setPendingAsset] = useState<Asset | null>(null);
 
+  // Show all assets including closed ones
   const activeAssets = assets.filter((a) => !a.disposed);
-  const totalAssetValue = activeAssets.reduce((sum, a) => sum + a.financials.marketValue, 0);
+  
+  // Helper function to get display value for an asset
+  const getAssetDisplayValue = (asset: Asset): number => {
+    // For immovable properties with expenses, use latest market value if available
+    if (asset.cageCategory === 'A' && asset.propertyExpenses && asset.propertyExpenses.length > 0) {
+      const sortedExpenses = [...asset.propertyExpenses].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
+      const latestExpense = sortedExpenses[0];
+      if (latestExpense.marketValue && latestExpense.marketValue > 0) {
+        return latestExpense.marketValue;
+      }
+    }
+    // Otherwise use the asset's market value
+    return asset.financials.marketValue;
+  };
+  
+  // Calculate total value only from open assets, using latest valuations
+  const totalAssetValue = assets
+    .filter((a) => !a.disposed && !a.closed)
+    .reduce((sum, a) => sum + getAssetDisplayValue(a), 0);
+  
+  // Calculate total cost of assets (including property expenses)
+  const totalAssetCost = assets
+    .filter((a) => !a.disposed && !a.closed)
+    .reduce((sum, a) => {
+      let cost = a.financials.cost;
+      // Add property expenses to the cost
+      if (a.cageCategory === 'A' && a.propertyExpenses && a.propertyExpenses.length > 0) {
+        const totalExpenses = a.propertyExpenses.reduce((expSum, e) => expSum + e.amount, 0);
+        cost += totalExpenses;
+      }
+      return sum + cost;
+    }, 0);
+    
   const totalLiabilities = liabilities.reduce((sum, l) => sum + l.currentBalance, 0);
   const netWorth = totalAssetValue - totalLiabilities;
 
   // Calculate net worth for each tax year
   const netWorthByYear = useMemo(() => {
     const taxYears = getTaxYearsFromStart(entities[0]?.taxYear || '2022');
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
+    const currentTaxYear = currentMonth < 3 ? (currentYear - 1).toString() : currentYear.toString();
     
     return taxYears.map((year) => {
-      const yearEndDate = `${year}-03-31`;
+      const isCurrentYear = year === currentTaxYear;
+      const yearEndDate = isCurrentYear ? new Date().toISOString().split('T')[0] : `${year}-03-31`;
       
-      // Calculate assets value at year end
+      // Calculate assets value at year end (or current date for current year)
       const assetsAtYearEnd = assets
         .filter((a) => {
           const acquired = a.meta.dateAcquired <= yearEndDate;
-          const notDisposed = !a.disposed || (a.disposed && a.meta.dateDisposed! > yearEndDate);
-          return acquired && notDisposed;
+          const notDisposed = !a.disposed || (a.disposed && a.disposed.date > yearEndDate);
+          const notClosed = !a.closed || (a.closed && a.closed.date > yearEndDate);
+          return acquired && notDisposed && notClosed;
         })
-        .reduce((sum, a) => sum + a.financials.marketValue, 0);
+        .reduce((sum, a) => {
+          // For current year, use the same logic as top tiles
+          if (isCurrentYear) {
+            return sum + getAssetDisplayValue(a);
+          }
+          
+          // For historical years, calculate year-end values
+          // For bank balances (Bii), use balance from records if available
+          if (a.cageCategory === 'Bii' && a.balances && a.balances.length > 0) {
+            const yearBalance = a.balances.find((b) => b.taxYear === year);
+            if (yearBalance) {
+              return sum + yearBalance.closingBalance;
+            }
+            // If no exact year match, use previous year's closing balance
+            const previousBalances = a.balances.filter((b) => b.taxYear < year);
+            if (previousBalances.length > 0) {
+              return sum + previousBalances[previousBalances.length - 1].closingBalance;
+            }
+          }
+          
+          // For cash in hand (Biv) and loans given (Bv), use balance from records if available
+          if ((a.cageCategory === 'Biv' || a.cageCategory === 'Bv') && a.balances && a.balances.length > 0) {
+            const yearBalance = a.balances.find((b) => b.taxYear === year);
+            if (yearBalance) {
+              return sum + yearBalance.closingBalance;
+            }
+            // If no exact year match, use previous year's closing balance
+            const previousBalances = a.balances.filter((b) => b.taxYear < year);
+            if (previousBalances.length > 0) {
+              return sum + previousBalances[previousBalances.length - 1].closingBalance;
+            }
+          }
+          
+          // For immovable properties, use market value from expense records if available
+          if (a.cageCategory === 'A' && a.propertyExpenses && a.propertyExpenses.length > 0) {
+            // Get expenses up to this year
+            const expensesUpToYear = a.propertyExpenses
+              .filter((e) => e.taxYear <= year)
+              .sort((x, y) => y.taxYear.localeCompare(x.taxYear));
+            
+            if (expensesUpToYear.length > 0 && expensesUpToYear[0].marketValue && expensesUpToYear[0].marketValue > 0) {
+              return sum + expensesUpToYear[0].marketValue;
+            }
+          }
+          
+          return sum + a.financials.marketValue;
+        }, 0);
       
       // Calculate liabilities balance at year end
       const liabilitiesAtYearEnd = liabilities
@@ -84,12 +174,22 @@ export function AssetsPage() {
 
   const getAssetIcon = (category: string) => {
     switch (category) {
-      case '701':
+      case 'A':
         return <Home className="w-5 h-5 text-blue-600" />;
-      case '711':
+      case 'Bi':
         return <Car className="w-5 h-5 text-green-600" />;
-      case '721':
+      case 'Bii':
         return <WalletIcon className="w-5 h-5 text-purple-600" />;
+      case 'Biii':
+        return <TrendingUp className="w-5 h-5 text-emerald-600" />;
+      case 'Biv':
+        return <WalletIcon className="w-5 h-5 text-yellow-600" />;
+      case 'Bv':
+        return <FileText className="w-5 h-5 text-orange-600" />;
+      case 'Bvi':
+        return <Sparkles className="w-5 h-5 text-amber-600" />;
+      case 'C':
+        return <Building2 className="w-5 h-5 text-indigo-600" />;
       default:
         return null;
     }
@@ -97,16 +197,66 @@ export function AssetsPage() {
 
   const getCategoryLabel = (category: string) => {
     switch (category) {
-      case '701':
+      case 'A':
         return 'Property';
-      case '711':
+      case 'Bi':
         return 'Vehicle';
-      case '721':
-        return 'Financial';
+      case 'Bii':
+        return 'Bank/Deposit';
+      case 'Biii':
+        return 'Shares/Stock';
+      case 'Biv':
+        return 'Cash';
+      case 'Bv':
+        return 'Loan Given';
+      case 'Bvi':
+        return 'Jewellery';
+      case 'C':
+        return 'Business';
       default:
         return 'Asset';
     }
   };
+
+  const getFullCategoryLabel = (category: string) => {
+    switch (category) {
+      case 'A':
+        return 'Immovable Properties';
+      case 'Bi':
+        return 'Motor Vehicles';
+      case 'Bii':
+        return 'Bank Balances / Term Deposits';
+      case 'Biii':
+        return 'Shares/Stocks/Securities';
+      case 'Biv':
+        return 'Cash in Hand';
+      case 'Bv':
+        return 'Loans Given & Amount Receivable';
+      case 'Bvi':
+        return 'Gold, Silver, Gems, Jewellery';
+      case 'C':
+        return 'Properties Held as Part of Business';
+      default:
+        return 'Assets';
+    }
+  };
+
+  // Group assets by category
+  const groupAssetsByCategory = () => {
+    const categories = ['A', 'Bi', 'Bii', 'Biii', 'Biv', 'Bv', 'Bvi', 'C'];
+    const grouped: Record<string, Asset[]> = {};
+    
+    categories.forEach(category => {
+      const assetsInCategory = activeAssets.filter(asset => asset.cageCategory === category);
+      if (assetsInCategory.length > 0) {
+        grouped[category] = assetsInCategory;
+      }
+    });
+    
+    return grouped;
+  };
+
+  const assetsByCategory = groupAssetsByCategory();
 
   const handleDeleteAsset = async (id: string) => {
     if (confirm('Are you sure you want to delete this asset?')) {
@@ -117,7 +267,7 @@ export function AssetsPage() {
 
   const handleDisposeAsset = async (id: string) => {
     const salePrice = prompt('Enter sale price:');
-    if (salePrice && !isNaN(Number(salePrice))) {
+    if (salePrice && !Number.isNaN(Number(salePrice))) {
       disposeAsset(id, new Date().toISOString().split('T')[0], Number(salePrice));
       await saveToStorage();
     }
@@ -154,7 +304,13 @@ export function AssetsPage() {
     setViewMode('list');
     setEditingAsset(null);
     setEditingLiability(null);
+    setBalanceAsset(null);
     setPendingAsset(null);
+  };
+
+  const handleManageBalances = (asset: Asset) => {
+    setBalanceAsset(asset);
+    setViewMode('manage-balances');
   };
 
   const handleAssetSaveWithFunding = (asset: Asset) => {
@@ -188,6 +344,18 @@ export function AssetsPage() {
         onCancel={handleFormClose}
       />
     );
+  }
+
+  if (viewMode === 'manage-balances' && balanceAsset) {
+    return <FinancialAssetBalanceForm asset={balanceAsset} onClose={handleFormClose} />;
+  }
+
+  if (viewMode === 'manage-jewellery-transactions' && transactionAsset) {
+    return <JewelleryTransactionForm asset={transactionAsset} onClose={handleFormClose} />;
+  }
+
+  if (viewMode === 'manage-property-expenses' && expenseAsset) {
+    return <PropertyExpenseForm asset={expenseAsset} onClose={handleFormClose} />;
   }
 
   if (viewMode === 'add-asset' || viewMode === 'edit-asset') {
@@ -255,10 +423,20 @@ export function AssetsPage() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Assets</CardDescription>
+              <CardDescription>Total Assets Cost</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-blue-600">{formatLKR(totalAssetCost)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Cost + property expenses</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Total Assets Market Value</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-green-600">{formatLKR(totalAssetValue)}</p>
@@ -284,7 +462,7 @@ export function AssetsPage() {
               <p className={`text-2xl font-bold ${netWorth >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
                 {formatLKR(netWorth)}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">Assets - Liabilities</p>
+              <p className="text-xs text-muted-foreground mt-1">Market Value - Liabilities</p>
             </CardContent>
           </Card>
         </div>
@@ -379,9 +557,33 @@ export function AssetsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
-              {activeAssets.map((asset) => (
-                <Card key={asset.id}>
+            <div className="space-y-8">
+              {Object.entries(assetsByCategory).map(([category, assets]) => (
+                <div key={category} className="space-y-3">
+                  {/* Category Header */}
+                  <div className="flex items-center gap-3 pb-2 border-b-2 border-blue-200">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      {getAssetIcon(category)}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-blue-900">
+                        {getFullCategoryLabel(category)}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Cage {category} • {assets.length} {assets.length === 1 ? 'asset' : 'assets'}
+                      </p>
+                    </div>
+                    <div className="ml-auto text-right">
+                      <p className="text-sm font-semibold text-green-700">
+                        Total: {formatLKR(assets.filter(a => !a.closed && !a.disposed).reduce((sum, a) => sum + getAssetDisplayValue(a), 0))}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Assets in this category */}
+                  <div className="space-y-3 pl-4">
+                    {assets.map((asset) => (
+                <Card key={asset.id} className={(asset.closed || asset.disposed) ? 'opacity-60 bg-gray-50' : ''}>
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
@@ -389,7 +591,19 @@ export function AssetsPage() {
                           {getAssetIcon(asset.cageCategory)}
                         </div>
                         <div>
-                          <p className="font-semibold">{asset.meta.description}</p>
+                          <p className="font-semibold">
+                            {asset.meta.description}
+                            {asset.closed && (
+                              <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-normal">
+                                CLOSED
+                              </span>
+                            )}
+                            {asset.disposed && (
+                              <span className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-normal">
+                                SOLD
+                              </span>
+                            )}
+                          </p>
                           <p className="text-sm text-muted-foreground">
                             {getCategoryLabel(asset.cageCategory)} (Cage {asset.cageCategory})
                             {asset.ownershipShares && asset.ownershipShares.length > 0 ? (
@@ -408,46 +622,154 @@ export function AssetsPage() {
                           )}
                           <p className="text-xs text-muted-foreground">
                             Acquired: {new Date(asset.meta.dateAcquired).toLocaleDateString()}
+                            {asset.closed && (
+                              <span className="text-orange-600 ml-2">
+                                • Closed: {new Date(asset.closed.date).toLocaleDateString()}
+                              </span>
+                            )}
+                            {asset.disposed && (
+                              <span className="text-red-600 ml-2">
+                                • Sold: {new Date(asset.disposed.date).toLocaleDateString()}
+                              </span>
+                            )}
                           </p>
+                          {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && asset.balances && asset.balances.length > 0 && (
+                            <p className="text-xs text-purple-600 mt-1 font-medium">
+                              {asset.balances.length} balance record{asset.balances.length > 1 ? 's' : ''}
+                              {asset.cageCategory === 'Bii' && (
+                                <> •{' '}
+                                  Total interest: {formatLKR(
+                                    asset.balances.reduce((sum, b) => sum + b.interestEarned, 0)
+                                  )}
+                                </>
+                              )}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <p className="text-sm text-muted-foreground">Market Value</p>
-                          <p className="font-bold text-lg text-green-600">
-                            {formatLKR(asset.financials.marketValue)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Cost: {formatLKR(asset.financials.cost)}
-                          </p>
+                          {asset.cageCategory === 'A' ? (() => {
+                            const hasExpenses = asset.propertyExpenses && asset.propertyExpenses.length > 0;
+                            
+                            if (hasExpenses) {
+                              const sortedExpenses = [...asset.propertyExpenses!].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
+                              const latestExpense = sortedExpenses[0];
+                              const hasLatestValuation = latestExpense.marketValue && latestExpense.marketValue > 0;
+                              
+                              return (
+                                <>
+                                  <p className="text-sm text-muted-foreground">
+                                    Latest Market Value {hasLatestValuation && `(${latestExpense.taxYear}/${parseInt(latestExpense.taxYear) + 1})`}
+                                  </p>
+                                  <p className="font-bold text-lg text-green-600">
+                                    {formatLKR(hasLatestValuation ? latestExpense.marketValue! : asset.financials.marketValue)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Initial Cost: {formatLKR(asset.financials.cost)}
+                                  </p>
+                                  <p className="text-xs text-orange-600 font-medium mt-1">
+                                    Total Expenses: {formatLKR(asset.propertyExpenses!.reduce((sum, e) => sum + e.amount, 0))}
+                                  </p>
+                                </>
+                              );
+                            } else {
+                              // No expense records - show as Latest Market Value from edit page
+                              return (
+                                <>
+                                  <p className="text-sm text-muted-foreground">Latest Market Value</p>
+                                  <p className="font-bold text-lg text-green-600">
+                                    {formatLKR(asset.financials.marketValue)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Initial Cost: {formatLKR(asset.financials.cost)}
+                                  </p>
+                                </>
+                              );
+                            }
+                          })() : (
+                            <>
+                              <p className="text-sm text-muted-foreground">Market Value</p>
+                              <p className="font-bold text-lg text-green-600">
+                                {formatLKR(asset.financials.marketValue)}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Cost: {formatLKR(asset.financials.cost)}
+                              </p>
+                            </>
+                          )}
                         </div>
                         <div className="flex flex-col gap-2">
+                          {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleManageBalances(asset)}
+                              className="bg-purple-600 hover:bg-purple-700"
+                              title={
+                                asset.closed 
+                                  ? 'View balance history (read-only)'
+                                  : asset.cageCategory === 'Bii' ? 'Manage yearly balances and interest' :
+                                    asset.cageCategory === 'Biv' ? 'Manage yearly cash balances' :
+                                    'Manage yearly loan balances'
+                              }
+                            >
+                              <TrendingUp className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {asset.cageCategory === 'Bvi' && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => {
+                                setTransactionAsset(asset);
+                                setViewMode('manage-jewellery-transactions');
+                              }}
+                              className="bg-amber-600 hover:bg-amber-700"
+                              title="Manage yearly jewellery purchases and sales"
+                            >
+                              <Sparkles className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {asset.cageCategory === 'A' && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => {
+                                setExpenseAsset(asset);
+                                setViewMode('manage-property-expenses');
+                              }}
+                              className="bg-green-600 hover:bg-green-700"
+                              title="Manage yearly property expenses (repairs, construction)"
+                            >
+                              <Building2 className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleEditAsset(asset)}
+                            title={asset.closed ? 'Edit or reopen account' : asset.disposed ? 'Edit or mark as unsold' : 'Edit asset'}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDisposeAsset(asset.id)}
-                          >
-                            Sell
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteAsset(asset.id)}
-                          >
-                            <Trash2 className="w-4 h-4 text-red-600" />
-                          </Button>
+                          {!asset.closed && !asset.disposed && asset.cageCategory !== 'Bii' && asset.cageCategory !== 'Biv' && asset.cageCategory !== 'Bv' && asset.cageCategory !== 'Bvi' && asset.cageCategory !== 'A' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDisposeAsset(asset.id)}
+                            >
+                              Sell
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
+              ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}

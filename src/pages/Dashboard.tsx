@@ -81,11 +81,19 @@ export function Dashboard() {
         if (acquiredDate > new Date(taxYearEnd)) return false;
         
         // If disposed, must be disposed after the tax year start
-        if (a.disposed && a.meta.dateDisposed) {
-          const disposedDate = new Date(a.meta.dateDisposed);
+        if (a.disposed && a.disposed.date) {
+          const disposedDate = new Date(a.disposed.date);
           if (disposedDate < new Date(taxYearStart)) return false;
         } else if (a.disposed) {
           return false; // Disposed but no date, exclude
+        }
+        
+        // If closed (financial asset), must be closed after the tax year start
+        if (a.closed && a.closed.date) {
+          const closedDate = new Date(a.closed.date);
+          if (closedDate < new Date(taxYearStart)) return false;
+        } else if (a.closed) {
+          return false; // Closed but no date, exclude
         }
         
         return true;
@@ -96,11 +104,19 @@ export function Dashboard() {
         if (acquiredDate > new Date(taxYearEnd)) return false;
         
         // If disposed, must be disposed after the tax year start
-        if (a.disposed && a.meta.dateDisposed) {
-          const disposedDate = new Date(a.meta.dateDisposed);
+        if (a.disposed && a.disposed.date) {
+          const disposedDate = new Date(a.disposed.date);
           if (disposedDate < new Date(taxYearStart)) return false;
         } else if (a.disposed) {
           return false; // Disposed but no date, exclude
+        }
+        
+        // If closed (financial asset), must be closed after the tax year start
+        if (a.closed && a.closed.date) {
+          const closedDate = new Date(a.closed.date);
+          if (closedDate < new Date(taxYearStart)) return false;
+        } else if (a.closed) {
+          return false; // Closed but no date, exclude
         }
         
         // Include assets owned directly by this entity
@@ -132,19 +148,59 @@ export function Dashboard() {
     ? incomes.filter((i) => i.taxYear === currentTaxYear)
     : incomes.filter((i) => i.ownerId === selectedEntityId && i.taxYear === currentTaxYear);
 
+  // Helper function to get display value for an asset (same as AssetsPage)
+  const getAssetDisplayValue = (asset: any): number => {
+    // For immovable properties with expenses, use latest market value if available
+    if (asset.cageCategory === 'A' && asset.propertyExpenses && asset.propertyExpenses.length > 0) {
+      const sortedExpenses = [...asset.propertyExpenses].sort((a: any, b: any) => b.taxYear.localeCompare(a.taxYear));
+      const latestExpense = sortedExpenses[0];
+      if (latestExpense.marketValue && latestExpense.marketValue > 0) {
+        return latestExpense.marketValue;
+      }
+    }
+    // Otherwise use the asset's market value
+    return asset.financials.marketValue;
+  };
+
   const totalAssetValue = filteredAssets
     .filter((a) => !a.disposed)
     .reduce((sum, a) => {
+      const assetValue = getAssetDisplayValue(a);
+      
       // For individual view, calculate based on ownership percentage
       if (selectedEntityId !== 'family' && a.ownershipShares && a.ownershipShares.length > 0) {
         const ownershipShare = a.ownershipShares.find((s) => s.entityId === selectedEntityId);
         if (ownershipShare) {
-          return sum + (a.financials.marketValue * ownershipShare.percentage / 100);
+          return sum + (assetValue * ownershipShare.percentage / 100);
         }
         return sum;
       }
       // For family view or single owner, use full value
-      return sum + a.financials.marketValue;
+      return sum + assetValue;
+    }, 0);
+  
+  // Calculate total cost of assets (including property expenses)
+  const totalAssetCost = filteredAssets
+    .filter((a) => !a.disposed)
+    .reduce((sum, a) => {
+      let cost = a.financials.cost;
+      // Add property expenses to the cost
+      if (a.cageCategory === 'A' && a.propertyExpenses && a.propertyExpenses.length > 0) {
+        const totalExpenses = a.propertyExpenses.reduce((expSum: number, e: any) => expSum + e.amount, 0);
+        cost += totalExpenses;
+      }
+      
+      // For individual view, calculate based on ownership percentage
+      if (selectedEntityId !== 'family' && a.ownershipShares && a.ownershipShares.length > 0) {
+        const ownershipShare = a.ownershipShares.find((s) => s.entityId === selectedEntityId);
+        if (ownershipShare) {
+          return sum + (cost * ownershipShare.percentage / 100);
+        }
+        return sum;
+        return sum;
+      }
+      // For family view or single owner, use full cost
+      return sum + cost;
     }, 0);
 
   const totalLiabilities = filteredLiabilities.reduce((sum, l) => {
@@ -335,10 +391,20 @@ export function Dashboard() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Assets ({currentTaxYear})</CardDescription>
+              <CardDescription>Total Assets Cost</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-blue-600">{formatLKR(totalAssetCost)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Cost + property expenses</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Total Assets Market Value</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-green-600">{formatLKR(totalAssetValue)}</p>
@@ -348,31 +414,41 @@ export function Dashboard() {
 
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Outstanding Loans ({currentTaxYear})</CardDescription>
+              <CardDescription>Total Liabilities</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-red-600">{formatLKR(totalLiabilities)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{filteredLiabilities.length} loans (remaining balance)</p>
+              <p className="text-xs text-muted-foreground mt-1">{filteredLiabilities.length} loans</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Net Worth ({currentTaxYear})</CardDescription>
+              <CardDescription>Net Worth</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-blue-600">{formatLKR(netWorth)}</p>
-              <p className="text-xs text-muted-foreground mt-1">Assets - Liabilities</p>
+              <p className={`text-2xl font-bold ${netWorth >= 0 ? 'text-blue-600' : 'text-red-600'}`}>{formatLKR(netWorth)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Market Value - Liabilities</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Income ({currentTaxYear})</CardDescription>
+              <CardDescription>Total Income</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-purple-600">{formatLKR(currentYearIncome)}</p>
               <p className="text-xs text-muted-foreground mt-1">{incomes.filter(i => i.taxYear === currentTaxYear).length} sources</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Tax Year</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-slate-700">{formatTaxYear(currentTaxYear)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Current reporting period</p>
             </CardContent>
           </Card>
         </div>

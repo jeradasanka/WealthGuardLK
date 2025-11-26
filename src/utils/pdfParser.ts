@@ -209,7 +209,7 @@ function extractAssets(text: string) {
   if (propertyMatch) {
     assets.push({
       description: propertyMatch[1].trim(),
-      category: '701' as const,
+      category: 'A' as const,
       cost: parseAmount(propertyMatch[3]),
       marketValue: parseAmount(propertyMatch[4]),
       dateAcquired: propertyMatch[2],
@@ -223,7 +223,7 @@ function extractAssets(text: string) {
     if (balance > 0) {
       assets.push({
         description: `${match[1].trim()} - Account ${match[2]}`,
-        category: '721' as const,
+        category: 'Bii' as const,
         cost: balance,
         marketValue: balance,
       });
@@ -237,7 +237,7 @@ function extractAssets(text: string) {
     if (cashAmount > 0) {
       assets.push({
         description: 'Cash in Hand',
-        category: '721' as const,
+        category: 'Biv' as const,
         cost: cashAmount,
         marketValue: cashAmount,
       });
@@ -251,7 +251,7 @@ function extractAssets(text: string) {
     if (loanAmount > 0) {
       assets.push({
         description: 'Loans Given & Amount Receivable',
-        category: '721' as const,
+        category: 'Bv' as const,
         cost: loanAmount,
         marketValue: loanAmount,
       });
@@ -265,7 +265,7 @@ function extractAssets(text: string) {
     if (valuablesAmount > 0) {
       assets.push({
         description: 'Gold, Silver, Gems, Jewellery',
-        category: '721' as const,
+        category: 'Bvi' as const,
         cost: valuablesAmount,
         marketValue: valuablesAmount,
       });

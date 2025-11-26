@@ -148,6 +148,11 @@ export function AssetsPage() {
             }
           }
           
+          // For jewellery (Bvi), calculate market value using appreciation
+          if (a.cageCategory === 'Bvi') {
+            return sum + getJewelleryMarketValue(a, year);
+          }
+          
           return sum + a.financials.marketValue;
         }, 0);
       

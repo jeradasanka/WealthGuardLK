@@ -5,7 +5,7 @@
 
 import type { InvestmentIncome, Income, Asset, Liability, TaxEntity } from '@/types';
 import { exportData } from './storage';
-import { computeTax, formatLKR, calculateTotalIncome, calculateAuditRisk, getTaxBreakdown } from '@/lib/taxEngine';
+import { computeTax, formatLKR, calculateTotalIncome, calculateAuditRisk, getTaxBreakdown, getJewelleryMarketValue } from '@/lib/taxEngine';
 import { jsPDF } from 'jspdf';
 
 /**
@@ -403,10 +403,13 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
   if (jewellery.length > 0) {
     report += `│ \n│ Bvi. GOLD, SILVER, GEMS, JEWELLERY:\n`;
     jewellery.forEach((asset, idx) => {
+      const marketValue = getJewelleryMarketValue(asset, taxYear);
+      const itemType = asset.meta.itemType || 'N/A';
       report += `│ ${idx + 1}. ${asset.meta.description || 'Jewellery'}\n`;
+      report += `│    Type:                 ${itemType}\n`;
       report += `│    Acquired:             ${asset.meta.dateAcquired || 'N/A'}\n`;
-      report += `│    Cost:                 ${formatLKR(asset.financials.cost)}\n`;
-      report += `│    Market Value:         ${formatLKR(asset.financials.marketValue)}\n`;
+      report += `│    Original Cost:        ${formatLKR(asset.financials.cost)}\n`;
+      report += `│    Calculated Value:     ${formatLKR(marketValue)}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
   }
@@ -877,10 +880,14 @@ export function downloadDetailedTaxReportPDF(
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     jewellery.forEach((asset, idx) => {
-      checkPageBreak(15);
-      doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
+      checkPageBreak(20);
+      const marketValue = getJewelleryMarketValue(asset, taxYear);
+      const itemType = asset.meta.itemType || 'N/A';
+      doc.text(`${idx + 1}. ${asset.name} (${itemType})`, margin + 10, yPos);
       yPos += lineHeight;
-      doc.text(`   Market Value: ${formatLKR(asset.financials.marketValue)}`, margin + 10, yPos);
+      doc.text(`   Original Cost: ${formatLKR(asset.financials.cost)}`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   Calculated Market Value: ${formatLKR(marketValue)}`, margin + 10, yPos);
       yPos += lineHeight + 2;
     });
   }

@@ -15,7 +15,7 @@ import { LiabilityPaymentForm } from '@/components/LiabilityPaymentForm';
 import { FinancialAssetBalanceForm } from '@/components/FinancialAssetBalanceForm';
 import { PropertyExpenseForm } from '@/components/PropertyExpenseForm';
 import { SourceOfFundsWizard } from '@/components/SourceOfFundsWizard';
-import { formatLKR } from '@/lib/taxEngine';
+import { formatLKR, getJewelleryMarketValue } from '@/lib/taxEngine';
 import { getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Asset, Liability, FundingSource } from '@/types';
 
@@ -26,6 +26,7 @@ export function AssetsPage() {
   const assets = useStore((state) => state.assets);
   const liabilities = useStore((state) => state.liabilities);
   const entities = useStore((state) => state.entities);
+  const currentTaxYear = useStore((state) => state.currentTaxYear);
   const removeAsset = useStore((state) => state.removeAsset);
   const removeLiability = useStore((state) => state.removeLiability);
   const updateLiability = useStore((state) => state.updateLiability);
@@ -53,6 +54,10 @@ export function AssetsPage() {
       if (latestExpense.marketValue && latestExpense.marketValue > 0) {
         return latestExpense.marketValue;
       }
+    }
+    // For jewellery, calculate market value based on price appreciation
+    if (asset.cageCategory === 'Bvi') {
+      return getJewelleryMarketValue(asset, currentTaxYear);
     }
     // Otherwise use the asset's market value
     return asset.financials.marketValue;

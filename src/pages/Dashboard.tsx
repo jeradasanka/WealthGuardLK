@@ -12,7 +12,7 @@ import { DangerMeter } from '@/components/DangerMeter';
 import { PDFImportWizard } from '@/components/PDFImportWizard';
 import { useStore } from '@/stores/useStore';
 import { hasSavedData } from '@/utils/storage';
-import { formatLKR, filterAssetsForTaxYear, calculateTotalIncome } from '@/lib/taxEngine';
+import { formatLKR, filterAssetsForTaxYear, calculateTotalIncome, getJewelleryMarketValue } from '@/lib/taxEngine';
 import { formatTaxYear, getTaxYearsFromStart, getTaxYearDateRange } from '@/lib/taxYear';
 import { downloadDetailedTaxReport, downloadDetailedTaxReportPDF } from '@/utils/export';
 
@@ -111,6 +111,10 @@ export function Dashboard() {
       if (latestExpense.marketValue && latestExpense.marketValue > 0) {
         return latestExpense.marketValue;
       }
+    }
+    // For jewellery, calculate market value based on price appreciation
+    if (asset.cageCategory === 'Bvi') {
+      return getJewelleryMarketValue(asset, currentTaxYear);
     }
     // Otherwise use the asset's market value
     return asset.financials.marketValue;

@@ -689,13 +689,20 @@ export function AssetsPage() {
                             }
                           })() : (
                             <>
-                              <p className="text-sm text-muted-foreground">Market Value</p>
+                              <p className="text-sm text-muted-foreground">
+                                {asset.cageCategory === 'Bvi' ? 'Calculated Market Value' : 'Market Value'}
+                              </p>
                               <p className="font-bold text-lg text-green-600">
-                                {formatLKR(asset.financials.marketValue)}
+                                {formatLKR(getAssetDisplayValue(asset))}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                Cost: {formatLKR(asset.financials.cost)}
+                                {asset.cageCategory === 'Bvi' ? 'Original Cost' : 'Cost'}: {formatLKR(asset.financials.cost)}
                               </p>
+                              {asset.cageCategory === 'Bvi' && asset.meta.itemType && (
+                                <p className="text-xs text-amber-600 font-medium">
+                                  {asset.meta.itemType} • Auto-valued
+                                </p>
+                              )}
                             </>
                           )}
                         </div>

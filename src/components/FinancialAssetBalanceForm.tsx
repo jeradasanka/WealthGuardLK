@@ -73,7 +73,7 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
       id: crypto.randomUUID(),
       taxYear: selectedYear,
       closingBalance: parseFloat(closingBalance),
-      interestEarned: (asset.category === 'Bii' || asset.category === 'Biv' || asset.category === 'Bv') ? (parseFloat(interestEarned) || 0) : 0,
+      interestEarned: (asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') ? (parseFloat(interestEarned) || 0) : 0,
     };
 
     const updatedAsset: Asset = {

@@ -39,53 +39,42 @@ export function IncomePage() {
   const derivedInvestmentIncome = (() => {
     const income: { type: 'interest' | 'dividend' | 'rent'; amount: number; source: string; wht: number; ownerId: string }[] = [];
     
-    assets
-      .filter((asset) => {
-        // Filter assets for current tax year
-        const acquiredDate = new Date(asset.meta.dateAcquired);
-        const taxYearStart = new Date(`${parseInt(currentTaxYear)}-04-01`);
-        const taxYearEnd = new Date(`${parseInt(currentTaxYear) + 1}-03-31`);
-        
-        if (acquiredDate > taxYearEnd) return false;
-        if (asset.disposed && asset.disposed.date) {
-          const disposedDate = new Date(asset.disposed.date);
-          if (disposedDate < taxYearStart) return false;
+    // Process all assets - let the balance taxYear determine if it applies to current year
+    assets.forEach((asset) => {
+      // Extract interest from bank accounts, cash, and loans given
+      if ((asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && asset.balances) {
+        const yearBalance = asset.balances.find((b) => {
+          // Match both "2024" and "2024/2025" formats
+          return b.taxYear === currentTaxYear || b.taxYear.startsWith(currentTaxYear);
+        });
+        if (yearBalance && yearBalance.interestEarned > 0) {
+          income.push({
+            type: 'interest',
+            amount: yearBalance.interestEarned,
+            source: asset.meta.accountType ? `${asset.meta.bankName || 'Account'} - ${asset.meta.accountType}` : asset.meta.bankName || 'Interest Income',
+            wht: 0, // WHT for interest is typically 0 for most deposits
+            ownerId: asset.ownerId,
+          });
         }
-        if (asset.closed && asset.closed.date) {
-          const closedDate = new Date(asset.closed.date);
-          if (closedDate < taxYearStart) return false;
+      }
+      
+      // Extract dividends from shares
+      if (asset.cageCategory === 'Biii' && asset.balances) {
+        const yearBalance = asset.balances.find((b) => {
+          // Match both "2024" and "2024/2025" formats
+          return b.taxYear === currentTaxYear || b.taxYear.startsWith(currentTaxYear);
+        });
+        if (yearBalance && yearBalance.interestEarned > 0) {
+          income.push({
+            type: 'dividend',
+            amount: yearBalance.interestEarned,
+            source: asset.meta.companyName || 'Dividend Income',
+            wht: 0,
+            ownerId: asset.ownerId,
+          });
         }
-        return true;
-      })
-      .forEach((asset) => {
-        // Extract interest from bank accounts, cash, and loans given
-        if ((asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && asset.balances) {
-          const yearBalance = asset.balances.find((b) => b.taxYear === currentTaxYear);
-          if (yearBalance && yearBalance.interestEarned > 0) {
-            income.push({
-              type: 'interest',
-              amount: yearBalance.interestEarned,
-              source: asset.meta.accountType ? `${asset.meta.bankName || 'Account'} - ${asset.meta.accountType}` : asset.meta.bankName || 'Interest Income',
-              wht: 0, // WHT for interest is typically 0 for most deposits
-              ownerId: asset.ownerId,
-            });
-          }
-        }
-        
-        // Extract dividends from shares
-        if (asset.cageCategory === 'Biii' && asset.balances) {
-          const yearBalance = asset.balances.find((b) => b.taxYear === currentTaxYear);
-          if (yearBalance && yearBalance.interestEarned > 0) {
-            income.push({
-              type: 'dividend',
-              amount: yearBalance.interestEarned,
-              source: asset.meta.companyName || 'Dividend Income',
-              wht: 0,
-              ownerId: asset.ownerId,
-            });
-          }
-        }
-      });
+      }
+    });
     
     return income;
   })();

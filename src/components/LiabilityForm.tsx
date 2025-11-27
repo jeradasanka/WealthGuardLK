@@ -38,7 +38,7 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
     purpose: liability?.purpose || '',
     paymentFrequency: liability?.paymentFrequency || 'annually',
     maturityDate: liability?.maturityDate || '',
-    numberOfTerms: 0,
+    numberOfTerms: liability?.numberOfTerms || 0,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,6 +73,7 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
       purpose: formData.purpose || undefined,
       paymentFrequency: formData.paymentFrequency as 'monthly' | 'quarterly' | 'annually' | 'other',
       maturityDate: formData.maturityDate || undefined,
+      numberOfTerms: Number(formData.numberOfTerms) || undefined,
       payments: liability?.payments || [],
     };
 

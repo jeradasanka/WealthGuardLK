@@ -38,6 +38,7 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
     purpose: liability?.purpose || '',
     paymentFrequency: liability?.paymentFrequency || 'annually',
     maturityDate: liability?.maturityDate || '',
+    numberOfTerms: 0,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -95,6 +96,33 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
   ) => {
     setFormData((prev) => ({ ...prev, [field]: e.target.value }));
   };
+
+  // Calculate EMI (Equated Monthly Installment) using the standard loan formula
+  const calculateInstallment = (): number => {
+    const principal = Number(formData.originalAmount);
+    const annualRate = Number(formData.interestRate);
+    const terms = Number(formData.numberOfTerms);
+    
+    if (!principal || !annualRate || !terms || terms <= 0) {
+      return 0;
+    }
+
+    // Convert annual rate to period rate based on frequency
+    let periodsPerYear = 12; // default to monthly
+    if (formData.paymentFrequency === 'quarterly') periodsPerYear = 4;
+    else if (formData.paymentFrequency === 'annually') periodsPerYear = 1;
+    else if (formData.paymentFrequency === 'monthly') periodsPerYear = 12;
+    
+    const periodRate = annualRate / 100 / periodsPerYear;
+    
+    // EMI formula: P * r * (1 + r)^n / ((1 + r)^n - 1)
+    const emi = (principal * periodRate * Math.pow(1 + periodRate, terms)) / 
+                (Math.pow(1 + periodRate, terms) - 1);
+    
+    return Math.round(emi);
+  };
+
+  const suggestedInstallment = calculateInstallment();
 
   const handleDelete = () => {
     if (!liability?.id) return;
@@ -298,6 +326,48 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
               </select>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="numberOfTerms">Number of Terms (optional)</Label>
+              <Input
+                id="numberOfTerms"
+                type="number"
+                min="0"
+                step="1"
+                value={formData.numberOfTerms || ''}
+                onChange={handleChange('numberOfTerms')}
+                placeholder="e.g., 60 for 60 months"
+              />
+              <p className="text-xs text-muted-foreground">
+                Total number of {formData.paymentFrequency} payments
+              </p>
+            </div>
+          </div>
+
+          {/* Installment Calculation Display */}
+          {suggestedInstallment > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-semibold text-blue-900 mb-2">💡 Suggested Installment</h4>
+              <div className="space-y-1">
+                <p className="text-sm text-blue-800">
+                  Based on the loan amount, interest rate, and number of terms:
+                </p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {formatLKR(suggestedInstallment)}
+                </p>
+                <p className="text-xs text-blue-700">
+                  per {formData.paymentFrequency === 'monthly' ? 'month' : 
+                       formData.paymentFrequency === 'quarterly' ? 'quarter' : 
+                       formData.paymentFrequency === 'annually' ? 'year' : 'payment'}
+                </p>
+                <p className="text-xs text-blue-600 mt-2">
+                  Total repayment: {formatLKR(suggestedInstallment * Number(formData.numberOfTerms))}
+                  {' '}(Principal: {formatLKR(formData.originalAmount)}, Interest: {formatLKR(suggestedInstallment * Number(formData.numberOfTerms) - Number(formData.originalAmount))})
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="maturityDate">Maturity Date (Optional)</Label>
               <Input

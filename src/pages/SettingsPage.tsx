@@ -20,7 +20,20 @@ import { getRecentTaxYears, formatTaxYear } from '@/lib/taxYear';
 
 export function SettingsPage() {
   const navigate = useNavigate();
-  const { entities, updateEntity, removeEntity, passphrase, setPassphrase, saveToStorage, addEntity, resetState } = useStore();
+  const { 
+    entities, 
+    updateEntity, 
+    removeEntity, 
+    passphrase, 
+    setPassphrase, 
+    saveToStorage, 
+    addEntity, 
+    resetState,
+    useAiParsing,
+    setUseAiParsing,
+    geminiApiKey,
+    setGeminiApiKey
+  } = useStore();
   const [showExport, setShowExport] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showPassphraseChange, setShowPassphraseChange] = useState(false);
@@ -221,6 +234,81 @@ export function SettingsPage() {
                 ))}
               </select>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* AI PDF Import Settings */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <SettingsIcon className="h-5 w-5" />
+              <div>
+                <CardTitle>AI-Powered PDF Import</CardTitle>
+                <CardDescription>Configure Gemini AI for better PDF parsing accuracy</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="useAiParsing"
+                    checked={useAiParsing}
+                    onChange={(e) => setUseAiParsing(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <Label htmlFor="useAiParsing" className="font-semibold cursor-pointer">
+                    Enable AI-Powered PDF Parsing
+                  </Label>
+                </div>
+                <p className="text-sm text-gray-600 mt-1 ml-6">
+                  Use Google Gemini AI to extract data from RAMIS tax documents with higher accuracy
+                </p>
+              </div>
+            </div>
+
+            {useAiParsing && (
+              <div className="space-y-3 p-4 bg-gray-50 rounded-lg border">
+                <div>
+                  <Label htmlFor="geminiApiKey">Gemini API Key *</Label>
+                  <Input
+                    id="geminiApiKey"
+                    type="password"
+                    value={geminiApiKey}
+                    onChange={(e) => setGeminiApiKey(e.target.value)}
+                    placeholder="Enter your Gemini API key"
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-gray-600 mt-1">
+                    Get your free API key from{' '}
+                    <a 
+                      href="https://ai.google.dev/" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      Google AI Studio
+                    </a>
+                  </p>
+                </div>
+                
+                <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+                  <p className="text-sm text-yellow-800">
+                    <strong>🔒 Privacy Note:</strong> Your API key is stored locally in your browser and never sent to our servers. 
+                    PDF data is sent directly to Google's Gemini API for processing.
+                  </p>
+                </div>
+
+                <div className="bg-green-50 border border-green-200 rounded p-3">
+                  <p className="text-sm text-green-800">
+                    <strong>✨ Benefits:</strong> AI parsing provides significantly better accuracy for complex RAMIS documents, 
+                    extracting income, assets, liabilities, and taxpayer information automatically.
+                  </p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

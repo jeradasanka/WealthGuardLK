@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ParsedTaxData, ImportPreview, ImportConflict } from '@/types/import';
 import { parseTaxPDF } from '@/utils/pdfParser';
+import { parseWithGeminiDirect } from '@/utils/geminiPdfParser';
 import { useStore } from '@/stores/useStore';
 import { formatLKR } from '@/lib/taxEngine';
 
@@ -38,6 +39,8 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
   const addAsset = useStore((state) => state.addAsset);
   const addLiability = useStore((state) => state.addLiability);
   const saveToStorage = useStore((state) => state.saveToStorage);
+  const useAiParsing = useStore((state) => state.useAiParsing);
+  const geminiApiKey = useStore((state) => state.geminiApiKey);
   const [selectedEntityId, setSelectedEntityId] = useState<string>(entities[0]?.id || '');
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,7 +64,17 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
     setError(null);
     
     try {
-      const data = await parseTaxPDF(fileToProcess);
+      let data: ParsedTaxData;
+      
+      // Use Gemini AI if enabled and API key is provided
+      if (useAiParsing && geminiApiKey) {
+        console.log('Using Gemini AI for PDF parsing...');
+        data = await parseWithGeminiDirect(fileToProcess, geminiApiKey);
+      } else {
+        console.log('Using traditional PDF parsing...');
+        data = await parseTaxPDF(fileToProcess);
+      }
+      
       setParsedData(data);
       
       // Generate preview with conflict detection

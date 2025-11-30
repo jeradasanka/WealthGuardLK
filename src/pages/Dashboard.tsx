@@ -280,7 +280,7 @@ export function Dashboard() {
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setShowImportWizard(true)}>
                 <Upload className="w-4 h-4 mr-2" />
-                Import PDF
+                {useStore.getState().useAiParsing ? 'Import PDF (AI)' : 'Import PDF'}
               </Button>
               <div className="relative" ref={reportMenuRef}>
                 <Button 

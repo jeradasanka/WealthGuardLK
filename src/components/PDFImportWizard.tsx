@@ -286,9 +286,18 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Import Tax Data from PDF</DialogTitle>
+          <DialogTitle>
+            Import Tax Data from PDF {useAiParsing && geminiApiKey && '(AI-Powered)'}
+          </DialogTitle>
           <DialogDescription>
-            Upload a RAMIS tax return PDF to automatically import income, assets, and liabilities
+            {useAiParsing && geminiApiKey ? (
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                Using Gemini AI for intelligent extraction from RAMIS tax return PDF
+              </span>
+            ) : (
+              'Upload a RAMIS tax return PDF to automatically import income, assets, and liabilities'
+            )}
           </DialogDescription>
         </DialogHeader>
 

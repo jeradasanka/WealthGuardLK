@@ -226,8 +226,8 @@ export async function parseWithGemini(pdfText: string, apiKey: string): Promise<
 }
 
 /**
- * Convert PDF file to base64 for direct PDF upload to Gemini
- * (Alternative approach - can handle PDFs directly without text extraction)
+ * Parse PDF by uploading directly to Gemini (using inline data)
+ * This sends the actual PDF file to Gemini for analysis
  */
 export async function parseWithGeminiDirect(file: File, apiKey: string): Promise<ParsedTaxData> {
   try {
@@ -235,15 +235,18 @@ export async function parseWithGeminiDirect(file: File, apiKey: string): Promise
       throw new Error('Gemini API key is required. Please configure it in Settings.');
     }
 
-    console.log('Parsing PDF directly with Gemini AI...');
+    console.log('Uploading PDF to Gemini AI for parsing...');
+    console.log(`File size: ${(file.size / 1024).toFixed(2)} KB`);
     
-    // Convert file to base64
+    // Convert file to base64 for inline upload
+    // Note: This is the standard way to send files to Gemini in browser environment
+    // The file content is NOT modified, just encoded for transmission
     const base64Data = await fileToBase64(file);
     
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
 
-    const imagePart = {
+    const filePart = {
       inlineData: {
         data: base64Data,
         mimeType: file.type || 'application/pdf',
@@ -252,26 +255,25 @@ export async function parseWithGeminiDirect(file: File, apiKey: string): Promise
 
     const prompt = `${SYSTEM_PROMPT}\n\nPlease analyze this RAMIS tax return PDF and extract the structured data:`;
 
-    const result = await model.generateContent([prompt, imagePart]);
+    console.log('Sending PDF to Gemini for analysis...');
+    const result = await model.generateContent([prompt, filePart]);
     const response = await result.response;
     const text = response.text();
 
-    console.log('Gemini direct response:', text);
-
-    console.log('Gemini direct response:', text);
+    console.log('Gemini analysis complete');
 
     // Extract JSON from response - handle various formats
     const parsedData = extractJsonFromResponse(text);
 
-    console.log('Successfully parsed PDF directly with Gemini:', parsedData);
+    console.log('Successfully parsed PDF with Gemini');
     
     return parsedData;
   } catch (error) {
-    console.error('Error parsing PDF directly with Gemini:', error);
+    console.error('Error parsing PDF with Gemini:', error);
     if (error instanceof Error) {
-      throw new Error(`Gemini AI direct parsing failed: ${error.message}`);
+      throw new Error(`Gemini AI parsing failed: ${error.message}`);
     }
-    throw new Error('Failed to parse PDF directly with Gemini AI');
+    throw new Error('Failed to parse PDF with Gemini AI');
   }
 }
 

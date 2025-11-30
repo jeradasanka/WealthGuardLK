@@ -138,10 +138,17 @@ JSON SCHEMA - MUST match this exact structure:
   "liabilities": [
     {
       "description": "HOUSING LOAN - XXXXXXXXXX (LAND)",
-      "lenderName": "Extract from description or use generic 'Bank'",
+      "lenderName": "Bank",
       "originalAmount": 5000000.00,
       "currentBalance": 4500000.00,
-      "dateAcquired": "2023-03-31"
+      "dateAcquired": "2024-03-31"
+    },
+    {
+      "description": "HOUSING LOAN - YYYYYYYYYY (LAND)",
+      "lenderName": "Bank",
+      "originalAmount": 3000000.00,
+      "currentBalance": 2500000.00,
+      "dateAcquired": "2024-03-31"
     }
   ]
 }
@@ -223,13 +230,44 @@ CRITICAL EXTRACTION RULES:
    - marketValue: Same as cost
    - dateAcquired: "2023-03-31"
 
-8. **Liabilities** - Each liability must have description, lenderName, originalAmount, currentBalance, dateAcquired:
-   - description: "[LOAN TYPE] - [account number] ([security])"
+8. **Liabilities** - CRITICAL - Each liability must have ALL fields with CORRECT values:
+   
+   **IMPORTANT**: The liabilities table has these columns in order:
+   - Type (A, B, etc.)
+   - S/N (row number: 1, 2, 3...)
+   - Description of liability (e.g., "HOUSING LOAN - XXXXXXXXXX")
+   - Security on liability (e.g., "LAND")
+   - Date of commencement (may be missing - use tax year end date)
+   - **Original amount of liability (Rs.)** - THIS IS THE KEY COLUMN
+   - **Amount of liability, as at 31.03.YYYY** - THIS IS THE CURRENT BALANCE
+   - Amount repaid during the Y/A (Rs.) - This is the yearly payment
+   
+   **EXTRACTION RULES FOR LIABILITIES**:
+   - description: "[Description from table] ([Security])"
      Example: "HOUSING LOAN - XXXXXXXXXX (LAND)"
-   - lenderName: Try to extract from context, otherwise use "Bank"
-   - originalAmount: From "Original amount of liability" column
-   - currentBalance: From "Amount of liability, as at 31.03.YYYY" column
-   - dateAcquired: From "Date of commencement" or use "2023-03-31"
+   - lenderName: Use "Bank" or try to extract from context
+   - **originalAmount**: MUST be the value from "Original amount of liability (Rs.)" column
+     Example: "5,000,000.00" → 5000000.00 (remove commas, convert to number)
+   - **currentBalance**: MUST be the value from "Amount of liability, as at 31.03.YYYY" column
+     Example: "5,000,000.00" → 5000000.00 (remove commas, convert to number)
+   - dateAcquired: Use "Date of commencement" if available, otherwise use "[YYYY]-03-31" where YYYY is tax year + 1
+     Example: For tax year 2023/2024, use "2024-03-31"
+   
+   **COMMON ERRORS TO AVOID**:
+   - ❌ Don't use the "Amount repaid" as originalAmount or currentBalance
+   - ❌ Don't swap originalAmount and currentBalance
+   - ❌ Don't use 0 for missing values - extract the actual numbers from the table
+   - ✅ originalAmount should be LARGER than or EQUAL to currentBalance
+   - ✅ Both amounts MUST be positive numbers
+   
+   **Example from table**:
+   ```
+   HOUSING LOAN - XXXXXXXXXX  LAND  5,000,000.00  5,000,000.00  500,000.00
+   ```
+   Should extract as:
+   - originalAmount: 5000000.00
+   - currentBalance: 5000000.00
+   - description: "HOUSING LOAN - XXXXXXXXXX (LAND)"
 
 9. **Required Fields**: 
    - taxYear: REQUIRED (string)
@@ -241,7 +279,16 @@ CRITICAL EXTRACTION RULES:
 10. **Data Consolidation**:
     - Interest Income: If 14 rows for same bank, create ONE investmentIncome entry with total
     - Assets: Create ONE entry per asset (each bank account, each property, etc.)
-    - Missing values: Use 0 for numeric fields, "" for strings, "2023-03-31" for unknown dates
+    - Liabilities: Create ONE entry per liability row (each loan separately)
+    - Missing values: Use 0 for numeric fields, "" for strings, date format for dates
+
+11. **CRITICAL - LIABILITY AMOUNTS**:
+    - The liability table shows amounts in THIS ORDER: Original Amount, Current Balance, Amount Repaid
+    - ALWAYS extract originalAmount from "Original amount of liability (Rs.)" column
+    - ALWAYS extract currentBalance from "Amount of liability, as at 31.03.YYYY" column
+    - DO NOT use the "Amount repaid" column for originalAmount or currentBalance
+    - Verify: originalAmount >= currentBalance (original should be equal or larger)
+    - Both values MUST be positive numbers extracted from the PDF table
 
 IMPORTANT: The software expects simple, flat structure. Put ALL details in the description field for assets/liabilities.
 

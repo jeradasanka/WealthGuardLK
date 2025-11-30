@@ -6,136 +6,194 @@
 import { ParsedTaxData } from '@/types/import';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const SYSTEM_PROMPT = `You are an expert Sri Lankan tax document parser specialized in RAMIS (Revenue Administration Management Information System) tax return documents.
+const SYSTEM_PROMPT = `You are an expert Sri Lankan tax document parser specialized in RAMIS (Revenue Administration Management Information System) "Individual income tax - Confirmation" documents.
 
 Your task is to extract ALL structured data from this RAMIS tax return PDF and return it as a valid JSON object.
 
-DOCUMENT STRUCTURE TO LOOK FOR:
-- Header: Tax year (Y/A format like "Y/A 2024/2025"), Taxpayer name, TIN/NIC
-- Part I: Income from Employment (Section A, B, C with employer details, salary, APIT)
-- Part II: Income from Business/Profession (Section D, E with turnover, profit)
-- Part III: Investment Income (Section F - Interest, G - Dividends, H - Rent)
-- Part IV: Other Income (Section I, J, K)
-- Part V: Statement of Assets and Liabilities
-  * Section A: Immovable Property (land, buildings, apartments)
-  * Section Bi: Motor Vehicles (make, model, registration, engine capacity)
-  * Section Bii: Bank Accounts/Deposits (bank name, account type, balance)
-  * Section Biii: Shares/Securities (company name, quantity, market value)
-  * Section Biv: Cash in Hand
-  * Section Bv: Loans Given (borrower details, amount, date)
-  * Section Bvi: Jewellery, Gold, Gems (type, weight, value)
-  * Section C: Business Assets (machinery, inventory, etc.)
-  * Section D: Liabilities (loans, mortgages with lender, amount, date, interest rate)
+ACTUAL RAMIS DOCUMENT STRUCTURE:
+Page 1:
+- Header: "Individual income tax - Confirmation"
+- Taxpayer Identification Number (TIN)
+- Name of taxpayer (full name in capital letters)
+- Year of assessment (format: "2023/2024")
+- Resident/Non-resident status
+- Primary Employment section with:
+  * TIN of the employer
+  * Employer/company name
+  * Remuneration (Rs.)
+  * APIT paid on Employment income (Rs.)
+  * Total exempt/Excluded employment income (Rs.)
+- Interest Income section (table with multiple rows):
+  * S/N, Source/type (I-INTEREST), TIN of Withholding Agent
+  * AIT/WHT certificate No., Amount received (Rs.), Date of payment
+  * AIT/WHT deducted (Rs.)
+- Senior citizen (Yes/No)
+
+Page 2:
+- Continuation of Interest Income table if needed
+- Total Exempt/Excluded Interest Income
+- Installment payment and AIT/WHT paid
+- Summary section:
+  * Total assessable income (Rs.)
+  * Personal relief (Rs.)
+  * Taxable income (Rs.)
+  * Total tax payable (Rs.)
+  * Less: Tax credits (Rs.)
+  * Balance tax payable (Rs.)
+  * Refund claimed (Rs.)
+- Statement of assets & liabilities:
+  * Part 1 - Assets as at 31.03.YYYY
+  * A. Immovable properties (table):
+    - Type, S/N, Situation of property, Date of acquisition, Cost (Rs.), Market value (Rs.)
+    - NOTE: Look for "(CO-OWNERS WITH HUSBAND)" or similar ownership notes
+  * B. Movable properties:
+    - i. Motor vehicles (table)
+    - ii. Bank balances including term deposits as at 31.03.YYYY (table):
+      * Type, S/N, Name of bank/financial institution, Account No.
+      * Amount invested (Rs.), Interest (Rs.), Balance (Rs.)
+      * NOTE: Account type may be in Account No field (e.g., "220200180010392 SAVING")
+
+Page 3:
+  * B. Movable properties (continued):
+    - iii. Shares/stocks/securities as at 31.03.YYYY
+    - iv. Cash in hand as at 31.03.YYYY (single value with code like "1019")
+    - v. Loans given & amount receivable as at 31.03.YYYY (single value with code like "1020")
+    - vi. Value of gold, silver, gems, jewellery etc. as at 31.03.YYYY (single value with code like "1021")
+  * C. Properties held as part of business
+  * D. All liabilities (table):
+    - Type, S/N, Description of liability, Security on liability
+    - Date of commencement, Original amount, Amount as at 31.03.YYYY, Amount repaid during Y/A
+    - NOTE: Look for loan types like "HOUSING LOAN - account_number"
+- Part 2:
+  * A. Any other assets acquired or gifts received during the year
+  * B. Disposal of assets (sale/transfer/gift) during the year
+
+Page 4:
+- Declarant information (Full name, Telephone, Mobile, Email, NIC, Date)
 
 JSON SCHEMA (extract all available fields):
-
 {
-  "taxYear": "2024",
+  "taxYear": "2023",
   "taxpayerInfo": {
-    "name": "Full Name from RAMIS",
-    "tin": "TIN number (9 digits + V or 12 digits)",
-    "nic": "NIC if different from TIN",
-    "address": "Complete address",
-    "contactNumber": "Phone number if available",
-    "email": "Email if available"
+    "name": "FULL NAME AS WRITTEN IN DOCUMENT",
+    "tin": "TIN number",
+    "nic": "NIC from declarant section",
+    "email": "email from declarant section",
+    "phone": "phone/mobile from declarant section",
+    "isResident": true,
+    "isSeniorCitizen": false
   },
   "employmentIncome": [
     {
-      "employerName": "Company/Organization Name",
-      "employerTIN": "Employer TIN",
-      "employerAddress": "Employer address if available",
+      "employerName": "EMPLOYER NAME",
+      "employerTIN": "employer TIN",
       "grossRemuneration": 0,
-      "nonCashBenefits": 0,
-      "totalIncome": 0,
-      "exemptIncome": 0,
-      "taxableIncome": 0,
       "apitDeducted": 0,
-      "periodFrom": "YYYY-MM-DD",
-      "periodTo": "YYYY-MM-DD"
-    }
-  ],
-  "businessIncome": [
-    {
-      "businessName": "Business/Professional name",
-      "businessRegNo": "BR/PV number",
-      "businessAddress": "Address",
-      "turnover": 0,
-      "grossProfit": 0,
-      "expenses": 0,
-      "netProfit": 0,
-      "taxableProfit": 0
+      "exemptIncome": 0
     }
   ],
   "investmentIncome": [
     {
-      "type": "interest|dividend|rent",
-      "source": "Bank/Company/Property name",
-      "sourceAddress": "Address if available",
+      "type": "interest",
+      "source": "I-INTEREST",
+      "withholdingAgentTIN": "TIN",
+      "certificateNo": "certificate number",
       "grossAmount": 0,
       "whtDeducted": 0,
-      "netAmount": 0
+      "dateOfPayment": "date if available"
     }
   ],
+  "taxSummary": {
+    "totalAssessableIncome": 0,
+    "personalRelief": 0,
+    "taxableIncome": 0,
+    "totalTaxPayable": 0,
+    "taxCredits": 0,
+    "balanceTaxPayable": 0,
+    "refundClaimed": 0
+  },
   "assets": [
     {
-      "category": "A|Bi|Bii|Biii|Biv|Bv|Bvi|C",
-      "description": "Detailed description from RAMIS",
-      "location": "Location/Address for property/vehicle",
-      "registrationNo": "For vehicles - registration number",
-      "make": "For vehicles - manufacturer",
-      "model": "For vehicles - model",
-      "engineCapacity": "For vehicles - CC",
-      "bankName": "For bank accounts",
-      "accountNo": "Account number (last 4 digits)",
-      "accountType": "Savings/Current/Fixed Deposit",
-      "companyName": "For shares/securities",
-      "quantity": "Number of shares",
-      "weight": "For jewellery - grams/carats",
+      "category": "A",
+      "type": "Immovable Property",
+      "description": "LAND IN address (notes about co-ownership if any)",
+      "dateAcquired": "YYYY-MM-DD",
       "cost": 0,
       "marketValue": 0,
-      "dateAcquired": "YYYY-MM-DD",
-      "ownershipType": "Individual|Joint|Company",
-      "jointOwnerName": "If joint ownership"
+      "ownershipNotes": "CO-OWNERS WITH HUSBAND if mentioned"
+    },
+    {
+      "category": "Bii",
+      "type": "Bank Account",
+      "bankName": "PEOPLES BANK",
+      "accountNo": "last 4-6 digits visible",
+      "accountType": "SAVING/CURRENT/Fixed Deposit",
+      "amountInvested": 0,
+      "interest": 0,
+      "balance": 0
+    },
+    {
+      "category": "Biv",
+      "type": "Cash in Hand",
+      "marketValue": 0
+    },
+    {
+      "category": "Bv",
+      "type": "Loans Given",
+      "marketValue": 0
+    },
+    {
+      "category": "Bvi",
+      "type": "Gold/Jewellery",
+      "description": "gold, silver, gems, jewellery",
+      "marketValue": 0
     }
   ],
   "liabilities": [
     {
-      "lenderName": "Bank/Institution name",
-      "lenderAddress": "Address if available",
-      "loanType": "Housing|Vehicle|Personal|Business",
+      "type": "A",
+      "description": "HOUSING LOAN - account_number",
+      "lenderName": "extract from description or context",
+      "securedBy": "LAND/property type",
+      "dateObtained": "YYYY-MM-DD if available",
       "originalAmount": 0,
       "currentBalance": 0,
-      "dateObtained": "YYYY-MM-DD",
-      "interestRate": 0,
-      "purpose": "Purpose of loan",
-      "securedBy": "Collateral if mentioned"
+      "amountRepaid": 0
     }
-  ],
-  "totalIncome": 0,
-  "totalTax": 0,
-  "taxPaid": 0,
-  "balanceTax": 0
+  ]
 }
 
 CRITICAL EXTRACTION RULES:
-1. **Tax Year**: Look for "Y/A" or "Year of Assessment" (e.g., "Y/A 2024/2025" → extract "2024")
-2. **Monetary Values**: Extract numbers only, remove "Rs.", "LKR", commas. Convert to numeric.
-3. **Dates**: Convert to YYYY-MM-DD format. If only year available, use YYYY-01-01
-4. **Asset Categories**: 
-   - A = Immovable Property (Land, Buildings, Apartments, House)
-   - Bi = Motor Vehicles (Car, Van, Motorcycle)
-   - Bii = Bank Accounts, Fixed Deposits, Savings
-   - Biii = Shares, Debentures, Unit Trusts, Securities
-   - Biv = Cash in Hand
-   - Bv = Loans Given to Others
-   - Bvi = Jewellery, Gold, Gems, Precious Metals
-   - C = Business Assets, Machinery, Equipment
-5. **Vehicle Details**: Extract Make, Model, Registration No (XX-YYYY or XXX-YYYY format), Engine Capacity (CC)
-6. **Bank Accounts**: Extract Bank Name, Account Type, Balance (as of end of tax year)
-7. **Property**: Extract address/location, extent (if land), cost, current market value
-8. **Liabilities**: Extract lender, loan type, original amount, current balance, interest rate, date obtained
-9. **Missing Data**: If a section is empty or field not found, use empty array [] or omit the field
-10. **Multiple Entries**: If multiple employers/businesses/assets, create separate array items for each
+1. **Tax Year**: "Year of assessment 2023/2024" → extract "2023" (first year)
+2. **Name**: Extract EXACTLY as written in "Name of taxpayer" field
+3. **TIN**: 9-digit number from "Taxpayer Identification Number (TIN)" field
+4. **NIC**: From "National Identity card number of declarant" on last page
+5. **Monetary Values**: 
+   - Remove "Rs.", commas, and extra spaces
+   - Convert "3,094,166.00" → 3094166.00
+   - Keep as numeric values
+6. **Dates**: 
+   - Format "2020-11-11" stays as is
+   - If "31.03.2024", convert to "2024-03-31"
+7. **Interest Income**:
+   - Create separate entry for EACH row in the interest table
+   - Extract: source type, TIN, certificate no, amount, WHT deducted
+8. **Bank Accounts**:
+   - Account type might be in the Account No column (e.g., "220200180010392 SAVING")
+   - Extract bank name, account type, balance, interest separately
+9. **Property**:
+   - Include ownership notes like "(CO-OWNERS WITH HUSBAND)" in description or ownershipNotes
+   - Extract full address from "Situation of property"
+10. **Cash/Loans/Jewellery**:
+    - These appear as single line items with codes (1019, 1020, 1021)
+    - Extract the numeric value only
+11. **Liabilities**:
+    - Description format: "HOUSING LOAN - account_number"
+    - Extract loan type (HOUSING, VEHICLE, etc.)
+    - Security column shows what secures the loan (LAND, etc.)
+12. **Missing Data**: Use empty array [] for sections with no data
+
+IMPORTANT: The RAMIS format shows data in TABLES. Pay attention to column headers and extract each row as a separate item.
 
 Return ONLY the valid JSON object. No explanations, no markdown formatting, just the raw JSON.`;
 

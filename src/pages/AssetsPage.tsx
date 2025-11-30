@@ -5,7 +5,7 @@
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign, TrendingUp, FileText, Building2, Gem } from 'lucide-react';
+import { Plus, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign, TrendingUp, FileText, Building2, Gem } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
@@ -28,9 +28,7 @@ export function AssetsPage() {
   const entities = useStore((state) => state.entities);
   const currentTaxYear = useStore((state) => state.currentTaxYear);
   const removeAsset = useStore((state) => state.removeAsset);
-  const removeLiability = useStore((state) => state.removeLiability);
   const updateLiability = useStore((state) => state.updateLiability);
-  const disposeAsset = useStore((state) => state.disposeAsset);
   const saveToStorage = useStore((state) => state.saveToStorage);
 
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -42,7 +40,9 @@ export function AssetsPage() {
   const [expenseAsset, setExpenseAsset] = useState<Asset | null>(null);
   const [pendingAsset, setPendingAsset] = useState<Asset | null>(null);
 
-  // Show all assets including closed ones
+  // Show all assets in the list (including sold/closed)
+  const allAssets = assets;
+  // Active assets for calculations (exclude disposed)
   const activeAssets = assets.filter((a) => !a.disposed);
   
   // Helper function to get display value for an asset
@@ -256,7 +256,7 @@ export function AssetsPage() {
     const grouped: Record<string, Asset[]> = {};
     
     categories.forEach(category => {
-      const assetsInCategory = activeAssets.filter(asset => asset.cageCategory === category);
+      const assetsInCategory = allAssets.filter(asset => asset.cageCategory === category);
       if (assetsInCategory.length > 0) {
         grouped[category] = assetsInCategory;
       }
@@ -270,21 +270,6 @@ export function AssetsPage() {
   const handleDeleteAsset = async (id: string) => {
     if (confirm('Are you sure you want to delete this asset?')) {
       removeAsset(id);
-      await saveToStorage();
-    }
-  };
-
-  const handleDisposeAsset = async (id: string) => {
-    const salePrice = prompt('Enter sale price:');
-    if (salePrice && !Number.isNaN(Number(salePrice))) {
-      disposeAsset(id, new Date().toISOString().split('T')[0], Number(salePrice));
-      await saveToStorage();
-    }
-  };
-
-  const handleDeleteLiability = async (id: string) => {
-    if (confirm('Are you sure you want to delete this liability?')) {
-      removeLiability(id);
       await saveToStorage();
     }
   };
@@ -445,7 +430,7 @@ export function AssetsPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-green-600">{formatLKR(totalAssetValue)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{activeAssets.length} items</p>
+              <p className="text-xs text-muted-foreground mt-1">{allAssets.length} items ({activeAssets.length} active)</p>
             </CardContent>
           </Card>
 
@@ -553,7 +538,7 @@ export function AssetsPage() {
             </Button>
           </div>
 
-          {activeAssets.length === 0 ? (
+          {allAssets.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <p className="text-muted-foreground">
@@ -751,15 +736,6 @@ export function AssetsPage() {
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          {!asset.closed && !asset.disposed && asset.cageCategory !== 'Bii' && asset.cageCategory !== 'Biv' && asset.cageCategory !== 'Bv' && asset.cageCategory !== 'Bvi' && asset.cageCategory !== 'A' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDisposeAsset(asset.id)}
-                            >
-                              Sell
-                            </Button>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -869,15 +845,9 @@ export function AssetsPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => handleEditLiability(liability)}
+                              title="Edit liability"
                             >
                               <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteLiability(liability.id)}
-                            >
-                              <Trash2 className="w-4 h-4 text-red-600" />
                             </Button>
                           </div>
                         </div>

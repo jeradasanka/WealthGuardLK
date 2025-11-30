@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useStore } from '@/stores/useStore';
 import type { Liability } from '@/types';
 import { formatLKR } from '@/lib/taxEngine';
+import { Trash2 } from 'lucide-react';
 
 interface LiabilityFormProps {
   liability?: Liability;
@@ -22,6 +23,7 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
   const entities = useStore((state) => state.entities);
   const addLiability = useStore((state) => state.addLiability);
   const updateLiability = useStore((state) => state.updateLiability);
+  const removeLiability = useStore((state) => state.removeLiability);
   const saveToStorage = useStore((state) => state.saveToStorage);
 
   const [formData, setFormData] = useState({
@@ -36,6 +38,7 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
     purpose: liability?.purpose || '',
     paymentFrequency: liability?.paymentFrequency || 'annually',
     maturityDate: liability?.maturityDate || '',
+    numberOfTerms: liability?.numberOfTerms || 0,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -70,6 +73,7 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
       purpose: formData.purpose || undefined,
       paymentFrequency: formData.paymentFrequency as 'monthly' | 'quarterly' | 'annually' | 'other',
       maturityDate: formData.maturityDate || undefined,
+      numberOfTerms: Number(formData.numberOfTerms) || undefined,
       payments: liability?.payments || [],
     };
 
@@ -92,6 +96,56 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+  };
+
+  // Calculate EMI (Equated Monthly Installment) using the standard loan formula
+  const calculateInstallment = (): number => {
+    const principal = Number(formData.originalAmount);
+    const annualRate = Number(formData.interestRate);
+    const terms = Number(formData.numberOfTerms);
+    
+    if (!principal || !annualRate || !terms || terms <= 0) {
+      return 0;
+    }
+
+    // Convert annual rate to period rate based on frequency
+    let periodsPerYear = 12; // default to monthly
+    if (formData.paymentFrequency === 'quarterly') periodsPerYear = 4;
+    else if (formData.paymentFrequency === 'annually') periodsPerYear = 1;
+    else if (formData.paymentFrequency === 'monthly') periodsPerYear = 12;
+    
+    const periodRate = annualRate / 100 / periodsPerYear;
+    
+    // EMI formula: P * r * (1 + r)^n / ((1 + r)^n - 1)
+    const emi = (principal * periodRate * Math.pow(1 + periodRate, terms)) / 
+                (Math.pow(1 + periodRate, terms) - 1);
+    
+    return Math.round(emi);
+  };
+
+  const suggestedInstallment = calculateInstallment();
+
+  const handleDelete = () => {
+    if (!liability?.id) return;
+    
+    const verification = window.prompt(
+      `⚠️ WARNING: You are about to permanently delete this liability.\n\n` +
+      `Lender: ${formData.lenderName || 'Untitled'}\n` +
+      `Purpose: ${formData.purpose || 'Not specified'}\n` +
+      `Acquired: ${formData.dateAcquired}\n` +
+      `Original Amount: ${formatLKR(formData.originalAmount)}\n` +
+      `Current Balance: ${formatLKR(liability.currentBalance)}\n\n` +
+      `This action CANNOT be undone. All data including payment history will be permanently lost.\n\n` +
+      `To confirm deletion, type DELETE in capital letters:`
+    );
+    
+    if (verification === 'DELETE') {
+      removeLiability(liability.id);
+      saveToStorage();
+      onCancel?.(); // Close form and return to list
+    } else if (verification !== null) {
+      alert('Deletion cancelled. The verification text did not match.');
+    }
   };
 
   return (
@@ -274,6 +328,48 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="numberOfTerms">Number of Terms (optional)</Label>
+              <Input
+                id="numberOfTerms"
+                type="number"
+                min="0"
+                step="1"
+                value={formData.numberOfTerms || ''}
+                onChange={handleChange('numberOfTerms')}
+                placeholder="e.g., 60 for 60 months"
+              />
+              <p className="text-xs text-muted-foreground">
+                Total number of {formData.paymentFrequency} payments
+              </p>
+            </div>
+          </div>
+
+          {/* Installment Calculation Display */}
+          {suggestedInstallment > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-semibold text-blue-900 mb-2">💡 Suggested Installment</h4>
+              <div className="space-y-1">
+                <p className="text-sm text-blue-800">
+                  Based on the loan amount, interest rate, and number of terms:
+                </p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {formatLKR(suggestedInstallment)}
+                </p>
+                <p className="text-xs text-blue-700">
+                  per {formData.paymentFrequency === 'monthly' ? 'month' : 
+                       formData.paymentFrequency === 'quarterly' ? 'quarter' : 
+                       formData.paymentFrequency === 'annually' ? 'year' : 'payment'}
+                </p>
+                <p className="text-xs text-blue-600 mt-2">
+                  Total repayment: {formatLKR(suggestedInstallment * Number(formData.numberOfTerms))}
+                  {' '}(Principal: {formatLKR(formData.originalAmount)}, Interest: {formatLKR(suggestedInstallment * Number(formData.numberOfTerms) - Number(formData.originalAmount))})
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label htmlFor="maturityDate">Maturity Date (Optional)</Label>
               <Input
                 id="maturityDate"
@@ -325,6 +421,16 @@ export function LiabilityForm({ liability, onSave, onCancel }: LiabilityFormProp
             {onCancel && (
               <Button type="button" variant="outline" onClick={onCancel}>
                 Cancel
+              </Button>
+            )}
+            {liability && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleDelete}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4" />
               </Button>
             )}
           </div>

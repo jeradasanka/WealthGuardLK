@@ -128,6 +128,7 @@ export interface Liability {
   payments?: LiabilityPayment[]; // Payment history
   paymentFrequency?: 'monthly' | 'quarterly' | 'annually' | 'other';
   maturityDate?: string;
+  numberOfTerms?: number; // Total number of payment terms for installment calculation
 }
 
 // Income Schedules

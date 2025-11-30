@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatLKR } from '@/lib/taxEngine';
+import { getTaxYearsFromStart, formatTaxYear, getCurrentTaxYear } from '@/lib/taxYear';
+import { useStore } from '@/stores/useStore';
 import { X, Plus, Trash2 } from 'lucide-react';
 
 interface LiabilityPaymentFormProps {
@@ -19,7 +21,9 @@ interface LiabilityPaymentFormProps {
 }
 
 export function LiabilityPaymentForm({ liability, onSave, onClose }: LiabilityPaymentFormProps) {
-  const currentYear = new Date().getFullYear();
+  const entities = useStore((state) => state.entities);
+  const currentYear = getCurrentTaxYear();
+  const taxYears = getTaxYearsFromStart(entities[0]?.taxYear || '2022');
   const [currentLiability, setCurrentLiability] = useState(liability);
   const [taxYear, setTaxYear] = useState(currentYear);
   const [principalPaid, setPrincipalPaid] = useState('0');
@@ -48,7 +52,8 @@ export function LiabilityPaymentForm({ liability, onSave, onClose }: LiabilityPa
       return;
     }
 
-    const date = `${taxYear}-12-31`; // Use end of year as default date
+    const yearEnd = parseInt(taxYear) + 1;
+    const date = `${yearEnd}-03-31`; // Balance as of March 31 of the following year
 
     const newPayment: LiabilityPayment = {
       id: `payment-${Date.now()}`,
@@ -117,13 +122,6 @@ export function LiabilityPaymentForm({ liability, onSave, onClose }: LiabilityPa
 
   const suggestedInterest = calculateInterestSuggestion();
 
-  // Generate year options (from liability acquired year to current year + 1)
-  const startYear = new Date(currentLiability.dateAcquired).getFullYear();
-  const yearOptions = [];
-  for (let year = startYear; year <= currentYear + 1; year++) {
-    yearOptions.push(year);
-  }
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -152,11 +150,10 @@ export function LiabilityPaymentForm({ liability, onSave, onClose }: LiabilityPa
                   id="taxYear"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   value={taxYear}
-                  onChange={(e) => setTaxYear(Number(e.target.value))}
+                  onChange={(e) => setTaxYear(e.target.value)}
                 >
-                  <option value="">Select Year</option>
-                  {yearOptions.map(year => (
-                    <option key={year} value={year}>{year}</option>
+                  {taxYears.map(year => (
+                    <option key={year} value={year}>{formatTaxYear(year)}</option>
                   ))}
                 </select>
               </div>
@@ -248,7 +245,7 @@ export function LiabilityPaymentForm({ liability, onSave, onClose }: LiabilityPa
                       <div className="flex items-center gap-4">
                         <div>
                           <p className="font-medium">{new Date(payment.date).toLocaleDateString('en-LK')}</p>
-                          <p className="text-xs text-slate-500">Tax Year {payment.taxYear}</p>
+                          <p className="text-xs text-slate-500">Tax Year {formatTaxYear(payment.taxYear)}</p>
                         </div>
                         <div className="text-sm">
                           <span className="text-slate-600">Principal:</span>{' '}

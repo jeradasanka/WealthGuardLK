@@ -51,7 +51,7 @@ Page 2:
     - ii. Bank balances including term deposits as at 31.03.YYYY (table):
       * Type, S/N, Name of bank/financial institution, Account No.
       * Amount invested (Rs.), Interest (Rs.), Balance (Rs.)
-      * NOTE: Account type may be in Account No field (e.g., "220200180010392 SAVING")
+      * NOTE: Account type may be in Account No field (e.g., "XXXXXXXXXX SAVING")
 
 Page 3:
   * B. Movable properties (continued):
@@ -71,129 +71,179 @@ Page 3:
 Page 4:
 - Declarant information (Full name, Telephone, Mobile, Email, NIC, Date)
 
-JSON SCHEMA (extract all available fields):
+JSON SCHEMA - MUST match this exact structure:
 {
   "taxYear": "2023",
   "taxpayerInfo": {
-    "name": "FULL NAME AS WRITTEN IN DOCUMENT",
-    "tin": "TIN number",
-    "nic": "NIC from declarant section",
-    "email": "email from declarant section",
-    "phone": "phone/mobile from declarant section",
-    "isResident": true,
-    "isSeniorCitizen": false
+    "name": "JOHN DOE SAMPLE",
+    "tin": "123456789",
+    "nic": "199012345678"
   },
   "employmentIncome": [
     {
-      "employerName": "EMPLOYER NAME",
-      "employerTIN": "employer TIN",
-      "grossRemuneration": 0,
-      "apitDeducted": 0,
-      "exemptIncome": 0
+      "employerName": "ABC COMPANY (PVT) LTD",
+      "employerTIN": "123456789",
+      "grossRemuneration": 3094166.00,
+      "nonCashBenefits": 0,
+      "apitDeducted": 279923.00,
+      "exemptIncome": 27750.00
     }
   ],
   "investmentIncome": [
     {
-      "type": "interest",
-      "source": "I-INTEREST",
-      "withholdingAgentTIN": "TIN",
-      "certificateNo": "certificate number",
-      "grossAmount": 0,
-      "whtDeducted": 0,
-      "dateOfPayment": "date if available"
+      "source": "PEOPLES BANK (or withholdingAgentTIN: 123456789)",
+      "interest": 6.60,
+      "dividends": 0,
+      "rent": 0,
+      "wht": 0.33
     }
   ],
-  "taxSummary": {
-    "totalAssessableIncome": 0,
-    "personalRelief": 0,
-    "taxableIncome": 0,
-    "totalTaxPayable": 0,
-    "taxCredits": 0,
-    "balanceTaxPayable": 0,
-    "refundClaimed": 0
-  },
   "assets": [
     {
+      "description": "LAND IN LOT 123/A, SAMPLE STREET, COLOMBO (CO-OWNERS WITH HUSBAND)",
       "category": "A",
-      "type": "Immovable Property",
-      "description": "LAND IN address (notes about co-ownership if any)",
-      "dateAcquired": "YYYY-MM-DD",
-      "cost": 0,
-      "marketValue": 0,
-      "ownershipNotes": "CO-OWNERS WITH HUSBAND if mentioned"
+      "cost": 6500000.00,
+      "marketValue": 10000000.00,
+      "dateAcquired": "2020-11-11"
     },
     {
+      "description": "PEOPLES BANK - SAVING - XXXXXXXXXX",
       "category": "Bii",
-      "type": "Bank Account",
-      "bankName": "PEOPLES BANK",
-      "accountNo": "last 4-6 digits visible",
-      "accountType": "SAVING/CURRENT/Fixed Deposit",
-      "amountInvested": 0,
-      "interest": 0,
-      "balance": 0
+      "cost": 0,
+      "marketValue": 64839.73,
+      "dateAcquired": "2023-03-31"
     },
     {
+      "description": "Cash in hand",
       "category": "Biv",
-      "type": "Cash in Hand",
-      "marketValue": 0
+      "cost": 100000.00,
+      "marketValue": 100000.00,
+      "dateAcquired": "2023-03-31"
     },
     {
+      "description": "Loans given & amount receivable",
       "category": "Bv",
-      "type": "Loans Given",
-      "marketValue": 0
+      "cost": 1000000.00,
+      "marketValue": 1000000.00,
+      "dateAcquired": "2023-03-31"
     },
     {
+      "description": "Gold, silver, gems, jewellery",
       "category": "Bvi",
-      "type": "Gold/Jewellery",
-      "description": "gold, silver, gems, jewellery",
-      "marketValue": 0
+      "cost": 400000.00,
+      "marketValue": 400000.00,
+      "dateAcquired": "2023-03-31"
     }
   ],
   "liabilities": [
     {
-      "type": "A",
-      "description": "HOUSING LOAN - account_number",
-      "lenderName": "extract from description or context",
-      "securedBy": "LAND/property type",
-      "dateObtained": "YYYY-MM-DD if available",
-      "originalAmount": 0,
-      "currentBalance": 0,
-      "amountRepaid": 0
+      "description": "HOUSING LOAN - XXXXXXXXXX (LAND)",
+      "lenderName": "Extract from description or use generic 'Bank'",
+      "originalAmount": 5000000.00,
+      "currentBalance": 4500000.00,
+      "dateAcquired": "2023-03-31"
     }
   ]
 }
 
-CRITICAL EXTRACTION RULES:
-1. **Tax Year**: "Year of assessment 2023/2024" → extract "2023" (first year)
-2. **Name**: Extract EXACTLY as written in "Name of taxpayer" field
-3. **TIN**: 9-digit number from "Taxpayer Identification Number (TIN)" field
-4. **NIC**: From "National Identity card number of declarant" on last page
-5. **Monetary Values**: 
-   - Remove "Rs.", commas, and extra spaces
-   - Convert "3,094,166.00" → 3094166.00
-   - Keep as numeric values
-6. **Dates**: 
-   - Format "2020-11-11" stays as is
-   - If "31.03.2024", convert to "2024-03-31"
-7. **Interest Income**:
-   - Create separate entry for EACH row in the interest table
-   - Extract: source type, TIN, certificate no, amount, WHT deducted
-8. **Bank Accounts**:
-   - Account type might be in the Account No column (e.g., "220200180010392 SAVING")
-   - Extract bank name, account type, balance, interest separately
-9. **Property**:
-   - Include ownership notes like "(CO-OWNERS WITH HUSBAND)" in description or ownershipNotes
-   - Extract full address from "Situation of property"
-10. **Cash/Loans/Jewellery**:
-    - These appear as single line items with codes (1019, 1020, 1021)
-    - Extract the numeric value only
-11. **Liabilities**:
-    - Description format: "HOUSING LOAN - account_number"
-    - Extract loan type (HOUSING, VEHICLE, etc.)
-    - Security column shows what secures the loan (LAND, etc.)
-12. **Missing Data**: Use empty array [] for sections with no data
+CRITICAL MAPPING FOR SOFTWARE COMPATIBILITY:
+1. **employmentIncome**: MUST include employerName, employerTIN, grossRemuneration, apitDeducted, exemptIncome
+2. **investmentIncome**: MUST have source, and AT LEAST ONE of: interest, dividends, rent. Also wht field.
+   - For Interest Income rows: Sum all interest amounts into ONE or MORE entries per bank
+   - source = Bank name (from TIN or description) or "Interest Income"
+   - interest = sum of all "Amount received"
+   - wht = sum of all "AIT/WHT deducted"
+3. **assets**: MUST have description, category, cost, marketValue, dateAcquired
+   - description should be detailed and include: location, account type, account number, etc.
+   - For bank accounts: "BANK_NAME - ACCOUNT_TYPE - ACCOUNT_NO"
+   - For property: Include full address and ownership notes in description
+   - category: EXACTLY one of "A", "Bi", "Bii", "Biii", "Biv", "Bv", "Bvi", "C"
+   - cost and marketValue are REQUIRED (use same value if one is missing)
+   - dateAcquired: Use "YYYY-MM-DD" format, or "2023-03-31" if unknown
+4. **liabilities**: MUST have description, lenderName, originalAmount, currentBalance, dateAcquired
+   - description should include loan type and account number: "HOUSING LOAN - account_number (security)"
+   - Extract lenderName from context or use generic "Bank" if not clear
 
-IMPORTANT: The RAMIS format shows data in TABLES. Pay attention to column headers and extract each row as a separate item.
+CRITICAL EXTRACTION RULES:
+1. **Tax Year**: "Year of assessment 2023/2024" → extract "2023" (first year only)
+2. **Taxpayer Info**: Extract name, TIN (from page 1), NIC (from page 4)
+3. **Monetary Values**: Remove "Rs.", commas → Convert "3,094,166.00" to 3094166.00 (numeric)
+4. **Dates**: Convert to "YYYY-MM-DD" format. "2020-11-11" stays as is. "31.03.2024" → "2024-03-31"
+
+5. **Employment Income** (ONE entry per employer):
+   - employerName: Full name from "Employer/company name"
+   - employerTIN: From "TIN of the employer"
+   - grossRemuneration: From "Remuneration (Rs.)"
+   - apitDeducted: From "APIT paid on Employment income (Rs.)"
+   - exemptIncome: From "Total exempt/Excluded employment income (Rs.)"
+   - nonCashBenefits: 0 if not specified
+
+6. **Investment Income** (Consolidate interest income):
+   - Group all interest rows by withholding agent/bank
+   - source: Bank name or "Interest Income from [TIN]"
+   - interest: SUM of all "Amount received" values
+   - wht: SUM of all "AIT/WHT deducted" values  
+   - dividends: 0 (unless dividend section exists)
+   - rent: 0 (unless rent section exists)
+
+7. **Assets** - Each asset must have description, category, cost, marketValue, dateAcquired:
+   
+   **A (Immovable Property)**:
+   - description: "LAND IN [full address] ([ownership notes if any])"
+   - category: "A"
+   - cost: From "Cost (Rs.)" column
+   - marketValue: From "Market value (Rs.)" column
+   - dateAcquired: From "Date of acquisition" (convert to YYYY-MM-DD)
+   
+   **Bii (Bank Accounts)**:
+   - description: "[Bank Name] - [Account Type] - [Account No]"
+   - category: "Bii"
+   - cost: 0 or "Amount invested"
+   - marketValue: From "Balance (Rs.)" column
+   - dateAcquired: "2023-03-31" (end of tax year)
+   
+   **Biv (Cash in Hand)**:
+   - description: "Cash in hand"
+   - category: "Biv"
+   - cost: Value from cash line (code 1019)
+   - marketValue: Same as cost
+   - dateAcquired: "2023-03-31"
+   
+   **Bv (Loans Given)**:
+   - description: "Loans given & amount receivable"
+   - category: "Bv"
+   - cost: Value from loans line (code 1020)
+   - marketValue: Same as cost
+   - dateAcquired: "2023-03-31"
+   
+   **Bvi (Jewellery)**:
+   - description: "Gold, silver, gems, jewellery"
+   - category: "Bvi"
+   - cost: Value from jewellery line (code 1021)
+   - marketValue: Same as cost
+   - dateAcquired: "2023-03-31"
+
+8. **Liabilities** - Each liability must have description, lenderName, originalAmount, currentBalance, dateAcquired:
+   - description: "[LOAN TYPE] - [account number] ([security])"
+     Example: "HOUSING LOAN - XXXXXXXXXX (LAND)"
+   - lenderName: Try to extract from context, otherwise use "Bank"
+   - originalAmount: From "Original amount of liability" column
+   - currentBalance: From "Amount of liability, as at 31.03.YYYY" column
+   - dateAcquired: From "Date of commencement" or use "2023-03-31"
+
+9. **Required Fields**: 
+   - taxYear: REQUIRED (string)
+   - All arrays: If section is empty, use [] (empty array)
+   - All monetary values: MUST be numeric (no strings, no currency symbols)
+   - All dates: MUST be "YYYY-MM-DD" format
+   - category: MUST be exactly one of: "A", "Bi", "Bii", "Biii", "Biv", "Bv", "Bvi", "C"
+
+10. **Data Consolidation**:
+    - Interest Income: If 14 rows for same bank, create ONE investmentIncome entry with total
+    - Assets: Create ONE entry per asset (each bank account, each property, etc.)
+    - Missing values: Use 0 for numeric fields, "" for strings, "2023-03-31" for unknown dates
+
+IMPORTANT: The software expects simple, flat structure. Put ALL details in the description field for assets/liabilities.
 
 Return ONLY the valid JSON object. No explanations, no markdown formatting, just the raw JSON.`;
 

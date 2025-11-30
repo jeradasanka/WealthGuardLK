@@ -26,3 +26,8 @@ dist-ssr
 # Firebase
 .firebase/
 .firebaserc
+
+# Sample/Test files (PDFs, etc.)
+samples/
+*.pdf
+test-data/

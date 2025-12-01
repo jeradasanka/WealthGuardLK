@@ -5,18 +5,20 @@
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, Pencil, Trash2, CheckCircle2, Circle } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Pencil, Trash2, CheckCircle2, Circle, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
 import { formatLKR } from '@/lib/taxEngine';
 import { formatTaxYear, getTaxYearsFromStart } from '@/lib/taxYear';
 import type { AITWHTCertificate } from '@/types';
+import { CertificatePDFImportWizard } from '@/components/CertificatePDFImportWizard';
 
 export function CertificatesPage() {
   const navigate = useNavigate();
   const [selectedEntityId, setSelectedEntityId] = useState<string | 'all'>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
+  const [showPDFImport, setShowPDFImport] = useState(false);
   
   const entities = useStore((state) => state.entities);
   const certificates = useStore((state) => state.certificates);
@@ -27,15 +29,38 @@ export function CertificatesPage() {
   const updateCertificate = useStore((state) => state.updateCertificate);
   const saveToStorage = useStore((state) => state.saveToStorage);
 
+  console.log('CertificatesPage - Total certificates in store:', certificates.length);
+  console.log('CertificatesPage - Current tax year:', currentTaxYear);
+  console.log('CertificatesPage - Certificates by year:', 
+    certificates.reduce((acc, c) => {
+      acc[c.taxYear] = (acc[c.taxYear] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>)
+  );
+
   // Get available tax years
   const availableTaxYears = useMemo(() => {
-    if (entities.length === 0) return [currentTaxYear];
-    const oldestTaxYear = entities.reduce(
-      (oldest, entity) => (entity.taxYear < oldest ? entity.taxYear : oldest),
-      entities[0].taxYear
-    );
-    return getTaxYearsFromStart(oldestTaxYear);
-  }, [entities, currentTaxYear]);
+    // Get standard tax years from entities
+    const standardYears = entities.length === 0 ? [currentTaxYear] : (() => {
+      const oldestTaxYear = entities.reduce(
+        (oldest, entity) => (entity.taxYear < oldest ? entity.taxYear : oldest),
+        entities[0].taxYear
+      );
+      return getTaxYearsFromStart(oldestTaxYear);
+    })();
+    
+    // Add any unique tax years from certificates (handles legacy "YYYY/YYYY" format)
+    const certificateYears = [...new Set(certificates.map(c => c.taxYear))];
+    const allYears = [...new Set([...standardYears, ...certificateYears])];
+    
+    // Sort years in descending order
+    return allYears.sort((a, b) => {
+      // Extract first year for comparison (handles both "2024" and "2024/2025")
+      const yearA = parseInt(a.split('/')[0]);
+      const yearB = parseInt(b.split('/')[0]);
+      return yearB - yearA;
+    });
+  }, [entities, currentTaxYear, certificates]);
 
   // Get employment income from income schedules (Schedule 1)
   const employmentIncomes = useMemo(() => {
@@ -68,6 +93,11 @@ export function CertificatesPage() {
     if (selectedType !== 'all' && cert.type !== selectedType) return false;
     return true;
   });
+
+  console.log('CertificatesPage - Filtered certificates:', filteredCertificates.length, 
+    'for tax year', currentTaxYear, 
+    'entity:', selectedEntityId, 
+    'type:', selectedType);
 
   // Combine certificates with employment income from schedules
   const allCertificates = useMemo(() => {
@@ -132,13 +162,24 @@ export function CertificatesPage() {
                 <p className="text-sm text-slate-600">Track Advance Personal Income Tax and Withholding Tax certificates</p>
               </div>
             </div>
-            <Button onClick={() => navigate('/certificates/new')}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Certificate
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowPDFImport(true)}>
+                <Upload className="w-4 h-4 mr-2" />
+                Import from PDF
+              </Button>
+              <Button onClick={() => navigate('/certificates/new')}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Certificate
+              </Button>
+            </div>
           </div>
         </div>
       </header>
+
+      {/* PDF Import Wizard */}
+      {showPDFImport && (
+        <CertificatePDFImportWizard onClose={() => setShowPDFImport(false)} />
+      )}
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
@@ -333,7 +374,7 @@ export function CertificatesPage() {
                       <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Type</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Payer</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Entity</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Issue Date</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Payment Date</th>
                       <th className="px-4 py-2 text-right text-xs font-medium text-slate-600">Gross Amount</th>
                       <th className="px-4 py-2 text-right text-xs font-medium text-slate-600">Tax Deducted</th>
                       <th className="px-4 py-2 text-right text-xs font-medium text-slate-600">Net Amount</th>
@@ -384,7 +425,7 @@ export function CertificatesPage() {
                             {fromSchedule ? (
                               <span className="text-slate-500">-</span>
                             ) : (
-                              cert.issueDate ? new Date(cert.issueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'
+                              cert.paymentDate ? new Date(cert.paymentDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'
                             )}
                           </td>
                           <td className="px-4 py-2 text-sm text-right font-medium text-slate-900">{formatLKR(cert.details.grossAmount)}</td>

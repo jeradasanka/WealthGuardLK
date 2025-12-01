@@ -144,18 +144,13 @@ export function IncomeSchedulePDFImportWizard({ open, onClose }: IncomeScheduleP
           addIncome({
             ...baseIncome,
             schedule: '1',
-            employmentDetails: {
+            details: {
               employerName: income.employmentDetails.employerName,
               employerTIN: income.employmentDetails.employerTIN,
-              employerAddress: income.employmentDetails.employerAddress,
-              grossRemuneration: income.employmentDetails.grossRemuneration,
-              allowances: income.employmentDetails.allowances || 0,
-              bonuses: income.employmentDetails.bonuses || 0,
+              grossRemuneration: income.employmentDetails.totalGross || income.employmentDetails.grossRemuneration,
               nonCashBenefits: income.employmentDetails.nonCashBenefits || 0,
-              totalGross: income.employmentDetails.totalGross,
               apitDeducted: income.employmentDetails.apitDeducted,
               exemptIncome: income.employmentDetails.exemptIncome || 0,
-              netTaxableIncome: income.employmentDetails.netTaxableIncome,
             },
           });
           imported++;
@@ -163,19 +158,11 @@ export function IncomeSchedulePDFImportWizard({ open, onClose }: IncomeScheduleP
           addIncome({
             ...baseIncome,
             schedule: '2',
-            businessDetails: {
+            details: {
               businessName: income.businessDetails.businessName,
-              businessTIN: income.businessDetails.businessTIN,
-              businessAddress: income.businessDetails.businessAddress,
-              natureOfBusiness: income.businessDetails.natureOfBusiness,
               grossRevenue: income.businessDetails.grossRevenue,
-              directExpenses: income.businessDetails.directExpenses || 0,
-              operatingExpenses: income.businessDetails.operatingExpenses || 0,
-              depreciation: income.businessDetails.depreciation || 0,
-              totalExpenses: income.businessDetails.totalExpenses,
-              netProfit: income.businessDetails.netProfit,
-              adjustments: income.businessDetails.adjustments || 0,
-              taxableProfit: income.businessDetails.taxableProfit,
+              directExpenses: income.businessDetails.totalExpenses || income.businessDetails.directExpenses || 0,
+              netProfit: income.businessDetails.taxableProfit || income.businessDetails.netProfit,
             },
           });
           imported++;
@@ -183,16 +170,11 @@ export function IncomeSchedulePDFImportWizard({ open, onClose }: IncomeScheduleP
           addIncome({
             ...baseIncome,
             schedule: '3',
-            investmentDetails: {
+            type: income.investmentDetails.sourceType,
+            details: {
               source: income.investmentDetails.source,
-              sourceType: income.investmentDetails.sourceType,
-              payerName: income.investmentDetails.payerName,
-              payerTIN: income.investmentDetails.payerTIN,
-              grossAmount: income.investmentDetails.grossAmount,
+              grossAmount: income.investmentDetails.taxableAmount || income.investmentDetails.grossAmount,
               whtDeducted: income.investmentDetails.whtDeducted || 0,
-              netAmount: income.investmentDetails.netAmount,
-              exemptPortion: income.investmentDetails.exemptPortion || 0,
-              taxableAmount: income.investmentDetails.taxableAmount,
             },
           });
           imported++;

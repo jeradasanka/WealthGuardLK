@@ -5,6 +5,7 @@
 
 import { ParsedTaxData } from '@/types/import';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { fileToBase64 } from './pdfParserUtils';
 
 export interface GeminiModelInfo {
   name: string;
@@ -599,19 +600,4 @@ export async function parseWithGeminiDirect(
     }
     throw new Error('Failed to parse PDF with Gemini AI');
   }
-}
-
-/**
- * Convert File to base64 string
- */
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(',')[1];
-      resolve(base64);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }

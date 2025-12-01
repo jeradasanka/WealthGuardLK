@@ -3,7 +3,7 @@
  * Extracts balance data from bank statements and other financial documents
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { parseWithGeminiAI } from './pdfParserUtils';
 import { getTaxYearForDate } from '../lib/taxYear';
 
 export interface ParsedFinancialBalance {
@@ -27,23 +27,6 @@ export interface ParsedFinancialBalance {
   notes?: string;
 }
 
-/**
- * Helper function to convert File to base64
- */
-async function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      const base64Data = base64.split(',')[1];
-      resolve(base64Data);
-    };
-    reader.onerror = (error) => reject(error);
-  });
-}
-
-
 
 /**
  * Parse financial asset balance PDF using Gemini AI
@@ -65,12 +48,6 @@ export async function parseFinancialBalancePdf(
 ): Promise<ParsedFinancialBalance[]> {
   try {
     console.log('Starting Gemini AI financial balance PDF parsing...');
-    
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const geminiModel = genAI.getGenerativeModel({ model });
-    
-    // Convert PDF to base64
-    const base64Data = await fileToBase64(file);
     
     const prompt = `
 You are an expert in analyzing Sri Lankan bank statements and financial documents. Analyze this PDF which contains bank statements, account summaries, or similar financial documents.
@@ -146,31 +123,8 @@ Return ONLY a valid JSON array with NO markdown formatting, NO code blocks, NO b
 Extract all balance records from the PDF and return them in the JSON format above.
 `;
 
-    console.log('Sending request to Gemini AI...');
-    const result = await geminiModel.generateContent([
-      {
-        inlineData: {
-          mimeType: file.type,
-          data: base64Data,
-        },
-      },
-      { text: prompt },
-    ]);
-
-    const response = await result.response;
-    const text = response.text();
-    console.log('Gemini AI response received:', text);
-
-    // Clean up response - remove markdown code blocks if present
-    let cleanedText = text.trim();
-    if (cleanedText.startsWith('```json')) {
-      cleanedText = cleanedText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-    } else if (cleanedText.startsWith('```')) {
-      cleanedText = cleanedText.replace(/```\n?/g, '');
-    }
-
-    // Parse JSON response
-    const parsedData: ParsedFinancialBalance[] = JSON.parse(cleanedText);
+    // Parse using shared utility
+    const parsedData = await parseWithGeminiAI<ParsedFinancialBalance[]>(file, apiKey, prompt, model);
     
     // Validate and process each balance record
     const processedData = parsedData.map(balance => {

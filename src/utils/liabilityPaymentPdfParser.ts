@@ -3,7 +3,7 @@
  * Extracts payment data from loan statements, payment receipts, and amortization schedules
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { parseWithGeminiAI } from './pdfParserUtils';
 import { getTaxYearForDate } from '../lib/taxYear';
 
 export interface ParsedLiabilityPayment {
@@ -23,23 +23,6 @@ export interface ParsedLiabilityPayment {
   paymentMethod?: string;
   notes?: string;
 }
-
-/**
- * Helper function to convert File to base64
- */
-async function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      const base64Data = base64.split(',')[1];
-      resolve(base64Data);
-    };
-    reader.onerror = (error) => reject(error);
-  });
-}
-
 
 
 /**
@@ -62,12 +45,6 @@ export async function parseLiabilityPaymentPdf(
 ): Promise<ParsedLiabilityPayment[]> {
   try {
     console.log('Starting Gemini AI liability payment PDF parsing...');
-    
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const geminiModel = genAI.getGenerativeModel({ model });
-    
-    // Convert PDF to base64
-    const base64Data = await fileToBase64(file);
     
     const prompt = `
 You are an expert in analyzing Sri Lankan loan statements, payment receipts, and amortization schedules. Analyze this PDF which contains loan payment information, amortization schedules, or payment receipts.
@@ -155,31 +132,8 @@ Return ONLY a valid JSON array with NO markdown formatting, NO code blocks, NO b
 Extract all payment records from the PDF and return them in the JSON format above.
 `;
 
-    console.log('Sending request to Gemini AI...');
-    const result = await geminiModel.generateContent([
-      {
-        inlineData: {
-          mimeType: file.type,
-          data: base64Data,
-        },
-      },
-      { text: prompt },
-    ]);
-
-    const response = await result.response;
-    const text = response.text();
-    console.log('Gemini AI response received:', text);
-
-    // Clean up response - remove markdown code blocks if present
-    let cleanedText = text.trim();
-    if (cleanedText.startsWith('```json')) {
-      cleanedText = cleanedText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-    } else if (cleanedText.startsWith('```')) {
-      cleanedText = cleanedText.replace(/```\n?/g, '');
-    }
-
-    // Parse JSON response
-    const parsedData: ParsedLiabilityPayment[] = JSON.parse(cleanedText);
+    // Parse using shared utility
+    const parsedData = await parseWithGeminiAI<ParsedLiabilityPayment[]>(file, apiKey, prompt, model);
     
     // Validate and process each payment record
     const processedData = parsedData.map(payment => {

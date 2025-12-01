@@ -35,19 +35,30 @@ export async function fetchAvailableGeminiModels(apiKey: string): Promise<Array<
     const data = await response.json();
     
     // Filter models that support generateContent and are suitable for PDF parsing
-    // Only include full Gemini models (exclude nano, text-embedding, etc.)
+    // Only include full Gemini models (flash, pro, ultra)
     const models = data.models
       .filter((model: any) => {
         const name = model.name.toLowerCase();
-        return (
-          model.supportedGenerationMethods?.includes('generateContent') &&
-          name.includes('gemini') &&
-          // Exclude models not suitable for complex PDF parsing
-          !name.includes('nano') &&
-          !name.includes('embedding') &&
-          !name.includes('text-embedding') &&
-          !name.includes('aqa')
-        );
+        const displayName = (model.displayName || '').toLowerCase();
+        
+        // Must support generateContent and be a Gemini model
+        if (!model.supportedGenerationMethods?.includes('generateContent')) return false;
+        if (!name.includes('gemini')) return false;
+        
+        // Exclude unsuitable models
+        const excluded = [
+          'nano', 'embedding', 'text-embedding', 'aqa', 
+          'vision', 'code', 'banana'
+        ];
+        
+        for (const term of excluded) {
+          if (name.includes(term) || displayName.includes(term)) {
+            return false;
+          }
+        }
+        
+        // Only include flash, pro, ultra variants
+        return name.includes('flash') || name.includes('pro') || name.includes('ultra');
       })
       .map((model: any) => {
         // Extract model name from "models/gemini-xxx" format

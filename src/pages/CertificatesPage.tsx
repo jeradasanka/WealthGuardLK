@@ -3,14 +3,14 @@
  * Track and manage tax withholding certificates
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, FileText, Pencil, Trash2, CheckCircle2, Circle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
 import { formatLKR } from '@/lib/taxEngine';
-import { formatTaxYear } from '@/lib/taxYear';
+import { formatTaxYear, getTaxYearsFromStart } from '@/lib/taxYear';
 import type { AITWHTCertificate } from '@/types';
 
 export function CertificatesPage() {
@@ -21,9 +21,20 @@ export function CertificatesPage() {
   const entities = useStore((state) => state.entities);
   const certificates = useStore((state) => state.certificates);
   const currentTaxYear = useStore((state) => state.currentTaxYear);
+  const setCurrentTaxYear = useStore((state) => state.setCurrentTaxYear);
   const removeCertificate = useStore((state) => state.removeCertificate);
   const updateCertificate = useStore((state) => state.updateCertificate);
   const saveToStorage = useStore((state) => state.saveToStorage);
+
+  // Get available tax years
+  const availableTaxYears = useMemo(() => {
+    if (entities.length === 0) return [currentTaxYear];
+    const oldestTaxYear = entities.reduce(
+      (oldest, entity) => (entity.taxYear < oldest ? entity.taxYear : oldest),
+      entities[0].taxYear
+    );
+    return getTaxYearsFromStart(oldestTaxYear);
+  }, [entities, currentTaxYear]);
 
   // Filter certificates
   const filteredCertificates = certificates.filter((cert) => {
@@ -85,7 +96,7 @@ export function CertificatesPage() {
               </Button>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">AIT/WHT Certificates</h1>
-                <p className="text-sm text-slate-600">Tax Year: {formatTaxYear(currentTaxYear)}</p>
+                <p className="text-sm text-slate-600">Track withholding tax certificates</p>
               </div>
             </div>
             <Button onClick={() => navigate('/certificates/new')}>
@@ -98,39 +109,60 @@ export function CertificatesPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        {/* Filters */}
-        <div className="mb-6 flex gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Entity</label>
-            <select
-              className="px-4 py-2 border rounded-lg bg-white"
-              value={selectedEntityId}
-              onChange={(e) => setSelectedEntityId(e.target.value)}
-            >
-              <option value="all">All Entities</option>
-              {entities.map((entity) => (
-                <option key={entity.id} value={entity.id}>
-                  {entity.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">Type</label>
-            <select
-              className="px-4 py-2 border rounded-lg bg-white"
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-            >
-              <option value="all">All Types</option>
-              <option value="employment">Employment (APIT)</option>
-              <option value="interest">Interest (WHT)</option>
-              <option value="dividend">Dividend (WHT)</option>
-              <option value="rent">Rent (WHT)</option>
-              <option value="other">Other (WHT)</option>
-            </select>
-          </div>
-        </div>
+        {/* Tax Year Selector */}
+        <Card className="mb-6 bg-blue-50 border-blue-200">
+          <CardHeader>
+            <CardTitle className="text-lg">Tax Year Selection</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm font-medium mb-2">Tax Year</label>
+                <select
+                  value={currentTaxYear}
+                  onChange={(e) => setCurrentTaxYear(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {availableTaxYears.map((year) => (
+                    <option key={year} value={year}>
+                      {formatTaxYear(year)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Entity</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={selectedEntityId}
+                  onChange={(e) => setSelectedEntityId(e.target.value)}
+                >
+                  <option value="all">All Entities</option>
+                  {entities.map((entity) => (
+                    <option key={entity.id} value={entity.id}>
+                      {entity.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Certificate Type</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                >
+                  <option value="all">All Types</option>
+                  <option value="employment">Employment (APIT)</option>
+                  <option value="interest">Interest (WHT)</option>
+                  <option value="dividend">Dividend (WHT)</option>
+                  <option value="rent">Rent (WHT)</option>
+                  <option value="other">Other (WHT)</option>
+                </select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">

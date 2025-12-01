@@ -8,8 +8,7 @@ import type { AITWHTCertificate } from '@/types';
 
 export interface ParsedCertificateData {
   certificateNo: string;
-  issueDate: string;
-  paymentDate?: string; // Date when payment was made
+  paymentDate: string; // Date when payment was made
   type: 'employment' | 'interest' | 'dividend' | 'rent' | 'other';
   payerName: string;
   payerTIN: string;
@@ -65,36 +64,35 @@ Extract ALL certificate data from this PDF document and return it as a JSON arra
 **Extraction Rules:**
 
 1. **Certificate Number**: Extract the unique certificate number/reference number
-2. **Issue Date**: Extract the date when the certificate was issued (format: YYYY-MM-DD)
-3. **Payment Date**: Extract the date when the payment was made (format: YYYY-MM-DD, optional)
-4. **Certificate Type**: Determine the type based on the income category:
+2. **Payment Date**: Extract the date when the payment was made (format: YYYY-MM-DD)
+3. **Certificate Type**: Determine the type based on the income category:
    - "employment" for APIT certificates / employment income
    - "interest" for bank interest / fixed deposit certificates
    - "dividend" for dividend income certificates
    - "rent" for rental income certificates
    - "other" for any other WHT certificates
 
-5. **Payer Information** (Employer/Bank/Tenant/Company):
+4. **Payer Information** (Employer/Bank/Tenant/Company):
    - Payer Name: Full name of the organization making the payment
    - Payer TIN: Tax Identification Number of the payer
 
-6. **Payee Information** (Employee/Account Holder/Landlord/Investor):
+5. **Payee Information** (Employee/Account Holder/Landlord/Investor):
    - Payee Name: Name of the person receiving the income
    - Payee TIN: Tax Identification Number of the recipient
 
-7. **Financial Details**:
+6. **Financial Details**:
    - Gross Amount: Total amount BEFORE tax deduction
    - Tax Deducted: Amount of tax withheld (APIT or WHT)
    - Net Amount: Amount paid AFTER tax deduction (Gross - Tax)
    - Auto-calculate Net Amount if not explicitly stated: Net = Gross - Tax
 
-8. **Period Information**:
+7. **Period Information**:
    - Tax Year: Extract or derive the tax year (format: "YYYY", e.g., "2024" for tax year 2024/2025)
      * If date is April-December: use that year (e.g., Dec 2024 = "2024")
      * If date is Jan-March: use previous year (e.g., Feb 2025 = "2024")
    - Period: Specific period covered (e.g., "January 2024", "Q1 2024", "Full Year 2024")
 
-9. **Description**: Brief description of the income source (e.g., "Salary - ABC Company", "FD Interest - Bank XYZ", "Rent - Property Address")
+8. **Description**: Brief description of the income source (e.g., "Salary - ABC Company", "FD Interest - Bank XYZ", "Rent - Property Address")
 
 **Output Format:**
 Return ONLY a valid JSON array (no markdown formatting, no explanatory text):
@@ -102,7 +100,6 @@ Return ONLY a valid JSON array (no markdown formatting, no explanatory text):
 [
   {
     "certificateNo": "string",
-    "issueDate": "YYYY-MM-DD",
     "paymentDate": "YYYY-MM-DD",
     "type": "employment|interest|dividend|rent|other",
     "payerName": "string",

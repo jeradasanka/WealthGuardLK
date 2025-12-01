@@ -372,16 +372,10 @@ export function CertificatePDFImportWizard({ onClose }: CertificatePDFImportWiza
                               <p className="text-xs text-muted-foreground">TIN: {cert.payerTIN}</p>
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground">Issue Date</p>
-                              <p className="font-medium">{cert.issueDate}</p>
+                              <p className="text-xs text-muted-foreground">Payment Date</p>
+                              <p className="font-medium">{cert.paymentDate}</p>
                               <p className="text-xs text-muted-foreground">Tax Year: {cert.taxYear}</p>
                             </div>
-                            {cert.paymentDate && (
-                              <div>
-                                <p className="text-xs text-muted-foreground">Payment Date</p>
-                                <p className="font-medium">{cert.paymentDate}</p>
-                              </div>
-                            )}
                             <div>
                               <p className="text-xs text-muted-foreground">Gross Amount</p>
                               <p className="font-medium">Rs. {cert.grossAmount.toLocaleString()}</p>

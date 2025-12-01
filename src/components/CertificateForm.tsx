@@ -35,8 +35,7 @@ export function CertificateForm({ certificateId, onCancel }: CertificateFormProp
     ownerId: existingCertificate?.ownerId || entities[0]?.id || '',
     taxYear: existingCertificate?.taxYear || entities[0]?.taxYear || '2023',
     certificateNo: existingCertificate?.certificateNo || '',
-    issueDate: existingCertificate?.issueDate || new Date().toISOString().split('T')[0],
-    paymentDate: existingCertificate?.paymentDate || '',
+    paymentDate: existingCertificate?.paymentDate || new Date().toISOString().split('T')[0],
     type: existingCertificate?.type || 'interest' as const,
     payerName: existingCertificate?.details.payerName || '',
     payerTIN: existingCertificate?.details.payerTIN || '',
@@ -102,8 +101,7 @@ export function CertificateForm({ certificateId, onCancel }: CertificateFormProp
       ownerId: formData.ownerId,
       taxYear: formData.taxYear,
       certificateNo: formData.certificateNo.trim(),
-      issueDate: formData.issueDate,
-      paymentDate: formData.paymentDate || undefined,
+      paymentDate: formData.paymentDate,
       type: formData.type,
       details: {
         payerName: formData.payerName.trim(),
@@ -204,28 +202,16 @@ export function CertificateForm({ certificateId, onCancel }: CertificateFormProp
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="issueDate">Issue Date *</Label>
+              <Label htmlFor="paymentDate">Payment Date *</Label>
               <Input
-                id="issueDate"
+                id="paymentDate"
                 type="date"
-                value={formData.issueDate}
-                onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
-                className={errors.issueDate ? 'border-red-500' : ''}
+                value={formData.paymentDate}
+                onChange={(e) => setFormData({ ...formData, paymentDate: e.target.value })}
+                className={errors.paymentDate ? 'border-red-500' : ''}
               />
-              {errors.issueDate && <p className="text-sm text-red-500">{errors.issueDate}</p>}
+              {errors.paymentDate && <p className="text-sm text-red-500">{errors.paymentDate}</p>}
             </div>
-          </div>
-
-          {/* Payment Date */}
-          <div className="space-y-2">
-            <Label htmlFor="paymentDate">Payment Date (Optional)</Label>
-            <Input
-              id="paymentDate"
-              type="date"
-              value={formData.paymentDate}
-              onChange={(e) => setFormData({ ...formData, paymentDate: e.target.value })}
-            />
-            <p className="text-sm text-gray-500">Date when the payment was made (if different from issue date)</p>
           </div>
 
           {/* Type */}

@@ -137,14 +137,14 @@ firebase deploy     # Deploys to https://wealthguard-f7c26.web.app
    ```ts
    export interface AITWHTCertificate {
      id: string; ownerId: string; taxYear: string;
-     certificateNo: string; issueDate: string; paymentDate?: string;
+     certificateNo: string; paymentDate: string;
      type: 'employment' | 'interest' | 'dividend' | 'rent' | 'other';
      details: { payerName: string; payerTIN: string; grossAmount: number; 
                 taxDeducted: number; netAmount: number; description?: string; };
      relatedIncomeId?: string; notes?: string; verified: boolean;
    }
    ```
-   **Note**: `paymentDate` is optional and stores when payment was made (if different from issue date)
+   **Note**: `paymentDate` is the date when payment was made (certificate issue date is not stored separately)
    
 2. **Store Actions** (`src/stores/useStore.ts`):
    ```ts

@@ -374,7 +374,6 @@ export function CertificatesPage() {
                       <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Type</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Payer</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Entity</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Issue Date</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Payment Date</th>
                       <th className="px-4 py-2 text-right text-xs font-medium text-slate-600">Gross Amount</th>
                       <th className="px-4 py-2 text-right text-xs font-medium text-slate-600">Tax Deducted</th>
@@ -422,13 +421,6 @@ export function CertificatesPage() {
                             <div className="text-xs text-slate-500">TIN: {cert.details.payerTIN}</div>
                           </td>
                           <td className="px-4 py-2 text-sm text-slate-600">{owner?.name || 'Unknown'}</td>
-                          <td className="px-4 py-2 text-sm text-slate-600">
-                            {fromSchedule ? (
-                              <span className="text-slate-500">-</span>
-                            ) : (
-                              cert.issueDate ? new Date(cert.issueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'
-                            )}
-                          </td>
                           <td className="px-4 py-2 text-sm text-slate-600">
                             {fromSchedule ? (
                               <span className="text-slate-500">-</span>

@@ -69,11 +69,16 @@ export function MyForm({ onClose, itemId?: string }) {
 ```
 
 ### 6. PDF Import with Gemini AI
-File: `src/utils/geminiPdfParser.ts`
+**RAMIS Import**: `src/utils/geminiPdfParser.ts`
 - Converts PDF to base64, sends to Gemini API with structured prompt
 - Returns `ParsedTaxData` with assets, liabilities, incomes, **certificates**
-- **Extraction rules** in prompt Sections 1-12 (e.g., Section 7: certificates from Interest Income table)
+- **Extraction rules** in prompt Sections 1-12 (e.g., Section 7: certificates from Interest Income table with paymentDate)
 - PDFImportWizard (`src/components/PDFImportWizard.tsx`): Preview UI with checkboxes, auto-links certificates to income by TIN/payer matching
+
+**Certificate PDF Import**: `src/utils/certificatePdfParser.ts`
+- Dedicated parser for WHT/AIT certificate PDFs
+- Extracts: certificateNo, issueDate, paymentDate, type, payer details, amounts
+- CertificatePDFImportWizard (`src/components/CertificatePDFImportWizard.tsx`): 3-step wizard with entity selection, preview, batch import
 
 **Certificate Linking Logic**:
 1. Build Map<TIN, incomeId> from imported incomes
@@ -131,9 +136,16 @@ firebase deploy     # Deploys to https://wealthguard-f7c26.web.app
 1. **Type Definition** (`src/types/index.ts`):
    ```ts
    export interface AITWHTCertificate {
-     id: string; ownerId: string; taxYear: string; /* ... */
+     id: string; ownerId: string; taxYear: string;
+     certificateNo: string; issueDate: string; paymentDate?: string;
+     type: 'employment' | 'interest' | 'dividend' | 'rent' | 'other';
+     details: { payerName: string; payerTIN: string; grossAmount: number; 
+                taxDeducted: number; netAmount: number; description?: string; };
+     relatedIncomeId?: string; notes?: string; verified: boolean;
    }
    ```
+   **Note**: `paymentDate` is optional and stores when payment was made (if different from issue date)
+   
 2. **Store Actions** (`src/stores/useStore.ts`):
    ```ts
    certificates: [],

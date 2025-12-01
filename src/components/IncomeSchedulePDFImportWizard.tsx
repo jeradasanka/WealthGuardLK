@@ -102,33 +102,12 @@ export function IncomeSchedulePDFImportWizard({ open, onClose }: IncomeScheduleP
       setParsedData(data);
       setSelectedIncomes(new Array(data.length).fill(true));
       
-      // Try to auto-detect entity from employment or business TIN
+      // Try to auto-detect entity from employment or business name
       let detectedEntityId: string | null = null;
       
-      // Check employment income for employer TIN match
+      // Check employment income for employer name match
       const employmentIncome = data.find(d => d.schedule === '1' && d.employmentDetails);
-      if (employmentIncome?.employmentDetails?.employerTIN) {
-        const entityByTin = entities.find(e => e.tin === employmentIncome.employmentDetails?.employerTIN);
-        if (entityByTin) {
-          detectedEntityId = entityByTin.id;
-          console.log('Auto-detected entity by employment TIN:', entityByTin.name);
-        }
-      }
-      
-      // If not found, check business TIN
-      if (!detectedEntityId) {
-        const businessIncome = data.find(d => d.schedule === '2' && d.businessDetails);
-        if (businessIncome?.businessDetails?.businessTIN) {
-          const entityByTin = entities.find(e => e.tin === businessIncome.businessDetails?.businessTIN);
-          if (entityByTin) {
-            detectedEntityId = entityByTin.id;
-            console.log('Auto-detected entity by business TIN:', entityByTin.name);
-          }
-        }
-      }
-      
-      // If not found, try matching by name (case-insensitive partial match)
-      if (!detectedEntityId && employmentIncome?.employmentDetails?.employerName) {
+      if (employmentIncome?.employmentDetails?.employerName) {
         const entityByName = entities.find(e => 
           e.name.toLowerCase().includes(employmentIncome.employmentDetails!.employerName.toLowerCase()) ||
           employmentIncome.employmentDetails!.employerName.toLowerCase().includes(e.name.toLowerCase())
@@ -136,6 +115,21 @@ export function IncomeSchedulePDFImportWizard({ open, onClose }: IncomeScheduleP
         if (entityByName) {
           detectedEntityId = entityByName.id;
           console.log('Auto-detected entity by employer name:', entityByName.name);
+        }
+      }
+      
+      // If not found, try matching by business name
+      if (!detectedEntityId) {
+        const businessIncome = data.find(d => d.schedule === '2' && d.businessDetails);
+        if (businessIncome?.businessDetails?.businessName) {
+          const entityByName = entities.find(e => 
+            e.name.toLowerCase().includes(businessIncome.businessDetails!.businessName.toLowerCase()) ||
+            businessIncome.businessDetails!.businessName.toLowerCase().includes(e.name.toLowerCase())
+          );
+          if (entityByName) {
+            detectedEntityId = entityByName.id;
+            console.log('Auto-detected entity by business name:', entityByName.name);
+          }
         }
       }
       
@@ -374,7 +368,7 @@ export function IncomeSchedulePDFImportWizard({ open, onClose }: IncomeScheduleP
                 ))}
               </select>
               {autoDetectedEntity && (
-                <p className="text-sm text-green-600">✓ Entity auto-detected from PDF (TIN match)</p>
+                <p className="text-sm text-green-600">✓ Entity auto-detected from PDF (name match)</p>
               )}
             </div>
 

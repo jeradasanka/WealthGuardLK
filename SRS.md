@@ -28,8 +28,8 @@ The primary purpose of this application is to allow Sri Lankan families to track
 - **Security Layer (Web Crypto API):** Handles AES-GCM encryption/decryption using a user-derived passphrase.
 
 ### 2.2 User Types
-- **Primary Taxpayer (Admin):** Manages the main TIN profile (e.g., Jerad).
-- **Secondary Taxpayer (Spouse):** Manages the secondary TIN profile (e.g., Buhuni) within the same dashboard for consolidated wealth tracking.
+- **Primary Taxpayer (Admin):** Manages the main TIN profile (e.g., John Doe).
+- **Secondary Taxpayer (Spouse):** Manages the secondary TIN profile (e.g., Jane Doe) within the same dashboard for consolidated wealth tracking.
 
 ---
 

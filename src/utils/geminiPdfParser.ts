@@ -16,8 +16,8 @@ export interface GeminiModelInfo {
 // Fallback models in case API fetch fails
 export const FALLBACK_GEMINI_MODELS = [
   { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Experimental)', description: 'Latest model, fastest' },
-  { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', description: 'Fast and efficient' },
-  { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', description: 'More capable, slower' },
+  { value: 'gemini-2.5-flash-preview', label: 'Gemini 2.5 Flash (Preview)', description: 'Fast and efficient' },
+  { value: 'gemini-2.5-pro-preview', label: 'Gemini 2.5 Pro (Preview)', description: 'More capable, slower' },
 ] as const;
 
 /**
@@ -274,7 +274,10 @@ CRITICAL MAPPING FOR SOFTWARE COMPATIBILITY:
 
 CRITICAL EXTRACTION RULES:
 1. **Tax Year**: "Year of assessment 2023/2024" → extract "2023" (first year only)
-2. **Taxpayer Info**: Extract name, TIN (from page 1), NIC (from page 4)
+2. **Taxpayer Info**: 
+   - name: Extract from header section (full name in capital letters)
+   - TIN: Extract from header section ("Taxpayer Identification Number")
+   - NIC: Extract from declarant information section at the end of document
 3. **Monetary Values**: Remove "Rs.", commas → Convert "3,094,166.00" to 3094166.00 (numeric)
 4. **Dates**: Convert to "YYYY-MM-DD" format. "2020-11-11" stays as is. "31.03.2024" → "2024-03-31"
 
@@ -286,13 +289,33 @@ CRITICAL EXTRACTION RULES:
    - exemptIncome: From "Total exempt/Excluded employment income (Rs.)"
    - nonCashBenefits: 0 if not specified
 
-6. **Investment Income** (Consolidate interest income):
-   - Group all interest rows by withholding agent/bank
-   - source: Bank name or "Interest Income from [TIN]"
-   - interest: SUM of all "Amount received" values
-   - wht: SUM of all "AIT/WHT deducted" values  
-   - dividends: 0 (unless dividend section exists)
-   - rent: 0 (unless rent section exists)
+6. **Investment Income** (CRITICAL - Extract from Interest Income Section):
+   IMPORTANT: Look for the "INTEREST INCOME SECTION" table in the document
+   
+   The Interest Income table has these columns:
+   - S/N (serial number)
+   - Source/type (will show "I-INTEREST")
+   - TIN of Withholding Agent (bank TIN)
+   - AIT/WHT certificate No.
+   - Amount received (Rs.) - THIS IS THE INTEREST AMOUNT
+   - Date of payment
+   - AIT/WHT deducted (Rs.) - THIS IS THE TAX WITHHELD
+   
+   **Extraction Rules**:
+   - Create ONE investmentIncome entry per bank (consolidate multiple rows from same bank)
+   - source: Extract bank name from "TIN of Withholding Agent" or use "Interest Income" if bank name not clear
+   - interest: SUM of ALL "Amount received (Rs.)" values for that bank/source
+   - wht: SUM of ALL "AIT/WHT deducted (Rs.)" values for that bank/source
+   - dividends: 0 (unless separate dividend section exists)
+   - rent: 0 (unless separate rent section exists)
+   
+   **Example**: If 14 rows show interest from same bank TIN:
+   - Group all 14 rows together
+   - Sum all "Amount received" values → this becomes the "interest" field
+   - Sum all "AIT/WHT deducted" values → this becomes the "wht" field
+   - Create ONE entry with totals, not 14 separate entries
+   
+   **If NO Interest Income data exists**: Return empty array [] for investmentIncome
 
 7. **Assets** - Each asset must have description, category, cost, marketValue, dateAcquired:
    

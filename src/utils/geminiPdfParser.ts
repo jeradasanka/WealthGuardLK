@@ -173,7 +173,7 @@ JSON SCHEMA - MUST match this exact structure:
   ],
   "investmentIncome": [
     {
-      "source": "PEOPLES BANK (or withholdingAgentTIN: 123456789)",
+      "source": "ABC BANK (or withholdingAgentTIN: 123456789)",
       "interest": 6.60,
       "dividends": 0,
       "rent": 0,
@@ -182,7 +182,7 @@ JSON SCHEMA - MUST match this exact structure:
   ],
   "assets": [
     {
-      "description": "LAND IN LOT 123/A, SAMPLE STREET, COLOMBO (CO-OWNERS WITH HUSBAND)",
+      "description": "LAND IN LOT 123/A, SAMPLE STREET, COLOMBO (CO-OWNERS WITH SPOUSE)",
       "category": "A",
       "cost": 6500000.00,
       "marketValue": 10000000.00,

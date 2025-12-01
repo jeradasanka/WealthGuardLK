@@ -3,7 +3,7 @@
  * 3-step wizard for importing loan payment data from statements and receipts
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Upload, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Label } from '@/components/ui/label';
 import { useStore } from '@/stores/useStore';
 import { parseLiabilityPaymentPdf, type ParsedLiabilityPayment } from '@/utils/liabilityPaymentPdfParser';
+import { fetchAvailableGeminiModels, FALLBACK_GEMINI_MODELS } from '@/utils/geminiPdfParser';
 import { formatLKR } from '@/lib/taxEngine';
 import { formatTaxYear } from '@/lib/taxYear';
 
@@ -34,19 +35,30 @@ export function LiabilityPaymentPDFImportWizard({
   const [parsedData, setParsedData] = useState<ParsedLiabilityPayment[]>([]);
   const [selectedPayments, setSelectedPayments] = useState<boolean[]>([]);
   const [selectedLiabilityId, setSelectedLiabilityId] = useState<string>(preSelectedLiabilityId || '');
-  const [geminiModel, setGeminiModel] = useState('gemini-2.0-flash-exp');
-  const [loadingModels] = useState(false);
+  const [availableModels, setAvailableModels] = useState<Array<{ value: string; label: string; description: string }>>([...FALLBACK_GEMINI_MODELS]);
+  const [loadingModels, setLoadingModels] = useState(false);
 
   const liabilities = useStore((state) => state.liabilities);
   const addPaymentToLiability = useStore((state) => state.addPaymentToLiability);
   const geminiApiKey = useStore((state) => state.geminiApiKey);
+  const geminiModel = useStore((state) => state.geminiModel);
+  const setGeminiModel = useStore((state) => state.setGeminiModel);
 
-  // Get available models
-  const availableModels = [
-    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Experimental - Fastest)' },
-    { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Most Accurate)' },
-    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Balanced)' },
-  ];
+  // Fetch available models when dialog opens and API key is available
+  useEffect(() => {
+    if (open && geminiApiKey && geminiApiKey.trim() !== '') {
+      setLoadingModels(true);
+      fetchAvailableGeminiModels(geminiApiKey)
+        .then(models => {
+          setAvailableModels(models);
+          setLoadingModels(false);
+        })
+        .catch(err => {
+          console.error('Failed to fetch models:', err);
+          setLoadingModels(false);
+        });
+    }
+  }, [open, geminiApiKey]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -187,11 +199,14 @@ export function LiabilityPaymentPDFImportWizard({
                 ) : (
                   availableModels.map((model) => (
                     <option key={model.value} value={model.value}>
-                      {model.label}
+                      {model.label} - {model.description}
                     </option>
                   ))
                 )}
               </select>
+              {loadingModels && (
+                <p className="text-sm text-muted-foreground mt-1">Loading available models...</p>
+              )}
             </div>
 
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8">

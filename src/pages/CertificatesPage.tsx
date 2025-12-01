@@ -95,8 +95,8 @@ export function CertificatesPage() {
                 Back
               </Button>
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">AIT/WHT Certificates</h1>
-                <p className="text-sm text-slate-600">Track withholding tax certificates</p>
+                <h1 className="text-2xl font-bold text-slate-900">Tax Certificates (APIT/WHT)</h1>
+                <p className="text-sm text-slate-600">Track Advance Personal Income Tax and Withholding Tax certificates</p>
               </div>
             </div>
             <Button onClick={() => navigate('/certificates/new')}>
@@ -163,6 +163,76 @@ export function CertificatesPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Employment Income Summary */}
+        {(() => {
+          const employmentCerts = filteredCertificates.filter(c => c.type === 'employment');
+          const employmentAPIT = employmentCerts.reduce((sum, c) => sum + c.details.taxDeducted, 0);
+          const employmentGross = employmentCerts.reduce((sum, c) => sum + c.details.grossAmount, 0);
+          
+          if (employmentCerts.length > 0) {
+            return (
+              <Card className="mb-6 bg-blue-50 border-blue-200">
+                <CardHeader>
+                  <CardTitle className="text-lg">Employment Income (APIT)</CardTitle>
+                  <CardDescription>{employmentCerts.length} certificate(s) for {formatTaxYear(currentTaxYear)}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm text-slate-600">Gross Remuneration</p>
+                      <p className="text-xl font-bold text-blue-600">{formatLKR(employmentGross)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-600">APIT Deducted (Cage 903)</p>
+                      <p className="text-xl font-bold text-red-600">{formatLKR(employmentAPIT)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-600">Net Received</p>
+                      <p className="text-xl font-bold text-green-600">{formatLKR(employmentGross - employmentAPIT)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          }
+          return null;
+        })()}
+
+        {/* Employment Income Summary */}
+        {(() => {
+          const employmentCerts = filteredCertificates.filter(c => c.type === 'employment');
+          const employmentAPIT = employmentCerts.reduce((sum, c) => sum + c.details.taxDeducted, 0);
+          const employmentGross = employmentCerts.reduce((sum, c) => sum + c.details.grossAmount, 0);
+          
+          if (employmentCerts.length > 0) {
+            return (
+              <Card className="mb-6 bg-blue-50 border-blue-200">
+                <CardHeader>
+                  <CardTitle className="text-lg">Employment Income (APIT)</CardTitle>
+                  <CardDescription>{employmentCerts.length} certificate(s) for {formatTaxYear(currentTaxYear)}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm text-slate-600">Gross Remuneration</p>
+                      <p className="text-xl font-bold text-blue-600">{formatLKR(employmentGross)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-600">APIT Deducted (Cage 903)</p>
+                      <p className="text-xl font-bold text-red-600">{formatLKR(employmentAPIT)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-600">Net Received</p>
+                      <p className="text-xl font-bold text-green-600">{formatLKR(employmentGross - employmentAPIT)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          }
+          return null;
+        })()}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">

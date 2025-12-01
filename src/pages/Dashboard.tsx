@@ -449,9 +449,9 @@ export function Dashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Wallet className="w-5 h-5" />
-                AIT/WHT Certificates
+                Tax Certificates
               </CardTitle>
-              <CardDescription>Track tax withholding certificates and deductions</CardDescription>
+              <CardDescription>Track APIT and WHT certificates and deductions</CardDescription>
             </CardHeader>
             <CardContent>
               <Button className="w-full">View Certificates</Button>

@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Edit, Briefcase, Building2, TrendingUp, ArrowLeft, ChevronDown, Calculator } from 'lucide-react';
+import { Plus, Trash2, Edit, Briefcase, Building2, TrendingUp, ArrowLeft, ChevronDown, Calculator, FileText, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -20,6 +20,7 @@ export function IncomePage() {
   const navigate = useNavigate();
   const incomes = useStore((state) => state.incomes);
   const assets = useStore((state) => state.assets);
+  const certificates = useStore((state) => state.certificates);
   const entities = useStore((state) => state.entities);
   const currentTaxYear = useStore((state) => state.currentTaxYear);
   const setCurrentTaxYear = useStore((state) => state.setCurrentTaxYear);
@@ -678,6 +679,93 @@ export function IncomePage() {
                 </div>
               </div>
               
+              {/* Tax Credits Breakdown */}
+              {(() => {
+                const yearCertificates = certificates.filter(cert => 
+                  cert.taxYear === currentTaxYear && 
+                  (!selectedEntityForTax || cert.ownerId === selectedEntityForTax)
+                );
+                
+                const apitFromCerts = yearCertificates
+                  .filter(c => c.type === 'employment')
+                  .reduce((sum, c) => sum + c.details.taxDeducted, 0);
+                
+                const whtByType = {
+                  interest: yearCertificates.filter(c => c.type === 'interest').reduce((sum, c) => sum + c.details.taxDeducted, 0),
+                  dividend: yearCertificates.filter(c => c.type === 'dividend').reduce((sum, c) => sum + c.details.taxDeducted, 0),
+                  rent: yearCertificates.filter(c => c.type === 'rent').reduce((sum, c) => sum + c.details.taxDeducted, 0),
+                  other: yearCertificates.filter(c => c.type === 'other').reduce((sum, c) => sum + c.details.taxDeducted, 0),
+                };
+                
+                const totalWHT = Object.values(whtByType).reduce((sum, val) => sum + val, 0);
+                const totalTaxCredits = incomeSummary.totalAPIT + apitFromCerts + totalWHT;
+                
+                if (totalTaxCredits > 0) {
+                  return (
+                    <div className="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                      <h4 className="text-sm font-semibold text-amber-900 mb-3">Tax Credits Available (Cage 903 & 908)</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {/* APIT Section */}
+                        <div className="bg-white p-3 rounded border border-amber-100">
+                          <p className="text-xs text-muted-foreground mb-1">APIT (Cage 903)</p>
+                          <p className="text-lg font-bold text-amber-700">{formatLKR(incomeSummary.totalAPIT + apitFromCerts)}</p>
+                          <div className="mt-2 space-y-1 text-xs">
+                            {incomeSummary.totalAPIT > 0 && (
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>From Employment Income:</span>
+                                <span className="font-medium">{formatLKR(incomeSummary.totalAPIT)}</span>
+                              </div>
+                            )}
+                            {apitFromCerts > 0 && (
+                              <div className="flex justify-between text-amber-600">
+                                <span>From Certificates ({yearCertificates.filter(c => c.type === 'employment').length}):</span>
+                                <span className="font-medium">{formatLKR(apitFromCerts)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* WHT Section */}
+                        <div className="bg-white p-3 rounded border border-amber-100">
+                          <p className="text-xs text-muted-foreground mb-1">WHT (Cage 908)</p>
+                          <p className="text-lg font-bold text-amber-700">{formatLKR(totalWHT)}</p>
+                          <div className="mt-2 space-y-1 text-xs">
+                            {whtByType.interest > 0 && (
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>Interest ({yearCertificates.filter(c => c.type === 'interest').length}):</span>
+                                <span className="font-medium">{formatLKR(whtByType.interest)}</span>
+                              </div>
+                            )}
+                            {whtByType.dividend > 0 && (
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>Dividend ({yearCertificates.filter(c => c.type === 'dividend').length}):</span>
+                                <span className="font-medium">{formatLKR(whtByType.dividend)}</span>
+                              </div>
+                            )}
+                            {whtByType.rent > 0 && (
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>Rent ({yearCertificates.filter(c => c.type === 'rent').length}):</span>
+                                <span className="font-medium">{formatLKR(whtByType.rent)}</span>
+                              </div>
+                            )}
+                            {whtByType.other > 0 && (
+                              <div className="flex justify-between text-muted-foreground">
+                                <span>Other ({yearCertificates.filter(c => c.type === 'other').length}):</span>
+                                <span className="font-medium">{formatLKR(whtByType.other)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-amber-200 text-center">
+                        <span className="text-sm font-semibold text-amber-900">Total Tax Credits: {formatLKR(totalTaxCredits)}</span>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+              
               <div className="text-center text-sm text-muted-foreground pt-4 border-t">
                  Total Income: {formatLKR(incomeSummary.totalIncome)}
               </div>
@@ -755,51 +843,91 @@ export function IncomePage() {
                 .map((income) => (
               <Card key={income.id}>
                 <CardContent className="py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-blue-50 rounded-lg">
-                        {getIncomeIcon(income.schedule)}
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-blue-50 rounded-lg">
+                          {getIncomeIcon(income.schedule)}
+                        </div>
+                        <div>
+                          <p className="font-semibold">
+                            {getIncomeTypeLabel(income)}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {getEntityName(income.ownerId)}
+                            {income.schedule === '1' && ` • ${(income as EmploymentIncome).details.employerName}`}
+                            {income.schedule === '2' && ` • ${(income as BusinessIncome).details.businessName}`}
+                            {income.schedule === '3' && ` • ${(income as InvestmentIncome).details.source}`}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold">
-                          {getIncomeTypeLabel(income)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {getEntityName(income.ownerId)}
-                          {income.schedule === '1' && ` • ${(income as EmploymentIncome).details.employerName}`}
-                          {income.schedule === '2' && ` • ${(income as BusinessIncome).details.businessName}`}
-                          {income.schedule === '3' && ` • ${(income as InvestmentIncome).details.source}`}
-                        </p>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">Amount</p>
+                          <p className="font-bold text-lg text-green-600">
+                            {formatLKR(getIncomeAmount(income))}
+                          </p>
+                          <p className="text-xs text-orange-600 mt-1">
+                            {income.schedule === '1' && `Tax: ${formatLKR((income as EmploymentIncome).details.apitDeducted)}`}
+                            {income.schedule === '3' && `WHT: ${formatLKR((income as InvestmentIncome).details.whtDeducted)}`}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(income)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(income.id)}
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Amount</p>
-                        <p className="font-bold text-lg text-green-600">
-                          {formatLKR(getIncomeAmount(income))}
-                        </p>
-                        <p className="text-xs text-orange-600 mt-1">
-                          {income.schedule === '1' && `Tax: ${formatLKR((income as EmploymentIncome).details.apitDeducted)}`}
-                          {income.schedule === '3' && `WHT: ${formatLKR((income as InvestmentIncome).details.whtDeducted)}`}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(income)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(income.id)}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </Button>
-                      </div>
-                    </div>
+                    {(() => {
+                      const linkedCerts = certificates.filter(cert => cert.relatedIncomeId === income.id && cert.taxYear === currentTaxYear);
+                      if (linkedCerts.length > 0) {
+                        return (
+                          <div className="mt-3 pt-3 border-t border-slate-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <FileText className="w-4 h-4 text-slate-500" />
+                              <span className="text-xs font-medium text-slate-600">Linked Certificates ({linkedCerts.length})</span>
+                            </div>
+                            <div className="space-y-1.5">
+                              {linkedCerts.map(cert => (
+                                <div key={cert.id} className="flex items-center justify-between bg-yellow-50 border border-yellow-200 rounded px-3 py-2">
+                                  <div className="flex items-center gap-2">
+                                    {cert.verified && <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />}
+                                    <span className="text-xs font-medium text-slate-700">{cert.certificateNo}</span>
+                                    <span className="text-xs text-slate-500">•</span>
+                                    <span className="text-xs text-slate-600">{cert.details.payerName}</span>
+                                  </div>
+                                  <div className="flex items-center gap-3 text-xs">
+                                    <span className="text-slate-600">Gross: {formatLKR(cert.details.grossAmount)}</span>
+                                    <span className="text-red-600 font-medium">Tax: {formatLKR(cert.details.taxDeducted)}</span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-2 text-xs"
+                                      onClick={() => navigate(`/certificates/edit/${cert.id}`)}
+                                    >
+                                      View
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </CardContent>
               </Card>

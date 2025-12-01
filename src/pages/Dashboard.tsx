@@ -418,7 +418,7 @@ export function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/income')}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -442,6 +442,19 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <Button className="w-full">Manage Assets & Liabilities</Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/certificates')}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="w-5 h-5" />
+                Tax Certificates
+              </CardTitle>
+              <CardDescription>Track APIT and WHT certificates and deductions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full">View Certificates</Button>
             </CardContent>
           </Card>
         </div>

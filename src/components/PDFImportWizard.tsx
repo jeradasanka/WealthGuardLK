@@ -25,12 +25,14 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
     employmentIncome: boolean[];
     businessIncome: boolean[];
     investmentIncome: boolean[];
+    certificates: boolean[];
     assets: boolean[];
     liabilities: boolean[];
   }>({
     employmentIncome: [],
     businessIncome: [],
     investmentIncome: [],
+    certificates: [],
     assets: [],
     liabilities: [],
   });
@@ -39,6 +41,7 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
   const addIncome = useStore((state) => state.addIncome);
   const addAsset = useStore((state) => state.addAsset);
   const addLiability = useStore((state) => state.addLiability);
+  const addCertificate = useStore((state) => state.addCertificate);
   const saveToStorage = useStore((state) => state.saveToStorage);
   const useAiParsing = useStore((state) => state.useAiParsing);
   const geminiApiKey = useStore((state) => state.geminiApiKey);
@@ -109,6 +112,7 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
         employmentIncome: new Array(data.employmentIncome?.length || 0).fill(true),
         businessIncome: new Array(data.businessIncome?.length || 0).fill(true),
         investmentIncome: new Array(data.investmentIncome?.length || 0).fill(true),
+        certificates: new Array(data.certificates?.length || 0).fill(true),
         assets: new Array(data.assets?.length || 0).fill(true),
         liabilities: new Array(data.liabilities?.length || 0).fill(true),
       });
@@ -167,13 +171,17 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
       console.log('Starting import with data:', parsedData);
       console.log('Selected entity:', selectedEntityId);
       
+      // Map to track income IDs for certificate linking
+      const incomeIdMap = new Map<string, string>(); // key: TIN or source, value: income ID
+      
       // Import employment income
       if (parsedData.employmentIncome && parsedData.employmentIncome.length > 0) {
         const selectedItems = parsedData.employmentIncome.filter((_, idx) => selection.employmentIncome[idx]);
         console.log('Importing employment income:', selectedItems.length);
         selectedItems.forEach(income => {
+          const incomeId = crypto.randomUUID();
           addIncome({
-            id: crypto.randomUUID(),
+            id: incomeId,
             ownerId: selectedEntityId,
             type: 'employment',
             schedule: '1',
@@ -188,6 +196,10 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
               exemptIncome: income.exemptIncome || 0,
             },
           });
+          // Map employer TIN to income ID for certificate linking
+          if (income.employerTIN) {
+            incomeIdMap.set(income.employerTIN, incomeId);
+          }
         });
       }
 
@@ -218,8 +230,9 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
         const selectedItems = parsedData.investmentIncome.filter((_, idx) => selection.investmentIncome[idx]);
         console.log('Importing investment income:', selectedItems.length);
         selectedItems.forEach(income => {
+          const incomeId = crypto.randomUUID();
           addIncome({
-            id: crypto.randomUUID(),
+            id: incomeId,
             ownerId: selectedEntityId,
             type: 'investment',
             schedule: '3',
@@ -232,6 +245,51 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
               rent: income.rent || 0,
             },
           });
+          // Map source name to income ID for certificate linking
+          incomeIdMap.set(income.source.toLowerCase(), incomeId);
+        });
+      }
+
+      // Import certificates with linking to income
+      if (parsedData.certificates && parsedData.certificates.length > 0) {
+        const selectedItems = parsedData.certificates.filter((_, idx) => selection.certificates[idx]);
+        console.log('Importing certificates:', selectedItems.length);
+        selectedItems.forEach(cert => {
+          // Try to find related income by TIN or payer name
+          let relatedIncomeId: string | undefined;
+          
+          // First try matching by TIN
+          if (cert.payerTIN) {
+            relatedIncomeId = incomeIdMap.get(cert.payerTIN);
+          }
+          
+          // If no TIN match, try matching by payer name (case-insensitive)
+          if (!relatedIncomeId && cert.payerName) {
+            relatedIncomeId = incomeIdMap.get(cert.payerName.toLowerCase());
+          }
+          
+          addCertificate({
+            id: crypto.randomUUID(),
+            ownerId: selectedEntityId,
+            taxYear: parsedData.taxYear,
+            certificateNo: cert.certificateNo,
+            issueDate: cert.issueDate || new Date().toISOString().split('T')[0],
+            type: cert.type,
+            details: {
+              payerName: cert.payerName,
+              payerTIN: cert.payerTIN,
+              grossAmount: cert.grossAmount,
+              taxDeducted: cert.taxDeducted,
+              netAmount: cert.netAmount,
+              description: cert.description,
+            },
+            relatedIncomeId,
+            verified: false,
+          });
+          
+          if (relatedIncomeId) {
+            console.log(`Linked certificate ${cert.certificateNo} to income ${relatedIncomeId}`);
+          }
         });
       }
 
@@ -487,6 +545,25 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
                         />
                         <div className="text-sm text-muted-foreground">
                           {income.source}: {formatLKR((income.dividends || 0) + (income.interest || 0) + (income.rent || 0))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {parsedData.certificates && parsedData.certificates.length > 0 && (
+                  <div className="rounded-lg border p-3 bg-yellow-50">
+                    <h4 className="font-medium text-sm mb-2">AIT/WHT Certificates ({parsedData.certificates.length})</h4>
+                    {parsedData.certificates.map((cert, idx) => (
+                      <div key={idx} className="flex items-start gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={selection.certificates[idx]}
+                          onChange={() => toggleSelection('certificates', idx)}
+                          className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <div className="text-sm text-muted-foreground">
+                          {cert.certificateNo} - {cert.payerName}: {formatLKR(cert.grossAmount)} (Tax: {formatLKR(cert.taxDeducted)})
                         </div>
                       </div>
                     ))}

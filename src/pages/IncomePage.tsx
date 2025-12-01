@@ -5,13 +5,14 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Edit, Briefcase, Building2, TrendingUp, ArrowLeft, ChevronDown, Calculator, FileText, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, Edit, Briefcase, Building2, TrendingUp, ArrowLeft, ChevronDown, Calculator, FileText, CheckCircle2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useStore } from '@/stores/useStore';
 import { EmploymentIncomeForm } from '@/components/EmploymentIncomeForm';
 import { BusinessIncomeForm } from '@/components/BusinessIncomeForm';
+import { IncomeSchedulePDFImportWizard } from '@/components/IncomeSchedulePDFImportWizard';
 import { formatLKR, calculateTotalIncome, calculateDerivedInvestmentIncome, computeTax, getTaxConfig } from '@/lib/taxEngine';
 import { formatTaxYear, getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Income, EmploymentIncome, BusinessIncome, InvestmentIncome } from '@/types';
@@ -32,6 +33,7 @@ export function IncomePage() {
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
   const [showTaxCalculator, setShowTaxCalculator] = useState(false);
   const [showTaxBreakdownDialog, setShowTaxBreakdownDialog] = useState(false);
+  const [showPdfImportWizard, setShowPdfImportWizard] = useState(false);
   const [manualTaxPayable, setManualTaxPayable] = useState<number>(0);
   const [manualTotalTax, setManualTotalTax] = useState<number>(0);
   const [selectedEntityForTax, setSelectedEntityForTax] = useState<string | null>(null);
@@ -254,6 +256,10 @@ export function IncomePage() {
               {currentYearIncomes.length} income source(s)
             </p>
           </div>
+          <Button onClick={() => setShowPdfImportWizard(true)} variant="outline">
+            <Upload className="h-4 w-4 mr-2" />
+            Import from PDF (T10)
+          </Button>
         </div>
 
         {/* Tax Year and Profile Selection */}
@@ -936,6 +942,12 @@ export function IncomePage() {
           </div>
         )}
       </div>
+      
+      {/* Income Schedule PDF Import Wizard */}
+      <IncomeSchedulePDFImportWizard
+        open={showPdfImportWizard}
+        onClose={() => setShowPdfImportWizard(false)}
+      />
     </div>
   );
 }

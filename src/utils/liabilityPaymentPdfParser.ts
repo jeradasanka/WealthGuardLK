@@ -4,6 +4,7 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getTaxYearForDate } from '../lib/taxYear';
 
 export interface ParsedLiabilityPayment {
   liabilityId?: string; // Will be linked later
@@ -39,19 +40,7 @@ async function fileToBase64(file: File): Promise<string> {
   });
 }
 
-/**
- * Determine tax year from payment date
- * Sri Lankan tax year runs from April 1 to March 31
- */
-function determineTaxYearFromDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1; // 0-indexed
-  
-  // If month is Jan-Mar, tax year is previous calendar year
-  // If month is Apr-Dec, tax year is current calendar year
-  return month <= 3 ? String(year - 1) : String(year);
-}
+
 
 /**
  * Parse liability payment PDF using Gemini AI
@@ -196,7 +185,7 @@ Extract all payment records from the PDF and return them in the JSON format abov
     const processedData = parsedData.map(payment => {
       // Ensure tax year is determined
       if (!payment.taxYear && payment.date) {
-        payment.taxYear = determineTaxYearFromDate(payment.date);
+        payment.taxYear = getTaxYearForDate(payment.date);
       }
       
       // Validate total = principal + interest

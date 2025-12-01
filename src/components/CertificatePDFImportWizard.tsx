@@ -146,7 +146,6 @@ export function CertificatePDFImportWizard({ onClose }: CertificatePDFImportWiza
           taxYear: cert.taxYear || getTaxYearForDate(cert.paymentDate),
           certificateNo: cert.certificateNo,
           paymentDate: cert.paymentDate,
-          paymentDate: cert.paymentDate,
           type: cert.type,
           details: {
             payerName: cert.payerName,

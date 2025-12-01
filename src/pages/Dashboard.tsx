@@ -8,6 +8,8 @@ import { useNavigate } from 'react-router-dom';
 import { FileText, Building2, Wallet, Settings, ArrowLeft, Upload, Download, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { DangerMeter } from '@/components/DangerMeter';
 import { PDFImportWizard } from '@/components/PDFImportWizard';
 import { useStore } from '@/stores/useStore';
@@ -23,6 +25,10 @@ export function Dashboard() {
   const [selectedEntityId, setSelectedEntityId] = useState<string | 'family'>('family');
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [showReportMenu, setShowReportMenu] = useState(false);
+  const [showDownloadDialog, setShowDownloadDialog] = useState(false);
+  const [downloadFormat, setDownloadFormat] = useState<'txt' | 'pdf'>('pdf');
+  const [downloadEntityId, setDownloadEntityId] = useState<string>('');
+  const [downloadTaxYear, setDownloadTaxYear] = useState<string>('');
   const reportMenuRef = useRef<HTMLDivElement>(null);
   
   const entities = useStore((state) => state.entities);
@@ -206,16 +212,31 @@ export function Dashboard() {
     : entities.find((e) => e.id === selectedEntityId);
 
   const handleDownloadTaxReport = (format: 'txt' | 'pdf') => {
-    if (format === 'pdf') {
+    setDownloadFormat(format);
+    // Set default entity (use primary entity if family view is selected)
+    const defaultEntity = selectedEntityId === 'family' 
+      ? entities[0]?.id || '' 
+      : selectedEntityId;
+    setDownloadEntityId(defaultEntity);
+    setDownloadTaxYear(currentTaxYear);
+    setShowReportMenu(false);
+    setShowDownloadDialog(true);
+  };
+
+  const handleConfirmDownload = () => {
+    const isFamily = downloadEntityId === 'family';
+    const entityId = isFamily ? undefined : downloadEntityId;
+    
+    if (downloadFormat === 'pdf') {
       downloadDetailedTaxReportPDF(
         entities,
         incomes,
         assets,
         liabilities,
         certificates,
-        currentTaxYear,
-        selectedEntityId === 'family',
-        selectedEntityId === 'family' ? undefined : selectedEntityId
+        downloadTaxYear,
+        isFamily,
+        entityId
       );
     } else {
       downloadDetailedTaxReport(
@@ -224,12 +245,12 @@ export function Dashboard() {
         assets,
         liabilities,
         certificates,
-        currentTaxYear,
-        selectedEntityId === 'family',
-        selectedEntityId === 'family' ? undefined : selectedEntityId
+        downloadTaxYear,
+        isFamily,
+        entityId
       );
     }
-    setShowReportMenu(false);
+    setShowDownloadDialog(false);
   };
 
   return (
@@ -599,6 +620,79 @@ export function Dashboard() {
         open={showImportWizard} 
         onClose={() => setShowImportWizard(false)} 
       />
+
+      {/* Tax Report Download Dialog */}
+      <Dialog open={showDownloadDialog} onOpenChange={setShowDownloadDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Download Tax Report</DialogTitle>
+            <DialogDescription>
+              Select the entity and tax year for the tax report. Format: {downloadFormat.toUpperCase()}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="report-entity">Entity</Label>
+              <select
+                id="report-entity"
+                className="w-full px-3 py-2 border rounded-md bg-white"
+                value={downloadEntityId}
+                onChange={(e) => setDownloadEntityId(e.target.value)}
+              >
+                {entities.length > 1 && (
+                  <option value="family">👨‍👩‍👧‍👦 Combined Family Return</option>
+                )}
+                {entities.map((entity, index) => (
+                  <option key={entity.id} value={entity.id}>
+                    {index === 0 ? '👤' : '👥'} {entity.name} {entity.tin ? `(TIN: ${entity.tin})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="report-year">Tax Year</Label>
+              <select
+                id="report-year"
+                className="w-full px-3 py-2 border rounded-md bg-white"
+                value={downloadTaxYear}
+                onChange={(e) => setDownloadTaxYear(e.target.value)}
+              >
+                {getTaxYearsFromStart(entities[0]?.taxYear || '2022').map((year) => (
+                  <option key={year} value={year}>
+                    {formatTaxYear(year)} (Ending: {year}-03-31)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+              <p className="text-sm text-blue-900">
+                <strong>Report Summary:</strong>
+              </p>
+              <ul className="text-sm text-blue-800 mt-2 space-y-1">
+                <li>• Entity: {downloadEntityId === 'family' 
+                  ? 'Combined Family' 
+                  : entities.find(e => e.id === downloadEntityId)?.name || 'Unknown'}
+                </li>
+                <li>• Tax Year: {formatTaxYear(downloadTaxYear)}</li>
+                <li>• Format: {downloadFormat.toUpperCase()}</li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDownloadDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmDownload}>
+              <Download className="w-4 h-4 mr-2" />
+              Download Report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

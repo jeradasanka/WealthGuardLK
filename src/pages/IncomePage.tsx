@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Edit, Briefcase, Building2, TrendingUp, ArrowLeft, ChevronDown, Calculator } from 'lucide-react';
+import { Plus, Trash2, Edit, Briefcase, Building2, TrendingUp, ArrowLeft, ChevronDown, Calculator, FileText, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -20,6 +20,7 @@ export function IncomePage() {
   const navigate = useNavigate();
   const incomes = useStore((state) => state.incomes);
   const assets = useStore((state) => state.assets);
+  const certificates = useStore((state) => state.certificates);
   const entities = useStore((state) => state.entities);
   const currentTaxYear = useStore((state) => state.currentTaxYear);
   const setCurrentTaxYear = useStore((state) => state.setCurrentTaxYear);
@@ -755,51 +756,91 @@ export function IncomePage() {
                 .map((income) => (
               <Card key={income.id}>
                 <CardContent className="py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-blue-50 rounded-lg">
-                        {getIncomeIcon(income.schedule)}
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-blue-50 rounded-lg">
+                          {getIncomeIcon(income.schedule)}
+                        </div>
+                        <div>
+                          <p className="font-semibold">
+                            {getIncomeTypeLabel(income)}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {getEntityName(income.ownerId)}
+                            {income.schedule === '1' && ` • ${(income as EmploymentIncome).details.employerName}`}
+                            {income.schedule === '2' && ` • ${(income as BusinessIncome).details.businessName}`}
+                            {income.schedule === '3' && ` • ${(income as InvestmentIncome).details.source}`}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold">
-                          {getIncomeTypeLabel(income)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {getEntityName(income.ownerId)}
-                          {income.schedule === '1' && ` • ${(income as EmploymentIncome).details.employerName}`}
-                          {income.schedule === '2' && ` • ${(income as BusinessIncome).details.businessName}`}
-                          {income.schedule === '3' && ` • ${(income as InvestmentIncome).details.source}`}
-                        </p>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">Amount</p>
+                          <p className="font-bold text-lg text-green-600">
+                            {formatLKR(getIncomeAmount(income))}
+                          </p>
+                          <p className="text-xs text-orange-600 mt-1">
+                            {income.schedule === '1' && `Tax: ${formatLKR((income as EmploymentIncome).details.apitDeducted)}`}
+                            {income.schedule === '3' && `WHT: ${formatLKR((income as InvestmentIncome).details.whtDeducted)}`}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(income)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(income.id)}
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Amount</p>
-                        <p className="font-bold text-lg text-green-600">
-                          {formatLKR(getIncomeAmount(income))}
-                        </p>
-                        <p className="text-xs text-orange-600 mt-1">
-                          {income.schedule === '1' && `Tax: ${formatLKR((income as EmploymentIncome).details.apitDeducted)}`}
-                          {income.schedule === '3' && `WHT: ${formatLKR((income as InvestmentIncome).details.whtDeducted)}`}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(income)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(income.id)}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </Button>
-                      </div>
-                    </div>
+                    {(() => {
+                      const linkedCerts = certificates.filter(cert => cert.relatedIncomeId === income.id && cert.taxYear === currentTaxYear);
+                      if (linkedCerts.length > 0) {
+                        return (
+                          <div className="mt-3 pt-3 border-t border-slate-200">
+                            <div className="flex items-center gap-2 mb-2">
+                              <FileText className="w-4 h-4 text-slate-500" />
+                              <span className="text-xs font-medium text-slate-600">Linked Certificates ({linkedCerts.length})</span>
+                            </div>
+                            <div className="space-y-1.5">
+                              {linkedCerts.map(cert => (
+                                <div key={cert.id} className="flex items-center justify-between bg-yellow-50 border border-yellow-200 rounded px-3 py-2">
+                                  <div className="flex items-center gap-2">
+                                    {cert.verified && <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />}
+                                    <span className="text-xs font-medium text-slate-700">{cert.certificateNo}</span>
+                                    <span className="text-xs text-slate-500">•</span>
+                                    <span className="text-xs text-slate-600">{cert.details.payerName}</span>
+                                  </div>
+                                  <div className="flex items-center gap-3 text-xs">
+                                    <span className="text-slate-600">Gross: {formatLKR(cert.details.grossAmount)}</span>
+                                    <span className="text-red-600 font-medium">Tax: {formatLKR(cert.details.taxDeducted)}</span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-2 text-xs"
+                                      onClick={() => navigate(`/certificates/edit/${cert.id}`)}
+                                    >
+                                      View
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </CardContent>
               </Card>

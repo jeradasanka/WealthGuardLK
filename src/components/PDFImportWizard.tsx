@@ -171,13 +171,17 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
       console.log('Starting import with data:', parsedData);
       console.log('Selected entity:', selectedEntityId);
       
+      // Map to track income IDs for certificate linking
+      const incomeIdMap = new Map<string, string>(); // key: TIN or source, value: income ID
+      
       // Import employment income
       if (parsedData.employmentIncome && parsedData.employmentIncome.length > 0) {
         const selectedItems = parsedData.employmentIncome.filter((_, idx) => selection.employmentIncome[idx]);
         console.log('Importing employment income:', selectedItems.length);
         selectedItems.forEach(income => {
+          const incomeId = crypto.randomUUID();
           addIncome({
-            id: crypto.randomUUID(),
+            id: incomeId,
             ownerId: selectedEntityId,
             type: 'employment',
             schedule: '1',
@@ -192,6 +196,10 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
               exemptIncome: income.exemptIncome || 0,
             },
           });
+          // Map employer TIN to income ID for certificate linking
+          if (income.employerTIN) {
+            incomeIdMap.set(income.employerTIN, incomeId);
+          }
         });
       }
 
@@ -222,8 +230,9 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
         const selectedItems = parsedData.investmentIncome.filter((_, idx) => selection.investmentIncome[idx]);
         console.log('Importing investment income:', selectedItems.length);
         selectedItems.forEach(income => {
+          const incomeId = crypto.randomUUID();
           addIncome({
-            id: crypto.randomUUID(),
+            id: incomeId,
             ownerId: selectedEntityId,
             type: 'investment',
             schedule: '3',
@@ -236,14 +245,29 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
               rent: income.rent || 0,
             },
           });
+          // Map source name to income ID for certificate linking
+          incomeIdMap.set(income.source.toLowerCase(), incomeId);
         });
       }
 
-      // Import certificates
+      // Import certificates with linking to income
       if (parsedData.certificates && parsedData.certificates.length > 0) {
         const selectedItems = parsedData.certificates.filter((_, idx) => selection.certificates[idx]);
         console.log('Importing certificates:', selectedItems.length);
         selectedItems.forEach(cert => {
+          // Try to find related income by TIN or payer name
+          let relatedIncomeId: string | undefined;
+          
+          // First try matching by TIN
+          if (cert.payerTIN) {
+            relatedIncomeId = incomeIdMap.get(cert.payerTIN);
+          }
+          
+          // If no TIN match, try matching by payer name (case-insensitive)
+          if (!relatedIncomeId && cert.payerName) {
+            relatedIncomeId = incomeIdMap.get(cert.payerName.toLowerCase());
+          }
+          
           addCertificate({
             id: crypto.randomUUID(),
             ownerId: selectedEntityId,
@@ -259,8 +283,13 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
               netAmount: cert.netAmount,
               description: cert.description,
             },
+            relatedIncomeId,
             verified: false,
           });
+          
+          if (relatedIncomeId) {
+            console.log(`Linked certificate ${cert.certificateNo} to income ${relatedIncomeId}`);
+          }
         });
       }
 

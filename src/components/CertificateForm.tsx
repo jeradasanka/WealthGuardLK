@@ -22,6 +22,7 @@ export function CertificateForm({ certificateId, onCancel }: CertificateFormProp
   const navigate = useNavigate();
   const entities = useStore((state) => state.entities);
   const certificates = useStore((state) => state.certificates);
+  const incomes = useStore((state) => state.incomes);
   const addCertificate = useStore((state) => state.addCertificate);
   const updateCertificate = useStore((state) => state.updateCertificate);
   const saveToStorage = useStore((state) => state.saveToStorage);
@@ -42,6 +43,7 @@ export function CertificateForm({ certificateId, onCancel }: CertificateFormProp
     taxDeducted: existingCertificate?.details.taxDeducted?.toString() || '',
     netAmount: existingCertificate?.details.netAmount?.toString() || '',
     description: existingCertificate?.details.description || '',
+    relatedIncomeId: existingCertificate?.relatedIncomeId || '',
     notes: existingCertificate?.notes || '',
     verified: existingCertificate?.verified || false,
   });
@@ -109,6 +111,7 @@ export function CertificateForm({ certificateId, onCancel }: CertificateFormProp
         netAmount: parseFloat(formData.netAmount),
         description: formData.description.trim() || undefined,
       },
+      relatedIncomeId: formData.relatedIncomeId || undefined,
       notes: formData.notes.trim() || undefined,
       verified: formData.verified,
     };
@@ -311,6 +314,39 @@ export function CertificateForm({ certificateId, onCancel }: CertificateFormProp
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
+          </div>
+
+          {/* Link to Income Entry */}
+          <div className="space-y-2">
+            <Label htmlFor="relatedIncomeId">Link to Income Entry (Optional)</Label>
+            <select
+              id="relatedIncomeId"
+              className="w-full px-3 py-2 border rounded-md"
+              value={formData.relatedIncomeId}
+              onChange={(e) => setFormData({ ...formData, relatedIncomeId: e.target.value })}
+            >
+              <option value="">Not linked to any income entry</option>
+              {incomes
+                .filter(income => income.ownerId === formData.ownerId && income.taxYear === formData.taxYear)
+                .map(income => {
+                  let label = '';
+                  if (income.schedule === '1') {
+                    label = `Employment: ${(income as any).details.employerName}`;
+                  } else if (income.schedule === '2') {
+                    label = `Business: ${(income as any).details.businessName}`;
+                  } else if (income.schedule === '3') {
+                    label = `Investment: ${(income as any).details.source}`;
+                  }
+                  return (
+                    <option key={income.id} value={income.id}>
+                      {label}
+                    </option>
+                  );
+                })}
+            </select>
+            <p className="text-xs text-slate-500">
+              Link this certificate to a specific income entry for better tracking
+            </p>
           </div>
 
           {/* Notes */}

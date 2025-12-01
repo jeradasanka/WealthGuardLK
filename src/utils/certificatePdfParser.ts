@@ -87,7 +87,9 @@ Extract ALL certificate data from this PDF document and return it as a JSON arra
    - Auto-calculate Net Amount if not explicitly stated: Net = Gross - Tax
 
 7. **Period Information**:
-   - Tax Year: Extract or derive the tax year (format: "YYYY/YYYY", e.g., "2024/2025")
+   - Tax Year: Extract or derive the tax year (format: "YYYY", e.g., "2024" for tax year 2024/2025)
+     * If date is April-December: use that year (e.g., Dec 2024 = "2024")
+     * If date is Jan-March: use previous year (e.g., Feb 2025 = "2024")
    - Period: Specific period covered (e.g., "January 2024", "Q1 2024", "Full Year 2024")
 
 8. **Description**: Brief description of the income source (e.g., "Salary - ABC Company", "FD Interest - Bank XYZ", "Rent - Property Address")
@@ -108,7 +110,7 @@ Return ONLY a valid JSON array (no markdown formatting, no explanatory text):
     "taxDeducted": number,
     "netAmount": number,
     "description": "string",
-    "taxYear": "YYYY/YYYY",
+    "taxYear": "YYYY",
     "period": "string"
   }
 ]
@@ -118,6 +120,7 @@ Return ONLY a valid JSON array (no markdown formatting, no explanatory text):
 - Use null for missing optional fields
 - Ensure all amounts are numeric (no currency symbols)
 - Validate that netAmount = grossAmount - taxDeducted
+- Tax year format is "YYYY" (just the starting year, e.g., "2024" for FY 2024/2025)
 - If tax year cannot be determined, use null
 - Be precise with TIN numbers (usually 9-12 digits for Sri Lanka)
 
@@ -166,6 +169,7 @@ Analyze the PDF and extract the certificate data:`;
 /**
  * Determine tax year from issue date
  * Sri Lankan tax year: April 1 to March 31
+ * Returns the starting year (e.g., "2024" for FY 2024/2025)
  */
 export function determineTaxYearFromDate(dateString: string): string {
   const date = new Date(dateString);
@@ -173,10 +177,10 @@ export function determineTaxYearFromDate(dateString: string): string {
   const year = date.getFullYear();
 
   if (month >= 4) {
-    // April to December: current year / next year
-    return `${year}/${year + 1}`;
+    // April to December: current year is the tax year
+    return year.toString();
   } else {
-    // January to March: previous year / current year
-    return `${year - 1}/${year}`;
+    // January to March: previous year is the tax year
+    return (year - 1).toString();
   }
 }

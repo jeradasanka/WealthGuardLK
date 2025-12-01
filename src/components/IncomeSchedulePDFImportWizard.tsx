@@ -102,11 +102,46 @@ export function IncomeSchedulePDFImportWizard({ open, onClose }: IncomeScheduleP
       setParsedData(data);
       setSelectedIncomes(new Array(data.length).fill(true));
       
-      // Try to auto-detect entity from employment details
+      // Try to auto-detect entity from employment or business TIN
+      let detectedEntityId: string | null = null;
+      
+      // Check employment income for employer TIN match
       const employmentIncome = data.find(d => d.schedule === '1' && d.employmentDetails);
       if (employmentIncome?.employmentDetails?.employerTIN) {
-        // This won't work directly, but we can check if user has income from this employer
-        console.log('Employment TIN found:', employmentIncome.employmentDetails.employerTIN);
+        const entityByTin = entities.find(e => e.tin === employmentIncome.employmentDetails?.employerTIN);
+        if (entityByTin) {
+          detectedEntityId = entityByTin.id;
+          console.log('Auto-detected entity by employment TIN:', entityByTin.name);
+        }
+      }
+      
+      // If not found, check business TIN
+      if (!detectedEntityId) {
+        const businessIncome = data.find(d => d.schedule === '2' && d.businessDetails);
+        if (businessIncome?.businessDetails?.businessTIN) {
+          const entityByTin = entities.find(e => e.tin === businessIncome.businessDetails?.businessTIN);
+          if (entityByTin) {
+            detectedEntityId = entityByTin.id;
+            console.log('Auto-detected entity by business TIN:', entityByTin.name);
+          }
+        }
+      }
+      
+      // If not found, try matching by name (case-insensitive partial match)
+      if (!detectedEntityId && employmentIncome?.employmentDetails?.employerName) {
+        const entityByName = entities.find(e => 
+          e.name.toLowerCase().includes(employmentIncome.employmentDetails!.employerName.toLowerCase()) ||
+          employmentIncome.employmentDetails!.employerName.toLowerCase().includes(e.name.toLowerCase())
+        );
+        if (entityByName) {
+          detectedEntityId = entityByName.id;
+          console.log('Auto-detected entity by employer name:', entityByName.name);
+        }
+      }
+      
+      if (detectedEntityId) {
+        setSelectedEntityId(detectedEntityId);
+        setAutoDetectedEntity(detectedEntityId);
       }
       
       setStep('preview');
@@ -334,10 +369,13 @@ export function IncomeSchedulePDFImportWizard({ open, onClose }: IncomeScheduleP
                 <option value="">Select Entity</option>
                 {entities.map((entity) => (
                   <option key={entity.id} value={entity.id}>
-                    {entity.name} (TIN: {entity.tin})
+                    {entity.name} (TIN: {entity.tin}){entity.id === autoDetectedEntity ? ' ✓ Auto-detected' : ''}
                   </option>
                 ))}
               </select>
+              {autoDetectedEntity && (
+                <p className="text-sm text-green-600">✓ Entity auto-detected from PDF (TIN match)</p>
+              )}
             </div>
 
             <div className="space-y-3">

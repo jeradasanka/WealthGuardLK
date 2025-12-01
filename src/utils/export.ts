@@ -3,7 +3,7 @@
  * Handles JSON backup, IRD Schedule 7 CSV, and detailed tax reports
  */
 
-import type { InvestmentIncome, Income, Asset, Liability, TaxEntity } from '@/types';
+import type { InvestmentIncome, Income, Asset, Liability, TaxEntity, AITWHTCertificate } from '@/types';
 import { exportData } from './storage';
 import { computeTax, formatLKR, calculateTotalIncome, calculateAuditRisk, getTaxBreakdown, getJewelleryMarketValue } from '@/lib/taxEngine';
 import { jsPDF } from 'jspdf';
@@ -178,6 +178,7 @@ export function generateDetailedTaxReport(
   incomes: Income[],
   assets: Asset[],
   liabilities: Liability[],
+  certificates: AITWHTCertificate[],
   taxYear: string,
   isFamily: boolean,
   selectedEntityId?: string
@@ -210,6 +211,10 @@ export function generateDetailedTaxReport(
         if (l.ownershipShares && l.ownershipShares.some(s => s.entityId === selectedEntityId)) return true;
         return false;
       });
+  
+  const filteredCertificates = isFamily 
+    ? certificates.filter(c => c.taxYear === taxYear)
+    : certificates.filter(c => c.ownerId === selectedEntityId && c.taxYear === taxYear);
 
   // Calculate totals
   const totalAssets = filteredAssets.reduce((sum, a) => sum + a.financials.marketValue, 0);
@@ -326,6 +331,123 @@ INCOME SUMMARY (IRD Schedules 1-3)
     report += `│ TOTAL INVESTMENT INCOME: ${formatLKR(incomeBreakdown.investmentIncome)}\n`;
   } else {
     report += `│ No investment income declared for this period.\n`;
+  }
+  report += `└──────────────────────────────────────────────────────────────────────────┘\n\n`;
+
+  // TAX CREDITS SECTION - APIT/WHT CERTIFICATES
+  report += `
+TAX CREDITS (IRD Cages 903 & 908)
+════════════════════════════════════════════════════════════════════════════
+
+┌─ APIT CERTIFICATES (CAGE 903) ───────────────────────────────────────────┐
+`;
+
+  const apitCertificates = filteredCertificates.filter(c => c.type === 'employment');
+  if (apitCertificates.length > 0) {
+    apitCertificates.forEach((cert, idx) => {
+      report += `
+│ ${idx + 1}. Certificate No: ${cert.certificateNo}
+`;
+      report += `│    Payer (Employer):     ${cert.details.payerName}
+`;
+      report += `│    Payer TIN:            ${cert.details.payerTIN}
+`;
+      report += `│    Payment Date:         ${cert.paymentDate}
+`;
+      report += `│    Gross Amount:         ${formatLKR(cert.details.grossAmount)}
+`;
+      report += `│    APIT Deducted:        ${formatLKR(cert.details.taxDeducted)}
+`;
+      report += `│    Net Amount:           ${formatLKR(cert.details.netAmount)}
+`;
+      if (cert.details.description) {
+        report += `│    Description:          ${cert.details.description}
+`;
+      }
+      report += `│    ───────────────────────────────────────────────────────────────────
+`;
+    });
+    const totalAPIT = apitCertificates.reduce((sum, c) => sum + c.details.taxDeducted, 0);
+    report += `│ TOTAL APIT (Cage 903): ${formatLKR(totalAPIT)}\n`;
+  } else {
+    report += `│ No APIT certificates for this period.\n`;
+  }
+  report += `└──────────────────────────────────────────────────────────────────────────┘\n\n`;
+
+  report += `┌─ WHT CERTIFICATES (CAGE 908) ────────────────────────────────────────────┐
+`;
+  const whtCertificates = filteredCertificates.filter(c => c.type !== 'employment');
+  
+  if (whtCertificates.length > 0) {
+    // Group by type
+    const interestWHT = whtCertificates.filter(c => c.type === 'interest');
+    const dividendWHT = whtCertificates.filter(c => c.type === 'dividend');
+    const rentWHT = whtCertificates.filter(c => c.type === 'rent');
+    const otherWHT = whtCertificates.filter(c => c.type === 'other');
+
+    if (interestWHT.length > 0) {
+      report += `│\n│ INTEREST INCOME WHT (Cage 308):\n`;
+      interestWHT.forEach((cert, idx) => {
+        report += `│ ${idx + 1}. Certificate No: ${cert.certificateNo}\n`;
+        report += `│    Payer (Bank):         ${cert.details.payerName}\n`;
+        report += `│    Payer TIN:            ${cert.details.payerTIN}\n`;
+        report += `│    Payment Date:         ${cert.paymentDate}\n`;
+        report += `│    Gross Interest:       ${formatLKR(cert.details.grossAmount)}\n`;
+        report += `│    WHT Deducted:         ${formatLKR(cert.details.taxDeducted)}\n`;
+        report += `│    Net Amount:           ${formatLKR(cert.details.netAmount)}\n`;
+        report += `│    ───────────────────────────────────────────────────────────────────\n`;
+      });
+    }
+
+    if (dividendWHT.length > 0) {
+      report += `│\n│ DIVIDEND INCOME WHT:\n`;
+      dividendWHT.forEach((cert, idx) => {
+        report += `│ ${idx + 1}. Certificate No: ${cert.certificateNo}\n`;
+        report += `│    Payer (Company):      ${cert.details.payerName}\n`;
+        report += `│    Payer TIN:            ${cert.details.payerTIN}\n`;
+        report += `│    Payment Date:         ${cert.paymentDate}\n`;
+        report += `│    Gross Dividend:       ${formatLKR(cert.details.grossAmount)}\n`;
+        report += `│    WHT Deducted:         ${formatLKR(cert.details.taxDeducted)}\n`;
+        report += `│    Net Amount:           ${formatLKR(cert.details.netAmount)}\n`;
+        report += `│    ───────────────────────────────────────────────────────────────────\n`;
+      });
+    }
+
+    if (rentWHT.length > 0) {
+      report += `│\n│ RENT INCOME WHT:\n`;
+      rentWHT.forEach((cert, idx) => {
+        report += `│ ${idx + 1}. Certificate No: ${cert.certificateNo}\n`;
+        report += `│    Payer (Tenant):       ${cert.details.payerName}\n`;
+        report += `│    Payer TIN:            ${cert.details.payerTIN}\n`;
+        report += `│    Payment Date:         ${cert.paymentDate}\n`;
+        report += `│    Gross Rent:           ${formatLKR(cert.details.grossAmount)}\n`;
+        report += `│    WHT Deducted:         ${formatLKR(cert.details.taxDeducted)}\n`;
+        report += `│    Net Amount:           ${formatLKR(cert.details.netAmount)}\n`;
+        report += `│    ───────────────────────────────────────────────────────────────────\n`;
+      });
+    }
+
+    if (otherWHT.length > 0) {
+      report += `│\n│ OTHER WHT:\n`;
+      otherWHT.forEach((cert, idx) => {
+        report += `│ ${idx + 1}. Certificate No: ${cert.certificateNo}\n`;
+        report += `│    Payer:                ${cert.details.payerName}\n`;
+        report += `│    Payer TIN:            ${cert.details.payerTIN}\n`;
+        report += `│    Payment Date:         ${cert.paymentDate}\n`;
+        report += `│    Gross Amount:         ${formatLKR(cert.details.grossAmount)}\n`;
+        report += `│    WHT Deducted:         ${formatLKR(cert.details.taxDeducted)}\n`;
+        report += `│    Net Amount:           ${formatLKR(cert.details.netAmount)}\n`;
+        if (cert.details.description) {
+          report += `│    Description:          ${cert.details.description}\n`;
+        }
+        report += `│    ───────────────────────────────────────────────────────────────────\n`;
+      });
+    }
+
+    const totalWHT = whtCertificates.reduce((sum, c) => sum + c.details.taxDeducted, 0);
+    report += `│\n│ TOTAL WHT (Cage 908): ${formatLKR(totalWHT)}\n`;
+  } else {
+    report += `│ No WHT certificates for this period.\n`;
   }
   report += `└──────────────────────────────────────────────────────────────────────────┘\n\n`;
 
@@ -512,6 +634,7 @@ export function downloadDetailedTaxReport(
   incomes: Income[],
   assets: Asset[],
   liabilities: Liability[],
+  certificates: AITWHTCertificate[],
   taxYear: string,
   isFamily: boolean,
   selectedEntityId?: string
@@ -521,6 +644,7 @@ export function downloadDetailedTaxReport(
     incomes,
     assets,
     liabilities,
+    certificates,
     taxYear,
     isFamily,
     selectedEntityId
@@ -549,6 +673,7 @@ export function downloadDetailedTaxReportPDF(
   incomes: Income[],
   assets: Asset[],
   liabilities: Liability[],
+  certificates: AITWHTCertificate[],
   taxYear: string,
   isFamily: boolean,
   selectedEntityId?: string
@@ -581,6 +706,10 @@ export function downloadDetailedTaxReportPDF(
         if (l.ownershipShares && l.ownershipShares.some((s: any) => s.entityId === selectedEntityId)) return true;
         return false;
       });
+
+  const filteredCertificates = isFamily 
+    ? certificates.filter(c => c.taxYear === taxYear)
+    : certificates.filter(c => c.ownerId === selectedEntityId && c.taxYear === taxYear);
 
   // Calculate totals
   const totalAssets = filteredAssets.reduce((sum, a) => sum + a.financials.marketValue, 0);
@@ -762,6 +891,138 @@ export function downloadDetailedTaxReportPDF(
   } else {
     doc.text('No investment income declared for this period.', margin + 10, yPos);
     yPos += lineHeight + 3;
+  }
+
+  // Tax Credits Section - Certificates
+  checkPageBreak(30);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TAX CREDITS (APIT & WHT CERTIFICATES)', margin, yPos);
+  yPos += lineHeight + 3;
+
+  // APIT Certificates (Cage 903)
+  doc.setFontSize(12);
+  doc.text('APIT CERTIFICATES (Cage 903)', margin + 5, yPos);
+  yPos += lineHeight;
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  const apitCertificates = filteredCertificates.filter(c => c.type === 'employment');
+  if (apitCertificates.length > 0) {
+    apitCertificates.forEach((cert, idx) => {
+      checkPageBreak(30);
+      doc.text(`${idx + 1}. Cert No: ${cert.certificateNo}`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   Payer: ${cert.details.payerName} (TIN: ${cert.details.payerTIN})`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   Payment Date: ${cert.paymentDate}`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   Gross Amount: ${formatLKR(cert.details.grossAmount)}`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   APIT Deducted: ${formatLKR(cert.details.taxDeducted)}`, margin + 10, yPos);
+      yPos += lineHeight + 2;
+    });
+    const totalAPIT = apitCertificates.reduce((sum, c) => sum + c.details.taxDeducted, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`TOTAL APIT: ${formatLKR(totalAPIT)}`, margin + 10, yPos);
+    yPos += lineHeight + 3;
+  } else {
+    doc.text('No APIT certificates for this period.', margin + 10, yPos);
+    yPos += lineHeight + 3;
+  }
+
+  // WHT Certificates (Cage 908)
+  checkPageBreak(25);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('WHT CERTIFICATES (Cage 908)', margin + 5, yPos);
+  yPos += lineHeight;
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  const whtCertificates = filteredCertificates.filter(c => c.type !== 'employment');
+  
+  if (whtCertificates.length > 0) {
+    const interestWHT = whtCertificates.filter(c => c.type === 'interest');
+    const dividendWHT = whtCertificates.filter(c => c.type === 'dividend');
+    const rentWHT = whtCertificates.filter(c => c.type === 'rent');
+    const otherWHT = whtCertificates.filter(c => c.type === 'other');
+
+    if (interestWHT.length > 0) {
+      checkPageBreak(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Interest Income WHT:', margin + 10, yPos);
+      yPos += lineHeight;
+      doc.setFont('helvetica', 'normal');
+      interestWHT.forEach((cert, idx) => {
+        checkPageBreak(25);
+        doc.text(`${idx + 1}. Cert No: ${cert.certificateNo}`, margin + 15, yPos);
+        yPos += lineHeight;
+        doc.text(`   Payer: ${cert.details.payerName}`, margin + 15, yPos);
+        yPos += lineHeight;
+        doc.text(`   Date: ${cert.paymentDate} | Gross: ${formatLKR(cert.details.grossAmount)} | WHT: ${formatLKR(cert.details.taxDeducted)}`, margin + 15, yPos);
+        yPos += lineHeight + 1;
+      });
+    }
+
+    if (dividendWHT.length > 0) {
+      checkPageBreak(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Dividend Income WHT:', margin + 10, yPos);
+      yPos += lineHeight;
+      doc.setFont('helvetica', 'normal');
+      dividendWHT.forEach((cert, idx) => {
+        checkPageBreak(25);
+        doc.text(`${idx + 1}. Cert No: ${cert.certificateNo}`, margin + 15, yPos);
+        yPos += lineHeight;
+        doc.text(`   Payer: ${cert.details.payerName}`, margin + 15, yPos);
+        yPos += lineHeight;
+        doc.text(`   Date: ${cert.paymentDate} | Gross: ${formatLKR(cert.details.grossAmount)} | WHT: ${formatLKR(cert.details.taxDeducted)}`, margin + 15, yPos);
+        yPos += lineHeight + 1;
+      });
+    }
+
+    if (rentWHT.length > 0) {
+      checkPageBreak(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Rent Income WHT:', margin + 10, yPos);
+      yPos += lineHeight;
+      doc.setFont('helvetica', 'normal');
+      rentWHT.forEach((cert, idx) => {
+        checkPageBreak(25);
+        doc.text(`${idx + 1}. Cert No: ${cert.certificateNo}`, margin + 15, yPos);
+        yPos += lineHeight;
+        doc.text(`   Payer: ${cert.details.payerName}`, margin + 15, yPos);
+        yPos += lineHeight;
+        doc.text(`   Date: ${cert.paymentDate} | Gross: ${formatLKR(cert.details.grossAmount)} | WHT: ${formatLKR(cert.details.taxDeducted)}`, margin + 15, yPos);
+        yPos += lineHeight + 1;
+      });
+    }
+
+    if (otherWHT.length > 0) {
+      checkPageBreak(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Other WHT:', margin + 10, yPos);
+      yPos += lineHeight;
+      doc.setFont('helvetica', 'normal');
+      otherWHT.forEach((cert, idx) => {
+        checkPageBreak(25);
+        doc.text(`${idx + 1}. Cert No: ${cert.certificateNo}`, margin + 15, yPos);
+        yPos += lineHeight;
+        doc.text(`   Payer: ${cert.details.payerName}`, margin + 15, yPos);
+        yPos += lineHeight;
+        doc.text(`   Date: ${cert.paymentDate} | Gross: ${formatLKR(cert.details.grossAmount)} | WHT: ${formatLKR(cert.details.taxDeducted)}`, margin + 15, yPos);
+        yPos += lineHeight + 1;
+      });
+    }
+
+    const totalWHT = whtCertificates.reduce((sum, c) => sum + c.details.taxDeducted, 0);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`TOTAL WHT: ${formatLKR(totalWHT)}`, margin + 10, yPos);
+    yPos += lineHeight + 5;
+  } else {
+    doc.text('No WHT certificates for this period.', margin + 10, yPos);
+    yPos += lineHeight + 5;
   }
 
   // Assets Section

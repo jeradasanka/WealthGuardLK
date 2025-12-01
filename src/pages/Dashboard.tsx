@@ -29,6 +29,7 @@ export function Dashboard() {
   const assets = useStore((state) => state.assets);
   const liabilities = useStore((state) => state.liabilities);
   const incomes = useStore((state) => state.incomes);
+  const certificates = useStore((state) => state.certificates);
   const currentTaxYear = useStore((state) => state.currentTaxYear);
   const setCurrentTaxYear = useStore((state) => state.setCurrentTaxYear);
   const saveToStorage = useStore((state) => state.saveToStorage);
@@ -211,6 +212,7 @@ export function Dashboard() {
         incomes,
         assets,
         liabilities,
+        certificates,
         currentTaxYear,
         selectedEntityId === 'family',
         selectedEntityId === 'family' ? undefined : selectedEntityId
@@ -221,6 +223,7 @@ export function Dashboard() {
         incomes,
         assets,
         liabilities,
+        certificates,
         currentTaxYear,
         selectedEntityId === 'family',
         selectedEntityId === 'family' ? undefined : selectedEntityId

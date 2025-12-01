@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Lock, Users, Upload } from 'lucide-react';
+import { Shield, Lock, Users, Upload, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,6 +27,10 @@ export function Setup() {
   const setStorePassphrase = useStore((state) => state.setPassphrase);
   const addEntity = useStore((state) => state.addEntity);
   const saveToStorage = useStore((state) => state.saveToStorage);
+  const setUseAiParsing = useStore((state) => state.setUseAiParsing);
+  const setGeminiApiKey = useStore((state) => state.setGeminiApiKey);
+  const [showGeminiSetup, setShowGeminiSetup] = useState(false);
+  const [geminiKey, setGeminiKey] = useState('');
 
   const handleGeneratePassphrase = () => {
     const generated = generatePassphrase();
@@ -110,6 +114,81 @@ export function Setup() {
                   </p>
                 </div>
               </div>
+              
+              <div className="flex gap-3 items-start">
+                <Sparkles className="w-5 h-5 text-blue-600 mt-1" />
+                <div>
+                  <h3 className="font-semibold">AI-Powered PDF Import (Optional)</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Use Google Gemini AI to automatically extract data from RAMIS tax return PDFs with high accuracy.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Optional Gemini API Setup */}
+            <div className="border rounded-lg p-4 bg-gradient-to-r from-purple-50 to-blue-50">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-5 h-5 text-purple-600" />
+                <h3 className="font-semibold text-sm">Enable AI-Powered PDF Import</h3>
+              </div>
+              {!showGeminiSetup ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Optionally enable AI to extract tax data from RAMIS PDFs with higher accuracy.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setShowGeminiSetup(true)}
+                    className="w-full"
+                  >
+                    Setup Gemini AI (Optional)
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Enter your Google Gemini API key. Get one free at{' '}
+                    <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                      Google AI Studio
+                    </a>
+                  </p>
+                  <Input
+                    type="password"
+                    placeholder="Enter Gemini API Key"
+                    value={geminiKey}
+                    onChange={(e) => setGeminiKey(e.target.value)}
+                    className="text-sm"
+                  />
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      onClick={() => {
+                        if (geminiKey.trim()) {
+                          setGeminiApiKey(geminiKey);
+                          setUseAiParsing(true);
+                          alert('Gemini AI enabled! You can now use AI-powered PDF import.');
+                        }
+                      }}
+                      disabled={!geminiKey.trim()}
+                      className="flex-1"
+                    >
+                      Enable AI
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => {
+                        setShowGeminiSetup(false);
+                        setGeminiKey('');
+                      }}
+                    >
+                      Skip
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

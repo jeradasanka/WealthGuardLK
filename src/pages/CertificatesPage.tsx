@@ -5,18 +5,20 @@
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, Pencil, Trash2, CheckCircle2, Circle } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Pencil, Trash2, CheckCircle2, Circle, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
 import { formatLKR } from '@/lib/taxEngine';
 import { formatTaxYear, getTaxYearsFromStart } from '@/lib/taxYear';
 import type { AITWHTCertificate } from '@/types';
+import { CertificatePDFImportWizard } from '@/components/CertificatePDFImportWizard';
 
 export function CertificatesPage() {
   const navigate = useNavigate();
   const [selectedEntityId, setSelectedEntityId] = useState<string | 'all'>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
+  const [showPDFImport, setShowPDFImport] = useState(false);
   
   const entities = useStore((state) => state.entities);
   const certificates = useStore((state) => state.certificates);
@@ -132,13 +134,24 @@ export function CertificatesPage() {
                 <p className="text-sm text-slate-600">Track Advance Personal Income Tax and Withholding Tax certificates</p>
               </div>
             </div>
-            <Button onClick={() => navigate('/certificates/new')}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Certificate
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowPDFImport(true)}>
+                <Upload className="w-4 h-4 mr-2" />
+                Import from PDF
+              </Button>
+              <Button onClick={() => navigate('/certificates/new')}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Certificate
+              </Button>
+            </div>
           </div>
         </div>
       </header>
+
+      {/* PDF Import Wizard */}
+      {showPDFImport && (
+        <CertificatePDFImportWizard onClose={() => setShowPDFImport(false)} />
+      )}
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">

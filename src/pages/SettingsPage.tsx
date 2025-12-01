@@ -3,7 +3,7 @@
  * Manage entity profile, passphrase, and application settings
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Settings as SettingsIcon, Download, Upload, Shield, User, Calendar, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import { EntityForm } from '@/components/EntityForm';
 import { deriveKey } from '@/utils/crypto';
 import { storePassphrase, clearStoredPassphrase } from '@/utils/storage';
 import { getRecentTaxYears, formatTaxYear } from '@/lib/taxYear';
-import { AVAILABLE_GEMINI_MODELS } from '@/utils/geminiPdfParser';
+import { fetchAvailableGeminiModels, FALLBACK_GEMINI_MODELS } from '@/utils/geminiPdfParser';
 
 export function SettingsPage() {
   const navigate = useNavigate();
@@ -46,6 +46,26 @@ export function SettingsPage() {
   const [error, setError] = useState('');
   const [showAddFamily, setShowAddFamily] = useState(false);
   const [editingEntity, setEditingEntity] = useState<string | null>(null);
+  const [availableModels, setAvailableModels] = useState<Array<{ value: string; label: string; description: string }>>([
+    ...FALLBACK_GEMINI_MODELS
+  ]);
+  const [loadingModels, setLoadingModels] = useState(false);
+
+  // Fetch available models when AI is enabled and API key is set
+  useEffect(() => {
+    if (useAiParsing && geminiApiKey && geminiApiKey.trim() !== '') {
+      setLoadingModels(true);
+      fetchAvailableGeminiModels(geminiApiKey)
+        .then(models => {
+          setAvailableModels(models);
+          setLoadingModels(false);
+        })
+        .catch(err => {
+          console.error('Failed to fetch models:', err);
+          setLoadingModels(false);
+        });
+    }
+  }, [useAiParsing, geminiApiKey]);
 
   const entity = entities[0];
 
@@ -303,16 +323,23 @@ export function SettingsPage() {
                     id="geminiModel"
                     value={geminiModel}
                     onChange={(e) => setGeminiModel(e.target.value)}
-                    className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    disabled={loadingModels}
+                    className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
                   >
-                    {AVAILABLE_GEMINI_MODELS.map((model) => (
+                    {availableModels.map((model) => (
                       <option key={model.value} value={model.value}>
                         {model.label} - {model.description}
                       </option>
                     ))}
                   </select>
                   <p className="text-xs text-gray-600 mt-1">
-                    Select the default Gemini model for PDF parsing. You can change this per-import in the PDF Import dialog.
+                    {loadingModels ? (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="animate-pulse">⏳</span> Loading available models from your API...
+                      </span>
+                    ) : (
+                      `${availableModels.length} model${availableModels.length !== 1 ? 's' : ''} available. This is your default model (can be changed per-import).`
+                    )}
                   </p>
                 </div>
                 

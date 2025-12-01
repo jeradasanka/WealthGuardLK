@@ -6,12 +6,67 @@
 import { ParsedTaxData } from '@/types/import';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Available Gemini models for RAMIS PDF parsing
-export const AVAILABLE_GEMINI_MODELS = [
+export interface GeminiModelInfo {
+  name: string;
+  displayName: string;
+  description: string;
+  supportedGenerationMethods: string[];
+}
+
+// Fallback models in case API fetch fails
+export const FALLBACK_GEMINI_MODELS = [
   { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Experimental)', description: 'Latest model, fastest' },
   { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', description: 'Fast and efficient' },
   { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', description: 'More capable, slower' },
 ] as const;
+
+/**
+ * Fetch available Gemini models from the API
+ * Returns models that support generateContent method for PDF parsing
+ */
+export async function fetchAvailableGeminiModels(apiKey: string): Promise<Array<{ value: string; label: string; description: string }>> {
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch models: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    // Filter models that support generateContent and are suitable for our use case
+    const models = data.models
+      .filter((model: any) => 
+        model.supportedGenerationMethods?.includes('generateContent') &&
+        (model.name.includes('gemini') || model.name.includes('Gemini'))
+      )
+      .map((model: any) => {
+        // Extract model name from "models/gemini-xxx" format
+        const modelName = model.name.replace('models/', '');
+        
+        return {
+          value: modelName,
+          label: model.displayName || modelName,
+          description: model.description || 'Gemini AI model'
+        };
+      })
+      .sort((a: any, b: any) => {
+        // Sort by version (2.0 first, then 1.5, then others)
+        if (a.value.includes('2.0') && !b.value.includes('2.0')) return -1;
+        if (!a.value.includes('2.0') && b.value.includes('2.0')) return 1;
+        if (a.value.includes('1.5') && !b.value.includes('1.5')) return -1;
+        if (!a.value.includes('1.5') && b.value.includes('1.5')) return 1;
+        return a.label.localeCompare(b.label);
+      });
+    
+    console.log(`Fetched ${models.length} available Gemini models from API`);
+    return models.length > 0 ? models : [...FALLBACK_GEMINI_MODELS];
+    
+  } catch (error) {
+    console.warn('Failed to fetch Gemini models from API, using fallback list:', error);
+    return [...FALLBACK_GEMINI_MODELS];
+  }
+}
 
 const SYSTEM_PROMPT = `You are an expert Sri Lankan tax document parser specialized in RAMIS (Revenue Administration Management Information System) "Individual income tax - Confirmation" documents.
 

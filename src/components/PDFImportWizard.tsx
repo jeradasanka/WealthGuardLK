@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Upload, FileText, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { ParsedTaxData, ImportPreview, ImportConflict } from '@/types/import';
 import { parseTaxPDF } from '@/utils/pdfParser';
-import { parseWithGeminiDirect, AVAILABLE_GEMINI_MODELS } from '@/utils/geminiPdfParser';
+import { parseWithGeminiDirect, fetchAvailableGeminiModels, FALLBACK_GEMINI_MODELS } from '@/utils/geminiPdfParser';
 import { useStore } from '@/stores/useStore';
 import { formatLKR } from '@/lib/taxEngine';
 
@@ -45,6 +45,26 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
   const geminiModel = useStore((state) => state.geminiModel);
   const setGeminiModel = useStore((state) => state.setGeminiModel);
   const [selectedEntityId, setSelectedEntityId] = useState<string>(entities[0]?.id || '');
+  const [availableModels, setAvailableModels] = useState<Array<{ value: string; label: string; description: string }>>([
+    ...FALLBACK_GEMINI_MODELS
+  ]);
+  const [loadingModels, setLoadingModels] = useState(false);
+
+  // Fetch available models when dialog opens and API key is available
+  useEffect(() => {
+    if (open && useAiParsing && geminiApiKey && geminiApiKey.trim() !== '') {
+      setLoadingModels(true);
+      fetchAvailableGeminiModels(geminiApiKey)
+        .then(models => {
+          setAvailableModels(models);
+          setLoadingModels(false);
+        })
+        .catch(err => {
+          console.error('Failed to fetch models:', err);
+          setLoadingModels(false);
+        });
+    }
+  }, [open, useAiParsing, geminiApiKey]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -313,16 +333,23 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
                   id="model-select"
                   value={geminiModel}
                   onChange={(e) => setGeminiModel(e.target.value)}
-                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  disabled={loadingModels}
+                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
                 >
-                  {AVAILABLE_GEMINI_MODELS.map((model) => (
+                  {availableModels.map((model) => (
                     <option key={model.value} value={model.value}>
                       {model.label} - {model.description}
                     </option>
                   ))}
                 </select>
                 <p className="text-xs text-muted-foreground">
-                  Select the Gemini model to use for parsing. Newer models may be faster but could have different capabilities.
+                  {loadingModels ? (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="animate-pulse">⏳</span> Loading available models from your API...
+                    </span>
+                  ) : (
+                    `${availableModels.length} model${availableModels.length !== 1 ? 's' : ''} available. Select the model to use for parsing.`
+                  )}
                 </p>
               </div>
             )}

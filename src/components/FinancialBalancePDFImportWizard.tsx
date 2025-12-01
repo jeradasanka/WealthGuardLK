@@ -13,7 +13,7 @@ import { useStore } from '@/stores/useStore';
 import { parseFinancialBalancePdf, type ParsedFinancialBalance } from '@/utils/financialBalancePdfParser';
 import { fetchAvailableGeminiModels, FALLBACK_GEMINI_MODELS } from '@/utils/geminiPdfParser';
 import { formatLKR } from '@/lib/taxEngine';
-import { formatTaxYear, getTaxYearsFromStart } from '@/lib/taxYear';
+import { formatTaxYear, getTaxYearsFromStart, getTaxYearForDate } from '@/lib/taxYear';
 
 interface FinancialBalancePDFImportWizardProps {
   open: boolean;
@@ -100,7 +100,7 @@ export function FinancialBalancePDFImportWizard({
       
       // Aggregate balances by tax year (use the latest/closing balance for each year)
       const aggregatedByYear = data.reduce((acc, balance) => {
-        const year = balance.taxYear;
+        const year = getTaxYearForDate(balance.statementPeriod?.to || balance.statementPeriod?.from || new Date().toISOString());
         if (!acc[year]) {
           acc[year] = {
             taxYear: year,

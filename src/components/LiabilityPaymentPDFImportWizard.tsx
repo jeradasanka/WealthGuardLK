@@ -13,7 +13,7 @@ import { useStore } from '@/stores/useStore';
 import { parseLiabilityPaymentPdf, type ParsedLiabilityPayment } from '@/utils/liabilityPaymentPdfParser';
 import { fetchAvailableGeminiModels, FALLBACK_GEMINI_MODELS } from '@/utils/geminiPdfParser';
 import { formatLKR } from '@/lib/taxEngine';
-import { formatTaxYear, getTaxYearsFromStart } from '@/lib/taxYear';
+import { formatTaxYear, getTaxYearsFromStart, getTaxYearForDate } from '@/lib/taxYear';
 
 interface LiabilityPaymentPDFImportWizardProps {
   open: boolean;
@@ -93,7 +93,7 @@ export function LiabilityPaymentPDFImportWizard({
       
       // Aggregate payments by tax year
       const aggregatedByYear = data.reduce((acc, payment) => {
-        const year = payment.taxYear;
+        const year = getTaxYearForDate(payment.date);
         if (!acc[year]) {
           acc[year] = {
             taxYear: year,

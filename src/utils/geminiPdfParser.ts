@@ -34,12 +34,21 @@ export async function fetchAvailableGeminiModels(apiKey: string): Promise<Array<
     
     const data = await response.json();
     
-    // Filter models that support generateContent and are suitable for our use case
+    // Filter models that support generateContent and are suitable for PDF parsing
+    // Only include full Gemini models (exclude nano, text-embedding, etc.)
     const models = data.models
-      .filter((model: any) => 
-        model.supportedGenerationMethods?.includes('generateContent') &&
-        (model.name.includes('gemini') || model.name.includes('Gemini'))
-      )
+      .filter((model: any) => {
+        const name = model.name.toLowerCase();
+        return (
+          model.supportedGenerationMethods?.includes('generateContent') &&
+          name.includes('gemini') &&
+          // Exclude models not suitable for complex PDF parsing
+          !name.includes('nano') &&
+          !name.includes('embedding') &&
+          !name.includes('text-embedding') &&
+          !name.includes('aqa')
+        );
+      })
       .map((model: any) => {
         // Extract model name from "models/gemini-xxx" format
         const modelName = model.name.replace('models/', '');

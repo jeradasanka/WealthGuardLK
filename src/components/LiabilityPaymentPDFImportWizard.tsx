@@ -32,12 +32,11 @@ export function LiabilityPaymentPDFImportWizard({
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [parsedData, setParsedData] = useState<ParsedLiabilityPayment[]>([]);
-  const [selectedPayments, setSelectedPayments] = useState<boolean[]>([]);
+  const [parsedData, setParsedData] = useState<any[]>([]);
   const [selectedLiabilityId, setSelectedLiabilityId] = useState<string>(preSelectedLiabilityId || '');
   const [availableModels, setAvailableModels] = useState<Array<{ value: string; label: string; description: string }>>([...FALLBACK_GEMINI_MODELS]);
   const [loadingModels, setLoadingModels] = useState(false);
-  const [taxYearOverrides, setTaxYearOverrides] = useState<{ [key: number]: string }>({});
+  const [taxYearOverrides, setTaxYearOverrides] = useState<{ [taxYear: string]: string }>({});
   const [entityOverride, setEntityOverride] = useState<string>('');
 
   const liabilities = useStore((state) => state.liabilities);
@@ -92,8 +91,29 @@ export function LiabilityPaymentPDFImportWizard({
       console.log('Parsing liability payment PDF with Gemini AI...');
       const data = await parseLiabilityPaymentPdf(file, geminiApiKey, geminiModel);
       
-      setParsedData(data);
-      setSelectedPayments(new Array(data.length).fill(true));
+      // Aggregate payments by tax year
+      const aggregatedByYear = data.reduce((acc, payment) => {
+        const year = payment.taxYear;
+        if (!acc[year]) {
+          acc[year] = {
+            taxYear: year,
+            principalPaid: 0,
+            interestPaid: 0,
+            totalPaid: 0,
+            payments: [],
+            lenderName: payment.lenderName,
+            loanAccountNumber: payment.loanAccountNumber,
+          };
+        }
+        acc[year].principalPaid += payment.principalPaid;
+        acc[year].interestPaid += payment.interestPaid;
+        acc[year].totalPaid += payment.totalPaid;
+        acc[year].payments.push(payment);
+        return acc;
+      }, {} as Record<string, any>);
+      
+      const aggregatedData = Object.values(aggregatedByYear);
+      setParsedData(aggregatedData);
       setStep('preview');
     } catch (err) {
       console.error('Parse error:', err);
@@ -103,36 +123,27 @@ export function LiabilityPaymentPDFImportWizard({
     }
   };
 
-  const toggleSelection = (index: number) => {
-    const newSelection = [...selectedPayments];
-    newSelection[index] = !newSelection[index];
-    setSelectedPayments(newSelection);
-  };
-
   const handleImport = () => {
     if (!selectedLiabilityId) {
       setError('Please select a liability');
       return;
     }
 
-    let importedCount = 0;
-    parsedData.forEach((payment, index) => {
-      if (selectedPayments[index]) {
-        addPaymentToLiability(selectedLiabilityId, {
-          id: `pmt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          date: payment.date,
-          principalPaid: payment.principalPaid,
-          interestPaid: payment.interestPaid,
-          totalPaid: payment.totalPaid,
-          balanceAfterPayment: payment.balanceAfterPayment,
-          taxYear: payment.taxYear,
-          notes: payment.notes || `Imported from ${file?.name || 'PDF'}${payment.paymentReference ? ` - Ref: ${payment.paymentReference}` : ''}`,
-        });
-        importedCount++;
-      }
+    parsedData.forEach((yearData) => {
+      const taxYear = taxYearOverrides[yearData.taxYear] || yearData.taxYear;
+      const paymentDates = yearData.payments.map((p: any) => p.date).join(', ');
+      
+      addPaymentToLiability(selectedLiabilityId, {
+        id: `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        taxYear,
+        date: yearData.payments[yearData.payments.length - 1].date, // Use last payment date
+        principalPaid: yearData.principalPaid,
+        interestPaid: yearData.interestPaid,
+        notes: `Imported from ${file?.name || 'PDF'} - ${yearData.payments.length} payment(s) for FY ${taxYear}${paymentDates ? ` (Dates: ${paymentDates})` : ''}`,
+      });
     });
 
-    console.log(`Imported ${importedCount} payment records`);
+    console.log(`Imported ${parsedData.length} aggregated payment record(s)`);
     setStep('complete');
   };
 
@@ -140,8 +151,9 @@ export function LiabilityPaymentPDFImportWizard({
     setStep('upload');
     setFile(null);
     setParsedData([]);
-    setSelectedPayments([]);
     setError(null);
+    setTaxYearOverrides({});
+    setEntityOverride('');
     setSelectedLiabilityId(preSelectedLiabilityId || '');
     onClose();
   };
@@ -300,36 +312,28 @@ export function LiabilityPaymentPDFImportWizard({
             </div>
 
             <div className="space-y-3">
-              <h3 className="font-medium">Payment Records Found: {parsedData.length}</h3>
-              <p className="text-sm text-gray-600">Select the payment records to import:</p>
+              <h3 className="font-medium">Aggregated Payment Records by Tax Year: {parsedData.length}</h3>
+              <p className="text-sm text-gray-600">Review the aggregated payment data:</p>
               
-              {parsedData.map((payment, idx) => {
+              {parsedData.map((yearData) => {
                 const availableTaxYears = getTaxYearsFromStart(entities[0]?.taxYear || '2022');
                 return (
-                <Card key={idx} className={!selectedPayments[idx] ? 'opacity-50' : ''}>
+                <Card key={yearData.taxYear}>
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedPayments[idx]}
-                          onChange={() => toggleSelection(idx)}
-                          className="mt-1"
-                        />
-                        <div className="flex-1">
-                          <CardTitle className="text-base">
-                            Payment on {payment.date} - {formatTaxYear(taxYearOverrides[idx] || payment.taxYear)}
-                          </CardTitle>
-                          {payment.lenderName && (
-                            <p className="text-sm text-gray-600 mt-1">Lender: {payment.lenderName}</p>
-                          )}
-                        </div>
+                      <div className="flex-1">
+                        <CardTitle className="text-base">
+                          Tax Year: {formatTaxYear(taxYearOverrides[yearData.taxYear] || yearData.taxYear)} ({yearData.payments.length} payment{yearData.payments.length > 1 ? 's' : ''})
+                        </CardTitle>
+                        {yearData.lenderName && (
+                          <p className="text-sm text-gray-600 mt-1">Lender: {yearData.lenderName}</p>
+                        )}
                       </div>
                       <div className="ml-4">
                         <select
                           className="text-sm px-2 py-1 border rounded"
-                          value={taxYearOverrides[idx] || payment.taxYear}
-                          onChange={(e) => setTaxYearOverrides({ ...taxYearOverrides, [idx]: e.target.value })}
+                          value={taxYearOverrides[yearData.taxYear] || yearData.taxYear}
+                          onChange={(e) => setTaxYearOverrides({ ...taxYearOverrides, [yearData.taxYear]: e.target.value })}
                           onClick={(e) => e.stopPropagation()}
                         >
                           {availableTaxYears.map(year => (
@@ -342,33 +346,33 @@ export function LiabilityPaymentPDFImportWizard({
                   <CardContent>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-gray-600">Total Payment</p>
-                        <p className="font-semibold text-lg">{formatLKR(payment.totalPaid)}</p>
+                        <p className="text-sm text-gray-600">Total Payments</p>
+                        <p className="font-semibold text-lg">{yearData.payments.length}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Balance After Payment</p>
-                        <p className="font-semibold text-green-600">{formatLKR(payment.balanceAfterPayment)}</p>
+                        <p className="text-sm text-gray-600">Total Amount Paid</p>
+                        <p className="font-semibold text-green-600">{formatLKR(yearData.totalPaid)}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Principal Paid</p>
-                        <p className="font-medium">{formatLKR(payment.principalPaid)}</p>
+                        <p className="font-medium">{formatLKR(yearData.principalPaid)}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Interest Paid</p>
-                        <p className="font-medium text-red-600">{formatLKR(payment.interestPaid)}</p>
+                        <p className="font-medium text-red-600">{formatLKR(yearData.interestPaid)}</p>
                       </div>
-                      {payment.paymentReference && (
-                        <div className="col-span-2">
-                          <p className="text-sm text-gray-600">Reference</p>
-                          <p className="font-medium">{payment.paymentReference}</p>
-                        </div>
-                      )}
-                      {payment.loanAccountNumber && (
+                      {yearData.loanAccountNumber && (
                         <div className="col-span-2">
                           <p className="text-sm text-gray-600">Loan Account</p>
-                          <p className="font-medium">{payment.loanAccountNumber}</p>
+                          <p className="font-medium">{yearData.loanAccountNumber}</p>
                         </div>
                       )}
+                      <div className="col-span-2">
+                        <p className="text-sm text-gray-600">Payment Dates</p>
+                        <p className="font-medium text-xs">
+                          {yearData.payments.map((p: any) => p.date).join(', ')}
+                        </p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -389,8 +393,8 @@ export function LiabilityPaymentPDFImportWizard({
               <Button variant="outline" onClick={() => setStep('upload')}>
                 Back
               </Button>
-              <Button onClick={handleImport} disabled={!selectedLiabilityId || !selectedPayments.some(s => s)}>
-                Import {selectedPayments.filter(s => s).length} Payment(s)
+              <Button onClick={handleImport} disabled={!selectedLiabilityId || parsedData.length === 0}>
+                Import {parsedData.length} Tax Year Record(s)
               </Button>
             </div>
           </div>
@@ -403,7 +407,7 @@ export function LiabilityPaymentPDFImportWizard({
               <CheckCircle className="mx-auto h-16 w-16 text-green-600" />
               <h3 className="mt-4 text-lg font-semibold">Import Successful!</h3>
               <p className="text-gray-600 mt-2">
-                {selectedPayments.filter(s => s).length} payment record(s) have been imported successfully.
+                {parsedData.length} aggregated payment record(s) have been imported successfully.
               </p>
             </div>
 

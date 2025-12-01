@@ -32,12 +32,11 @@ export function FinancialBalancePDFImportWizard({
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [parsedData, setParsedData] = useState<ParsedFinancialBalance[]>([]);
-  const [selectedBalances, setSelectedBalances] = useState<boolean[]>([]);
+  const [parsedData, setParsedData] = useState<any[]>([]);
   const [selectedAssetId, setSelectedAssetId] = useState<string>(preSelectedAssetId || '');
   const [availableModels, setAvailableModels] = useState<Array<{ value: string; label: string; description: string }>>([...FALLBACK_GEMINI_MODELS]);
   const [loadingModels, setLoadingModels] = useState(false);
-  const [taxYearOverrides, setTaxYearOverrides] = useState<{ [key: number]: string }>({});
+  const [taxYearOverrides, setTaxYearOverrides] = useState<{ [taxYear: string]: string }>({});
   const [entityOverride, setEntityOverride] = useState<string>('');
 
   const assets = useStore((state) => state.assets);
@@ -99,8 +98,32 @@ export function FinancialBalancePDFImportWizard({
       console.log('Parsing financial balance PDF with Gemini AI...');
       const data = await parseFinancialBalancePdf(file, geminiApiKey, geminiModel);
       
-      setParsedData(data);
-      setSelectedBalances(new Array(data.length).fill(true));
+      // Aggregate balances by tax year (use the latest/closing balance for each year)
+      const aggregatedByYear = data.reduce((acc, balance) => {
+        const year = balance.taxYear;
+        if (!acc[year]) {
+          acc[year] = {
+            taxYear: year,
+            closingBalance: balance.closingBalance,
+            interestEarned: 0,
+            balances: [],
+            bankName: balance.bankName,
+            accountType: balance.accountType,
+            accountNumber: balance.accountNumber,
+          };
+        }
+        // Sum interest earned across all statements for the year
+        acc[year].interestEarned += balance.interestEarned;
+        // Keep the latest closing balance
+        if (balance.closingBalance > 0) {
+          acc[year].closingBalance = balance.closingBalance;
+        }
+        acc[year].balances.push(balance);
+        return acc;
+      }, {} as Record<string, any>);
+      
+      const aggregatedData = Object.values(aggregatedByYear);
+      setParsedData(aggregatedData);
       setStep('preview');
     } catch (err) {
       console.error('Parse error:', err);
@@ -110,34 +133,29 @@ export function FinancialBalancePDFImportWizard({
     }
   };
 
-  const toggleSelection = (index: number) => {
-    const newSelection = [...selectedBalances];
-    newSelection[index] = !newSelection[index];
-    setSelectedBalances(newSelection);
-  };
-
   const handleImport = () => {
     if (!selectedAssetId) {
       setError('Please select a financial asset');
       return;
     }
 
-    let importedCount = 0;
-    parsedData.forEach((balance, index) => {
-      if (selectedBalances[index]) {
-        const taxYear = taxYearOverrides[index] || balance.taxYear;
-        addBalanceToAsset(selectedAssetId, {
-          id: `bal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          taxYear,
-          closingBalance: balance.closingBalance,
-          interestEarned: balance.interestEarned,
-          notes: balance.notes || `Imported from ${file?.name || 'PDF'} - ${balance.bankName || 'Bank'} ${balance.accountType || 'Account'}`,
-        });
-        importedCount++;
-      }
+    parsedData.forEach((yearData) => {
+      const taxYear = taxYearOverrides[yearData.taxYear] || yearData.taxYear;
+      const periods = yearData.balances
+        .filter((b: any) => b.statementPeriod)
+        .map((b: any) => `${b.statementPeriod.from} to ${b.statementPeriod.to}`)
+        .join('; ');
+      
+      addBalanceToAsset(selectedAssetId, {
+        id: `bal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        taxYear,
+        closingBalance: yearData.closingBalance,
+        interestEarned: yearData.interestEarned,
+        notes: `Imported from ${file?.name || 'PDF'} - ${yearData.balances.length} statement(s) for FY ${taxYear}${periods ? ` (${periods})` : ''}`,
+      });
     });
 
-    console.log(`Imported ${importedCount} balance records`);
+    console.log(`Imported ${parsedData.length} aggregated balance record(s)`);
     setStep('complete');
   };
 
@@ -145,8 +163,9 @@ export function FinancialBalancePDFImportWizard({
     setStep('upload');
     setFile(null);
     setParsedData([]);
-    setSelectedBalances([]);
     setError(null);
+    setTaxYearOverrides({});
+    setEntityOverride('');
     setSelectedAssetId(preSelectedAssetId || '');
     onClose();
   };
@@ -304,36 +323,28 @@ export function FinancialBalancePDFImportWizard({
             </div>
 
             <div className="space-y-3">
-              <h3 className="font-medium">Balance Records Found: {parsedData.length}</h3>
-              <p className="text-sm text-gray-600">Select the balance records to import:</p>
+              <h3 className="font-medium">Aggregated Balance Records by Tax Year: {parsedData.length}</h3>
+              <p className="text-sm text-gray-600">Review the aggregated balance data:</p>
               
-              {parsedData.map((balance, idx) => {
+              {parsedData.map((yearData) => {
                 const availableTaxYears = getTaxYearsFromStart(entities[0]?.taxYear || '2022');
                 return (
-                <Card key={idx} className={!selectedBalances[idx] ? 'opacity-50' : ''}>
+                <Card key={yearData.taxYear}>
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedBalances[idx]}
-                          onChange={() => toggleSelection(idx)}
-                          className="mt-1"
-                        />
-                        <div className="flex-1">
-                          <CardTitle className="text-base">
-                            {balance.bankName || 'Financial Institution'} - {formatTaxYear(taxYearOverrides[idx] || balance.taxYear)}
-                          </CardTitle>
-                          {balance.accountType && (
-                            <p className="text-sm text-gray-600 mt-1">{balance.accountType}</p>
-                          )}
-                        </div>
+                      <div className="flex-1">
+                        <CardTitle className="text-base">
+                          {yearData.bankName || 'Financial Institution'} - {formatTaxYear(taxYearOverrides[yearData.taxYear] || yearData.taxYear)}
+                        </CardTitle>
+                        {yearData.accountType && (
+                          <p className="text-sm text-gray-600 mt-1">{yearData.accountType} ({yearData.balances.length} statement{yearData.balances.length > 1 ? 's' : ''})</p>
+                        )}
                       </div>
                       <div className="ml-4">
                         <select
                           className="text-sm px-2 py-1 border rounded"
-                          value={taxYearOverrides[idx] || balance.taxYear}
-                          onChange={(e) => setTaxYearOverrides({ ...taxYearOverrides, [idx]: e.target.value })}
+                          value={taxYearOverrides[yearData.taxYear] || yearData.taxYear}
+                          onChange={(e) => setTaxYearOverrides({ ...taxYearOverrides, [yearData.taxYear]: e.target.value })}
                           onClick={(e) => e.stopPropagation()}
                         >
                           {availableTaxYears.map(year => (
@@ -346,33 +357,32 @@ export function FinancialBalancePDFImportWizard({
                   <CardContent>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-gray-600">Closing Balance</p>
-                        <p className="font-semibold text-green-600">{formatLKR(balance.closingBalance)}</p>
+                        <p className="text-sm text-gray-600">Closing Balance (Latest)</p>
+                        <p className="font-semibold text-green-600">{formatLKR(yearData.closingBalance)}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Interest Earned</p>
-                        <p className="font-semibold">{formatLKR(balance.interestEarned)}</p>
+                        <p className="text-sm text-gray-600">Total Interest Earned</p>
+                        <p className="font-semibold">{formatLKR(yearData.interestEarned)}</p>
                       </div>
-                      {balance.openingBalance !== undefined && (
+                      <div>
+                        <p className="text-sm text-gray-600">Statements</p>
+                        <p className="font-medium">{yearData.balances.length}</p>
+                      </div>
+                      {yearData.accountNumber && (
                         <div>
-                          <p className="text-sm text-gray-600">Opening Balance</p>
-                          <p className="font-medium">{formatLKR(balance.openingBalance)}</p>
-                        </div>
-                      )}
-                      {balance.statementPeriod && (
-                        <div>
-                          <p className="text-sm text-gray-600">Period</p>
-                          <p className="font-medium text-sm">
-                            {balance.statementPeriod.from} to {balance.statementPeriod.to}
-                          </p>
-                        </div>
-                      )}
-                      {balance.accountNumber && (
-                        <div className="col-span-2">
                           <p className="text-sm text-gray-600">Account Number</p>
-                          <p className="font-medium">{balance.accountNumber}</p>
+                          <p className="font-medium">{yearData.accountNumber}</p>
                         </div>
                       )}
+                      <div className="col-span-2">
+                        <p className="text-sm text-gray-600">Statement Periods</p>
+                        <p className="font-medium text-xs">
+                          {yearData.balances
+                            .filter((b: any) => b.statementPeriod)
+                            .map((b: any) => `${b.statementPeriod.from} to ${b.statementPeriod.to}`)
+                            .join('; ') || 'N/A'}
+                        </p>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -393,8 +403,8 @@ export function FinancialBalancePDFImportWizard({
               <Button variant="outline" onClick={() => setStep('upload')}>
                 Back
               </Button>
-              <Button onClick={handleImport} disabled={!selectedAssetId || !selectedBalances.some(s => s)}>
-                Import {selectedBalances.filter(s => s).length} Balance(s)
+              <Button onClick={handleImport} disabled={!selectedAssetId || parsedData.length === 0}>
+                Import {parsedData.length} Tax Year Record(s)
               </Button>
             </div>
           </div>
@@ -407,7 +417,7 @@ export function FinancialBalancePDFImportWizard({
               <CheckCircle className="mx-auto h-16 w-16 text-green-600" />
               <h3 className="mt-4 text-lg font-semibold">Import Successful!</h3>
               <p className="text-gray-600 mt-2">
-                {selectedBalances.filter(s => s).length} balance record(s) have been imported successfully.
+                {parsedData.length} aggregated balance record(s) have been imported successfully.
               </p>
             </div>
 

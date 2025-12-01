@@ -22,11 +22,14 @@ interface CertificatePDFImportWizardProps {
 export function CertificatePDFImportWizard({ onClose }: CertificatePDFImportWizardProps) {
   const navigate = useNavigate();
   const entities = useStore((state) => state.entities);
+  const certificates = useStore((state) => state.certificates);
   const addCertificate = useStore((state) => state.addCertificate);
   const saveToStorage = useStore((state) => state.saveToStorage);
   const geminiApiKey = useStore((state) => state.geminiApiKey);
   const geminiModel = useStore((state) => state.geminiModel);
   const setGeminiModel = useStore((state) => state.setGeminiModel);
+
+  console.log('CertificatePDFImportWizard mounted, current certificates:', certificates.length);
 
   const [file, setFile] = useState<File | null>(null);
   const [selectedOwnerId, setSelectedOwnerId] = useState(entities[0]?.id || '');
@@ -135,6 +138,7 @@ export function CertificatePDFImportWizard({ onClose }: CertificatePDFImportWiza
     setError(null);
 
     try {
+      let addedCount = 0;
       for (const cert of certificatesToImport) {
         const newCertificate = {
           id: `cert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -155,16 +159,23 @@ export function CertificatePDFImportWizard({ onClose }: CertificatePDFImportWiza
           verified: false,
         };
 
-        console.log('Adding certificate:', newCertificate);
+        console.log(`Adding certificate ${addedCount + 1}/${certificatesToImport.length}:`, newCertificate);
         addCertificate(newCertificate);
+        addedCount++;
         
         // Small delay to ensure unique IDs
         await new Promise(resolve => setTimeout(resolve, 10));
       }
 
+      console.log(`Added ${addedCount} certificates. Current store count:`, certificates.length + addedCount);
       console.log('Saving to storage...');
       await saveToStorage();
-      console.log('Import complete, moving to complete step');
+      console.log('Storage saved successfully');
+      
+      // Verify certificates were added
+      const finalCount = useStore.getState().certificates.length;
+      console.log('Final certificate count after save:', finalCount);
+      
       setStep('complete');
     } catch (err) {
       console.error('Import error:', err);

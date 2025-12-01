@@ -29,6 +29,15 @@ export function CertificatesPage() {
   const updateCertificate = useStore((state) => state.updateCertificate);
   const saveToStorage = useStore((state) => state.saveToStorage);
 
+  console.log('CertificatesPage - Total certificates in store:', certificates.length);
+  console.log('CertificatesPage - Current tax year:', currentTaxYear);
+  console.log('CertificatesPage - Certificates by year:', 
+    certificates.reduce((acc, c) => {
+      acc[c.taxYear] = (acc[c.taxYear] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>)
+  );
+
   // Get available tax years
   const availableTaxYears = useMemo(() => {
     if (entities.length === 0) return [currentTaxYear];
@@ -70,6 +79,11 @@ export function CertificatesPage() {
     if (selectedType !== 'all' && cert.type !== selectedType) return false;
     return true;
   });
+
+  console.log('CertificatesPage - Filtered certificates:', filteredCertificates.length, 
+    'for tax year', currentTaxYear, 
+    'entity:', selectedEntityId, 
+    'type:', selectedType);
 
   // Combine certificates with employment income from schedules
   const allCertificates = useMemo(() => {

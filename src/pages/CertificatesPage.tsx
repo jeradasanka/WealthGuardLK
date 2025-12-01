@@ -20,6 +20,7 @@ export function CertificatesPage() {
   
   const entities = useStore((state) => state.entities);
   const certificates = useStore((state) => state.certificates);
+  const incomes = useStore((state) => state.incomes);
   const currentTaxYear = useStore((state) => state.currentTaxYear);
   const setCurrentTaxYear = useStore((state) => state.setCurrentTaxYear);
   const removeCertificate = useStore((state) => state.removeCertificate);
@@ -36,6 +37,30 @@ export function CertificatesPage() {
     return getTaxYearsFromStart(oldestTaxYear);
   }, [entities, currentTaxYear]);
 
+  // Get employment income from income schedules (Schedule 1)
+  const employmentIncomes = useMemo(() => {
+    return incomes
+      .filter(income => income.schedule === '1' && income.taxYear === currentTaxYear)
+      .filter(income => selectedEntityId === 'all' || income.ownerId === selectedEntityId)
+      .map(income => ({
+        id: income.id,
+        ownerId: income.ownerId,
+        taxYear: income.taxYear,
+        certificateNo: 'From Income Schedule',
+        issueDate: '',
+        type: 'employment' as const,
+        details: {
+          payerName: (income as any).details.employerName,
+          payerTIN: (income as any).details.employerTIN,
+          grossAmount: (income as any).details.grossRemuneration,
+          taxDeducted: (income as any).details.apitDeducted,
+          netAmount: (income as any).details.grossRemuneration - (income as any).details.apitDeducted,
+        },
+        fromIncomeSchedule: true,
+        verified: true,
+      }));
+  }, [incomes, currentTaxYear, selectedEntityId]);
+
   // Filter certificates
   const filteredCertificates = certificates.filter((cert) => {
     if (cert.taxYear !== currentTaxYear) return false;
@@ -44,10 +69,18 @@ export function CertificatesPage() {
     return true;
   });
 
-  // Calculate totals
-  const totalGross = filteredCertificates.reduce((sum, c) => sum + c.details.grossAmount, 0);
-  const totalTaxDeducted = filteredCertificates.reduce((sum, c) => sum + c.details.taxDeducted, 0);
-  const totalNetAmount = filteredCertificates.reduce((sum, c) => sum + c.details.netAmount, 0);
+  // Combine certificates with employment income from schedules
+  const allCertificates = useMemo(() => {
+    if (selectedType === 'all' || selectedType === 'employment') {
+      return [...employmentIncomes, ...filteredCertificates];
+    }
+    return filteredCertificates;
+  }, [employmentIncomes, filteredCertificates, selectedType]);
+
+  // Calculate totals from all certificates (including employment income)
+  const totalGross = allCertificates.reduce((sum, c) => sum + c.details.grossAmount, 0);
+  const totalTaxDeducted = allCertificates.reduce((sum, c) => sum + c.details.taxDeducted, 0);
+  const totalNetAmount = allCertificates.reduce((sum, c) => sum + c.details.netAmount, 0);
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this certificate?')) {
@@ -241,7 +274,7 @@ export function CertificatesPage() {
               <CardDescription>Total Certificates</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-slate-900">{filteredCertificates.length}</p>
+              <p className="text-2xl font-bold text-slate-900">{allCertificates.length}</p>
             </CardContent>
           </Card>
 
@@ -274,7 +307,7 @@ export function CertificatesPage() {
         </div>
 
         {/* Certificates List */}
-        {filteredCertificates.length === 0 ? (
+        {allCertificates.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <FileText className="w-12 h-12 mx-auto text-slate-400 mb-4" />
@@ -308,25 +341,35 @@ export function CertificatesPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {filteredCertificates.map((cert) => {
+                    {allCertificates.map((cert) => {
                       const owner = entities.find((e) => e.id === cert.ownerId);
+                      const fromSchedule = (cert as any).fromIncomeSchedule;
                       
                       return (
-                        <tr key={cert.id} className="hover:bg-slate-50 transition-colors">
+                        <tr key={cert.id} className={`hover:bg-slate-50 transition-colors ${fromSchedule ? 'bg-blue-50/30' : ''}`}>
                           <td className="px-4 py-2">
-                            <button
-                              onClick={() => handleToggleVerified(cert)}
-                              title={cert.verified ? 'Verified - Click to unverify' : 'Unverified - Click to verify'}
-                              className="hover:scale-110 transition-transform"
-                            >
-                              {cert.verified ? (
-                                <CheckCircle2 className="w-4 h-4 text-green-600" />
-                              ) : (
-                                <Circle className="w-4 h-4 text-slate-400" />
-                              )}
-                            </button>
+                            {fromSchedule ? (
+                              <CheckCircle2 className="w-4 h-4 text-blue-600" title="From Income Schedule" />
+                            ) : (
+                              <button
+                                onClick={() => handleToggleVerified(cert)}
+                                title={cert.verified ? 'Verified - Click to unverify' : 'Unverified - Click to verify'}
+                                className="hover:scale-110 transition-transform"
+                              >
+                                {cert.verified ? (
+                                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                ) : (
+                                  <Circle className="w-4 h-4 text-slate-400" />
+                                )}
+                              </button>
+                            )}
                           </td>
-                          <td className="px-4 py-2 text-sm font-medium text-slate-900">{cert.certificateNo}</td>
+                          <td className="px-4 py-2">
+                            <div className="text-sm font-medium text-slate-900">{cert.certificateNo}</div>
+                            {fromSchedule && (
+                              <div className="text-xs text-blue-600">Schedule 1 - Employment</div>
+                            )}
+                          </td>
                           <td className="px-4 py-2">
                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${getCertificateTypeColor(cert.type)}`}>
                               {cert.type.toUpperCase()}
@@ -337,28 +380,40 @@ export function CertificatesPage() {
                             <div className="text-xs text-slate-500">TIN: {cert.details.payerTIN}</div>
                           </td>
                           <td className="px-4 py-2 text-sm text-slate-600">{owner?.name || 'Unknown'}</td>
-                          <td className="px-4 py-2 text-sm text-slate-600">{new Date(cert.issueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                          <td className="px-4 py-2 text-sm text-slate-600">
+                            {fromSchedule ? (
+                              <span className="text-slate-500">-</span>
+                            ) : (
+                              cert.issueDate ? new Date(cert.issueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'
+                            )}
+                          </td>
                           <td className="px-4 py-2 text-sm text-right font-medium text-slate-900">{formatLKR(cert.details.grossAmount)}</td>
                           <td className="px-4 py-2 text-sm text-right font-medium text-red-600">{formatLKR(cert.details.taxDeducted)}</td>
                           <td className="px-4 py-2 text-sm text-right font-medium text-green-600">{formatLKR(cert.details.netAmount)}</td>
                           <td className="px-4 py-2">
                             <div className="flex items-center justify-center gap-1">
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => navigate(`/certificates/edit/${cert.id}`)}
-                                className="h-7 w-7 p-0"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => handleDelete(cert.id)}
-                                className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
+                              {fromSchedule ? (
+                                <span className="text-xs text-slate-500">From Schedule</span>
+                              ) : (
+                                <>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => navigate(`/certificates/edit/${cert.id}`)}
+                                    className="h-7 w-7 p-0"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => handleDelete(cert.id)}
+                                    className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>

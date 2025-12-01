@@ -219,85 +219,86 @@ export function CertificatesPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {filteredCertificates.map((cert) => {
-              const owner = entities.find((e) => e.id === cert.ownerId);
-              
-              return (
-                <Card key={cert.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getCertificateTypeColor(cert.type)}`}>
-                            {getCertificateTypeLabel(cert.type)}
-                          </span>
-                          <span className="text-sm text-slate-600">
-                            Certificate No: {cert.certificateNo}
-                          </span>
-                          {cert.verified && (
-                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                          )}
-                        </div>
-                        <CardTitle className="text-lg">{cert.details.payerName}</CardTitle>
-                        <CardDescription>
-                          {owner?.name} • TIN: {cert.details.payerTIN} • Issue Date: {new Date(cert.issueDate).toLocaleDateString()}
-                        </CardDescription>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleToggleVerified(cert)}
-                          title={cert.verified ? 'Mark as unverified' : 'Mark as verified'}
-                        >
-                          {cert.verified ? (
-                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                          ) : (
-                            <Circle className="w-4 h-4 text-slate-400" />
-                          )}
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => navigate(`/certificates/edit/${cert.id}`)}>
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(cert.id)}>
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <p className="text-sm text-slate-600">Gross Amount</p>
-                        <p className="text-lg font-semibold">{formatLKR(cert.details.grossAmount)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-600">Tax Deducted</p>
-                        <p className="text-lg font-semibold text-red-600">{formatLKR(cert.details.taxDeducted)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-600">Net Amount</p>
-                        <p className="text-lg font-semibold text-green-600">{formatLKR(cert.details.netAmount)}</p>
-                      </div>
-                    </div>
-                    {cert.details.description && (
-                      <div className="mt-4 pt-4 border-t">
-                        <p className="text-sm text-slate-600">Description</p>
-                        <p className="text-sm text-slate-900">{cert.details.description}</p>
-                      </div>
-                    )}
-                    {cert.notes && (
-                      <div className="mt-2">
-                        <p className="text-sm text-slate-600">Notes</p>
-                        <p className="text-sm text-slate-900">{cert.notes}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Status</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Certificate No</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Type</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Payer</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Entity</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Issue Date</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-slate-600">Gross Amount</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-slate-600">Tax Deducted</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-slate-600">Net Amount</th>
+                      <th className="px-4 py-2 text-center text-xs font-medium text-slate-600">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {filteredCertificates.map((cert) => {
+                      const owner = entities.find((e) => e.id === cert.ownerId);
+                      
+                      return (
+                        <tr key={cert.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-2">
+                            <button
+                              onClick={() => handleToggleVerified(cert)}
+                              title={cert.verified ? 'Verified - Click to unverify' : 'Unverified - Click to verify'}
+                              className="hover:scale-110 transition-transform"
+                            >
+                              {cert.verified ? (
+                                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                              ) : (
+                                <Circle className="w-4 h-4 text-slate-400" />
+                              )}
+                            </button>
+                          </td>
+                          <td className="px-4 py-2 text-sm font-medium text-slate-900">{cert.certificateNo}</td>
+                          <td className="px-4 py-2">
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${getCertificateTypeColor(cert.type)}`}>
+                              {cert.type.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2">
+                            <div className="text-sm font-medium text-slate-900">{cert.details.payerName}</div>
+                            <div className="text-xs text-slate-500">TIN: {cert.details.payerTIN}</div>
+                          </td>
+                          <td className="px-4 py-2 text-sm text-slate-600">{owner?.name || 'Unknown'}</td>
+                          <td className="px-4 py-2 text-sm text-slate-600">{new Date(cert.issueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                          <td className="px-4 py-2 text-sm text-right font-medium text-slate-900">{formatLKR(cert.details.grossAmount)}</td>
+                          <td className="px-4 py-2 text-sm text-right font-medium text-red-600">{formatLKR(cert.details.taxDeducted)}</td>
+                          <td className="px-4 py-2 text-sm text-right font-medium text-green-600">{formatLKR(cert.details.netAmount)}</td>
+                          <td className="px-4 py-2">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => navigate(`/certificates/edit/${cert.id}`)}
+                                className="h-7 w-7 p-0"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => handleDelete(cert.id)}
+                                className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </main>
     </div>

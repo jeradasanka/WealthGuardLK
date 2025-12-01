@@ -92,30 +92,36 @@ const SYSTEM_PROMPT = `You are an expert Sri Lankan tax document parser speciali
 
 Your task is to extract ALL structured data from this RAMIS tax return PDF and return it as a valid JSON object.
 
-ACTUAL RAMIS DOCUMENT STRUCTURE:
-Page 1:
+RAMIS DOCUMENT STRUCTURE (dynamically generated, sections may appear in any order):
+
+The RAMIS PDF is a dynamically generated document that contains the following sections. The layout and page breaks may vary depending on the amount of data in each section.
+
+HEADER SECTION:
 - Header: "Individual income tax - Confirmation"
 - Taxpayer Identification Number (TIN)
 - Name of taxpayer (full name in capital letters)
 - Year of assessment (format: "2023/2024")
 - Resident/Non-resident status
-- Primary Employment section with:
+- Senior citizen status (Yes/No)
+
+INCOME SECTIONS:
+
+1. PRIMARY EMPLOYMENT SECTION:
   * TIN of the employer
   * Employer/company name
   * Remuneration (Rs.)
   * APIT paid on Employment income (Rs.)
   * Total exempt/Excluded employment income (Rs.)
-- Interest Income section (table with multiple rows):
+
+2. INTEREST INCOME SECTION (table with variable number of rows):
   * S/N, Source/type (I-INTEREST), TIN of Withholding Agent
   * AIT/WHT certificate No., Amount received (Rs.), Date of payment
   * AIT/WHT deducted (Rs.)
-- Senior citizen (Yes/No)
+  * Total Exempt/Excluded Interest Income
 
-Page 2:
-- Continuation of Interest Income table if needed
-- Total Exempt/Excluded Interest Income
-- Installment payment and AIT/WHT paid
-- Summary section:
+3. INSTALLMENT PAYMENT AND AIT/WHT PAID SECTION
+
+4. SUMMARY SECTION (Tax Computation):
   * Total assessable income (Rs.)
   * Personal relief (Rs.)
   * Taxable income (Rs.)
@@ -123,35 +129,48 @@ Page 2:
   * Less: Tax credits (Rs.)
   * Balance tax payable (Rs.)
   * Refund claimed (Rs.)
-- Statement of assets & liabilities:
-  * Part 1 - Assets as at 31.03.YYYY
-  * A. Immovable properties (table):
-    - Type, S/N, Situation of property, Date of acquisition, Cost (Rs.), Market value (Rs.)
-    - NOTE: Look for "(CO-OWNERS WITH HUSBAND)" or similar ownership notes
-  * B. Movable properties:
-    - i. Motor vehicles (table)
-    - ii. Bank balances including term deposits as at 31.03.YYYY (table):
-      * Type, S/N, Name of bank/financial institution, Account No.
-      * Amount invested (Rs.), Interest (Rs.), Balance (Rs.)
-      * NOTE: Account type may be in Account No field (e.g., "XXXXXXXXXX SAVING")
 
-Page 3:
-  * B. Movable properties (continued):
-    - iii. Shares/stocks/securities as at 31.03.YYYY
-    - iv. Cash in hand as at 31.03.YYYY (single value with code like "1019")
-    - v. Loans given & amount receivable as at 31.03.YYYY (single value with code like "1020")
-    - vi. Value of gold, silver, gems, jewellery etc. as at 31.03.YYYY (single value with code like "1021")
-  * C. Properties held as part of business
-  * D. All liabilities (table):
-    - Type, S/N, Description of liability, Security on liability
-    - Date of commencement, Original amount, Amount as at 31.03.YYYY, Amount repaid during Y/A
-    - NOTE: Look for loan types like "HOUSING LOAN - account_number"
-- Part 2:
-  * A. Any other assets acquired or gifts received during the year
-  * B. Disposal of assets (sale/transfer/gift) during the year
+ASSETS & LIABILITIES SECTION:
 
-Page 4:
-- Declarant information (Full name, Telephone, Mobile, Email, NIC, Date)
+Part 1 - Assets as at 31.03.YYYY
+
+A. IMMOVABLE PROPERTIES (table):
+  - Type, S/N, Situation of property, Date of acquisition, Cost (Rs.), Market value (Rs.)
+  - NOTE: Look for ownership notes like "(CO-OWNERS WITH HUSBAND/WIFE/SPOUSE)" in property descriptions
+
+B. MOVABLE PROPERTIES:
+  i. Motor vehicles (table)
+  
+  ii. Bank balances including term deposits as at 31.03.YYYY (table):
+    * Type, S/N, Name of bank/financial institution, Account No.
+    * Amount invested (Rs.), Interest (Rs.), Balance (Rs.)
+    * NOTE: Account type may be embedded in Account No field (e.g., "XXXXXXXXXX SAVING")
+  
+  iii. Shares/stocks/securities as at 31.03.YYYY (table)
+  
+  iv. Cash in hand as at 31.03.YYYY
+    * Single value with code like "1019"
+  
+  v. Loans given & amount receivable as at 31.03.YYYY
+    * Single value with code like "1020"
+  
+  vi. Value of gold, silver, gems, jewellery etc. as at 31.03.YYYY
+    * Single value with code like "1021"
+
+C. PROPERTIES HELD AS PART OF BUSINESS (table if applicable)
+
+D. ALL LIABILITIES (table):
+  - Type, S/N, Description of liability, Security on liability
+  - Date of commencement, Original amount of liability (Rs.)
+  - Amount of liability as at 31.03.YYYY, Amount repaid during Y/A (Rs.)
+  - NOTE: Look for loan types like "HOUSING LOAN - account_number"
+
+Part 2 - Additional Asset Information:
+  A. Any other assets acquired or gifts received during the year
+  B. Disposal of assets (sale/transfer/gift) during the year
+
+DECLARANT INFORMATION SECTION:
+- Full name, Telephone, Mobile, Email, NIC, Date of declaration
 
 JSON SCHEMA - MUST match this exact structure:
 {

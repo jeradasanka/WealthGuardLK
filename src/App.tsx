@@ -6,6 +6,7 @@ import { IncomePage } from './pages/IncomePage'
 import { AssetsPage } from './pages/AssetsPage'
 import { TaxComputationPage } from './pages/TaxComputationPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { CertificatesPage } from './pages/CertificatesPage'
 import { useStore } from './stores/useStore'
 import { getStoredPassphrase } from './utils/storage'
 
@@ -36,6 +37,7 @@ function App() {
         <Route path="/setup" element={<Setup />} />
         <Route path="/income" element={<IncomePage />} />
         <Route path="/assets" element={<AssetsPage />} />
+        <Route path="/certificates" element={<CertificatesPage />} />
         <Route path="/tax-computation" element={<TaxComputationPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Routes>

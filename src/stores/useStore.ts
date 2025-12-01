@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import type { AppState, TaxEntity, Asset, Liability, Income } from '@/types';
+import type { AppState, TaxEntity, Asset, Liability, Income, AITWHTCertificate } from '@/types';
 import { saveState, loadState } from '@/utils/storage';
 import { getCurrentTaxYear } from '@/lib/taxYear';
 
@@ -42,6 +42,11 @@ interface StoreState extends AppState {
   updateIncome: (id: string, updates: Partial<Income>) => void;
   removeIncome: (id: string) => void;
   
+  // Certificate actions
+  addCertificate: (certificate: AITWHTCertificate) => void;
+  updateCertificate: (id: string, updates: Partial<AITWHTCertificate>) => void;
+  removeCertificate: (id: string) => void;
+  
   // Joint asset split ratio
   setJointAssetSplit: (entityId: string, percentage: number) => void;
   
@@ -59,6 +64,7 @@ const initialState: AppState = {
   assets: [],
   liabilities: [],
   incomes: [],
+  certificates: [],
   currentTaxYear: getCurrentTaxYear(),
   jointAssetSplitRatio: {},
   isEncrypted: false,
@@ -174,6 +180,24 @@ export const useStore = create<StoreState>((set, get) => ({
       incomes: state.incomes.filter((i) => i.id !== id),
     })),
   
+  // Certificate actions
+  addCertificate: (certificate) =>
+    set((state) => ({
+      certificates: [...state.certificates, certificate],
+    })),
+    
+  updateCertificate: (id, updates) =>
+    set((state) => ({
+      certificates: state.certificates.map((c) =>
+        c.id === id ? { ...c, ...updates } : c
+      ),
+    })),
+    
+  removeCertificate: (id) =>
+    set((state) => ({
+      certificates: state.certificates.filter((c) => c.id !== id),
+    })),
+  
   // Joint asset split
   setJointAssetSplit: (entityId, percentage) =>
     set((state) => ({
@@ -199,12 +223,14 @@ export const useStore = create<StoreState>((set, get) => ({
     console.log('  Assets:', state.assets.length, state.assets);
     console.log('  Liabilities:', state.liabilities.length, state.liabilities);
     console.log('  Incomes:', state.incomes.length, state.incomes);
+    console.log('  Certificates:', state.certificates.length, state.certificates);
     
     const appState: AppState = {
       entities: state.entities,
       assets: state.assets,
       liabilities: state.liabilities,
       incomes: state.incomes,
+      certificates: state.certificates,
       currentTaxYear: state.currentTaxYear,
       jointAssetSplitRatio: state.jointAssetSplitRatio,
       isEncrypted: true,

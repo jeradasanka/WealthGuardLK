@@ -177,6 +177,28 @@ export interface InvestmentIncome {
 
 export type Income = EmploymentIncome | BusinessIncome | InvestmentIncome;
 
+// AIT/WHT Certificate Tracking
+export interface AITWHTCertificate {
+  id: string;
+  ownerId: string;
+  taxYear: string;
+  certificateNo: string;
+  issueDate: string;
+  type: 'employment' | 'interest' | 'dividend' | 'rent' | 'other';
+  details: {
+    payerName: string; // Employer, Bank, Tenant, etc.
+    payerTIN: string;
+    grossAmount: number; // Total amount before deduction
+    taxDeducted: number; // APIT or WHT amount
+    netAmount: number; // Amount received after deduction
+    description?: string;
+  };
+  relatedIncomeId?: string; // Link to related income record
+  documentPath?: string; // Path to scanned certificate (future feature)
+  verified?: boolean; // Manual verification flag
+  notes?: string;
+}
+
 // Tax Calculation
 export interface TaxComputation {
   assessableIncome: number;
@@ -215,6 +237,7 @@ export interface AppState {
   assets: Asset[];
   liabilities: Liability[];
   incomes: Income[];
+  certificates: AITWHTCertificate[];
   currentTaxYear: string;
   jointAssetSplitRatio: { [entityId: string]: number }; // Default 50/50
   isEncrypted: boolean;

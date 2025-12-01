@@ -40,13 +40,27 @@ export function CertificatesPage() {
 
   // Get available tax years
   const availableTaxYears = useMemo(() => {
-    if (entities.length === 0) return [currentTaxYear];
-    const oldestTaxYear = entities.reduce(
-      (oldest, entity) => (entity.taxYear < oldest ? entity.taxYear : oldest),
-      entities[0].taxYear
-    );
-    return getTaxYearsFromStart(oldestTaxYear);
-  }, [entities, currentTaxYear]);
+    // Get standard tax years from entities
+    const standardYears = entities.length === 0 ? [currentTaxYear] : (() => {
+      const oldestTaxYear = entities.reduce(
+        (oldest, entity) => (entity.taxYear < oldest ? entity.taxYear : oldest),
+        entities[0].taxYear
+      );
+      return getTaxYearsFromStart(oldestTaxYear);
+    })();
+    
+    // Add any unique tax years from certificates (handles legacy "YYYY/YYYY" format)
+    const certificateYears = [...new Set(certificates.map(c => c.taxYear))];
+    const allYears = [...new Set([...standardYears, ...certificateYears])];
+    
+    // Sort years in descending order
+    return allYears.sort((a, b) => {
+      // Extract first year for comparison (handles both "2024" and "2024/2025")
+      const yearA = parseInt(a.split('/')[0]);
+      const yearB = parseInt(b.split('/')[0]);
+      return yearB - yearA;
+    });
+  }, [entities, currentTaxYear, certificates]);
 
   // Get employment income from income schedules (Schedule 1)
   const employmentIncomes = useMemo(() => {

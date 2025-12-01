@@ -274,6 +274,7 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
             taxYear: parsedData.taxYear,
             certificateNo: cert.certificateNo,
             issueDate: cert.issueDate || new Date().toISOString().split('T')[0],
+            paymentDate: cert.paymentDate || undefined,
             type: cert.type,
             details: {
               payerName: cert.payerName,

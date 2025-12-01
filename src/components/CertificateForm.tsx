@@ -36,6 +36,7 @@ export function CertificateForm({ certificateId, onCancel }: CertificateFormProp
     taxYear: existingCertificate?.taxYear || entities[0]?.taxYear || '2023',
     certificateNo: existingCertificate?.certificateNo || '',
     issueDate: existingCertificate?.issueDate || new Date().toISOString().split('T')[0],
+    paymentDate: existingCertificate?.paymentDate || '',
     type: existingCertificate?.type || 'interest' as const,
     payerName: existingCertificate?.details.payerName || '',
     payerTIN: existingCertificate?.details.payerTIN || '',
@@ -102,6 +103,7 @@ export function CertificateForm({ certificateId, onCancel }: CertificateFormProp
       taxYear: formData.taxYear,
       certificateNo: formData.certificateNo.trim(),
       issueDate: formData.issueDate,
+      paymentDate: formData.paymentDate || undefined,
       type: formData.type,
       details: {
         payerName: formData.payerName.trim(),
@@ -212,6 +214,18 @@ export function CertificateForm({ certificateId, onCancel }: CertificateFormProp
               />
               {errors.issueDate && <p className="text-sm text-red-500">{errors.issueDate}</p>}
             </div>
+          </div>
+
+          {/* Payment Date */}
+          <div className="space-y-2">
+            <Label htmlFor="paymentDate">Payment Date (Optional)</Label>
+            <Input
+              id="paymentDate"
+              type="date"
+              value={formData.paymentDate}
+              onChange={(e) => setFormData({ ...formData, paymentDate: e.target.value })}
+            />
+            <p className="text-sm text-gray-500">Date when the payment was made (if different from issue date)</p>
           </div>
 
           {/* Type */}

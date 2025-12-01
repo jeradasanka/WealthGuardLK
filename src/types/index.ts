@@ -184,6 +184,7 @@ export interface AITWHTCertificate {
   taxYear: string;
   certificateNo: string;
   issueDate: string;
+  paymentDate?: string; // Date when payment was made (optional)
   type: 'employment' | 'interest' | 'dividend' | 'rent' | 'other';
   details: {
     payerName: string; // Employer, Bank, Tenant, etc.

@@ -375,6 +375,7 @@ export function CertificatesPage() {
                       <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Payer</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Entity</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Issue Date</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-600">Payment Date</th>
                       <th className="px-4 py-2 text-right text-xs font-medium text-slate-600">Gross Amount</th>
                       <th className="px-4 py-2 text-right text-xs font-medium text-slate-600">Tax Deducted</th>
                       <th className="px-4 py-2 text-right text-xs font-medium text-slate-600">Net Amount</th>
@@ -426,6 +427,13 @@ export function CertificatesPage() {
                               <span className="text-slate-500">-</span>
                             ) : (
                               cert.issueDate ? new Date(cert.issueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-sm text-slate-600">
+                            {fromSchedule ? (
+                              <span className="text-slate-500">-</span>
+                            ) : (
+                              cert.paymentDate ? new Date(cert.paymentDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-'
                             )}
                           </td>
                           <td className="px-4 py-2 text-sm text-right font-medium text-slate-900">{formatLKR(cert.details.grossAmount)}</td>

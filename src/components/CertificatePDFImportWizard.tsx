@@ -146,6 +146,7 @@ export function CertificatePDFImportWizard({ onClose }: CertificatePDFImportWiza
           taxYear: cert.taxYear || determineTaxYearFromDate(cert.issueDate),
           certificateNo: cert.certificateNo,
           issueDate: cert.issueDate,
+          paymentDate: cert.paymentDate,
           type: cert.type,
           details: {
             payerName: cert.payerName,
@@ -375,6 +376,12 @@ export function CertificatePDFImportWizard({ onClose }: CertificatePDFImportWiza
                               <p className="font-medium">{cert.issueDate}</p>
                               <p className="text-xs text-muted-foreground">Tax Year: {cert.taxYear}</p>
                             </div>
+                            {cert.paymentDate && (
+                              <div>
+                                <p className="text-xs text-muted-foreground">Payment Date</p>
+                                <p className="font-medium">{cert.paymentDate}</p>
+                              </div>
+                            )}
                             <div>
                               <p className="text-xs text-muted-foreground">Gross Amount</p>
                               <p className="font-medium">Rs. {cert.grossAmount.toLocaleString()}</p>

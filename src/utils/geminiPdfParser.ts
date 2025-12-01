@@ -203,6 +203,7 @@ JSON SCHEMA - MUST match this exact structure:
     {
       "certificateNo": "AIT/2024/12345",
       "issueDate": "2024-01-15",
+      "paymentDate": "2024-01-15",
       "type": "interest",
       "payerName": "ABC BANK",
       "payerTIN": "123456789",
@@ -337,6 +338,7 @@ CRITICAL EXTRACTION RULES:
    - Create ONE certificate entry per row in the Interest Income table
    - certificateNo: From "AIT/WHT certificate No." column
    - issueDate: From "Date of payment" column (convert to YYYY-MM-DD format)
+   - paymentDate: From "Date of payment" column (convert to YYYY-MM-DD format, usually same as issueDate)
    - type: "interest" (for interest income certificates)
    - payerName: Extract bank name from context or use "TIN of Withholding Agent"
    - payerTIN: From "TIN of Withholding Agent" column
@@ -348,6 +350,8 @@ CRITICAL EXTRACTION RULES:
    **For Employment Income**:
    - If APIT was deducted, create ONE employment certificate:
    - certificateNo: Use format "APIT-[year]-[employer TIN]" if not specified
+   - issueDate: Use tax year end date (e.g., "2024-03-31")
+   - paymentDate: Use tax year end date (e.g., "2024-03-31")
    - type: "employment"
    - payerName: Employer name
    - payerTIN: Employer TIN

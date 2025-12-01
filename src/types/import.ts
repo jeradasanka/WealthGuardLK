@@ -31,6 +31,7 @@ export interface ParsedTaxData {
   certificates?: Array<{
     certificateNo: string;
     issueDate?: string;
+    paymentDate?: string;
     type: 'employment' | 'interest' | 'dividend' | 'rent' | 'other';
     payerName: string;
     payerTIN: string;

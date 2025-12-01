@@ -4,8 +4,6 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { getTaxYearForDate } from '../lib/taxYear';
-import type { AITWHTCertificate } from '@/types';
 
 export interface ParsedCertificateData {
   certificateNo: string;

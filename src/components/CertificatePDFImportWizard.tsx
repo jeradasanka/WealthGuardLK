@@ -10,10 +10,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useStore } from '@/stores/useStore';
-import { parseCertificatePdf, determineTaxYearFromDate, type ParsedCertificateData } from '@/utils/certificatePdfParser';
+import { parseCertificatePdf, type ParsedCertificateData } from '@/utils/certificatePdfParser';
 import { fetchAvailableGeminiModels, FALLBACK_GEMINI_MODELS } from '@/utils/geminiPdfParser';
 import { FileText, Upload, CheckCircle2, XCircle, AlertCircle, Loader2 } from 'lucide-react';
-import { getTaxYearsFromStart } from '@/lib/taxYear';
+import { getTaxYearForDate } from '@/lib/taxYear';
 
 interface CertificatePDFImportWizardProps {
   onClose: () => void;
@@ -105,7 +105,7 @@ export function CertificatePDFImportWizard({ onClose }: CertificatePDFImportWiza
       // Auto-determine tax years if not provided
       const certificatesWithTaxYear = certificates.map(cert => ({
         ...cert,
-        taxYear: cert.taxYear || determineTaxYearFromDate(cert.issueDate),
+        taxYear: cert.taxYear || getTaxYearForDate(cert.paymentDate),
       }));
 
       setParsedCertificates(certificatesWithTaxYear);
@@ -143,9 +143,9 @@ export function CertificatePDFImportWizard({ onClose }: CertificatePDFImportWiza
         const newCertificate = {
           id: `cert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           ownerId: selectedOwnerId,
-          taxYear: cert.taxYear || determineTaxYearFromDate(cert.issueDate),
+          taxYear: cert.taxYear || getTaxYearForDate(cert.paymentDate),
           certificateNo: cert.certificateNo,
-          issueDate: cert.issueDate,
+          paymentDate: cert.paymentDate,
           paymentDate: cert.paymentDate,
           type: cert.type,
           details: {

@@ -139,6 +139,8 @@ export function LiabilityPaymentPDFImportWizard({
         date: yearData.payments[yearData.payments.length - 1].date, // Use last payment date
         principalPaid: yearData.principalPaid,
         interestPaid: yearData.interestPaid,
+        totalPaid: yearData.totalPaid,
+        balanceAfterPayment: 0, // Will be recalculated by store
         notes: `Imported from ${file?.name || 'PDF'} - ${yearData.payments.length} payment(s) for FY ${taxYear}${paymentDates ? ` (Dates: ${paymentDates})` : ''}`,
       });
     });

@@ -4,7 +4,6 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { getTaxYearForDate } from '../lib/taxYear';
 import { fileToBase64 } from './pdfParserUtils';
 
 export interface ParsedIncomeScheduleData {

@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import type { AppState, TaxEntity, Asset, Liability, Income, AITWHTCertificate } from '@/types';
+import type { AppState, TaxEntity, Asset, Liability, Income, AITWHTCertificate, FinancialAssetBalance, LiabilityPayment } from '@/types';
 import { saveState, loadState } from '@/utils/storage';
 import { getCurrentTaxYear } from '@/lib/taxYear';
 
@@ -31,11 +31,15 @@ interface StoreState extends AppState {
   removeAsset: (id: string) => void;
   disposeAsset: (id: string, date: string, salePrice: number) => void;
   closeFinancialAsset: (id: string, date: string, finalBalance: number) => void;
+  addBalanceToAsset: (assetId: string, balance: FinancialAssetBalance) => void;
+  removeBalanceFromAsset: (assetId: string, balanceId: string) => void;
   
   // Liability actions
   addLiability: (liability: Liability) => void;
   updateLiability: (id: string, updates: Partial<Liability>) => void;
   removeLiability: (id: string) => void;
+  addPaymentToLiability: (liabilityId: string, payment: LiabilityPayment) => void;
+  removePaymentFromLiability: (liabilityId: string, paymentId: string) => void;
   
   // Income actions
   addIncome: (income: Income) => void;
@@ -144,6 +148,24 @@ export const useStore = create<StoreState>((set, get) => ({
       ),
     })),
   
+  addBalanceToAsset: (assetId, balance) =>
+    set((state) => ({
+      assets: state.assets.map((a) =>
+        a.id === assetId 
+          ? { ...a, balances: [...(a.balances || []), balance] }
+          : a
+      ),
+    })),
+  
+  removeBalanceFromAsset: (assetId, balanceId) =>
+    set((state) => ({
+      assets: state.assets.map((a) =>
+        a.id === assetId 
+          ? { ...a, balances: (a.balances || []).filter(b => b.id !== balanceId) }
+          : a
+      ),
+    })),
+  
   // Liability actions
   addLiability: (liability) =>
     set((state) => ({
@@ -160,6 +182,24 @@ export const useStore = create<StoreState>((set, get) => ({
   removeLiability: (id) =>
     set((state) => ({
       liabilities: state.liabilities.filter((l) => l.id !== id),
+    })),
+  
+  addPaymentToLiability: (liabilityId, payment) =>
+    set((state) => ({
+      liabilities: state.liabilities.map((l) =>
+        l.id === liabilityId 
+          ? { ...l, payments: [...(l.payments || []), payment] }
+          : l
+      ),
+    })),
+  
+  removePaymentFromLiability: (liabilityId, paymentId) =>
+    set((state) => ({
+      liabilities: state.liabilities.map((l) =>
+        l.id === liabilityId 
+          ? { ...l, payments: (l.payments || []).filter(p => p.id !== paymentId) }
+          : l
+      ),
     })),
   
   // Income actions

@@ -25,12 +25,14 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
     employmentIncome: boolean[];
     businessIncome: boolean[];
     investmentIncome: boolean[];
+    certificates: boolean[];
     assets: boolean[];
     liabilities: boolean[];
   }>({
     employmentIncome: [],
     businessIncome: [],
     investmentIncome: [],
+    certificates: [],
     assets: [],
     liabilities: [],
   });
@@ -39,6 +41,7 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
   const addIncome = useStore((state) => state.addIncome);
   const addAsset = useStore((state) => state.addAsset);
   const addLiability = useStore((state) => state.addLiability);
+  const addCertificate = useStore((state) => state.addCertificate);
   const saveToStorage = useStore((state) => state.saveToStorage);
   const useAiParsing = useStore((state) => state.useAiParsing);
   const geminiApiKey = useStore((state) => state.geminiApiKey);
@@ -109,6 +112,7 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
         employmentIncome: new Array(data.employmentIncome?.length || 0).fill(true),
         businessIncome: new Array(data.businessIncome?.length || 0).fill(true),
         investmentIncome: new Array(data.investmentIncome?.length || 0).fill(true),
+        certificates: new Array(data.certificates?.length || 0).fill(true),
         assets: new Array(data.assets?.length || 0).fill(true),
         liabilities: new Array(data.liabilities?.length || 0).fill(true),
       });
@@ -231,6 +235,31 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
               interest: income.interest || 0,
               rent: income.rent || 0,
             },
+          });
+        });
+      }
+
+      // Import certificates
+      if (parsedData.certificates && parsedData.certificates.length > 0) {
+        const selectedItems = parsedData.certificates.filter((_, idx) => selection.certificates[idx]);
+        console.log('Importing certificates:', selectedItems.length);
+        selectedItems.forEach(cert => {
+          addCertificate({
+            id: crypto.randomUUID(),
+            ownerId: selectedEntityId,
+            taxYear: parsedData.taxYear,
+            certificateNo: cert.certificateNo,
+            issueDate: cert.issueDate || new Date().toISOString().split('T')[0],
+            type: cert.type,
+            details: {
+              payerName: cert.payerName,
+              payerTIN: cert.payerTIN,
+              grossAmount: cert.grossAmount,
+              taxDeducted: cert.taxDeducted,
+              netAmount: cert.netAmount,
+              description: cert.description,
+            },
+            verified: false,
           });
         });
       }
@@ -487,6 +516,25 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
                         />
                         <div className="text-sm text-muted-foreground">
                           {income.source}: {formatLKR((income.dividends || 0) + (income.interest || 0) + (income.rent || 0))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {parsedData.certificates && parsedData.certificates.length > 0 && (
+                  <div className="rounded-lg border p-3 bg-yellow-50">
+                    <h4 className="font-medium text-sm mb-2">AIT/WHT Certificates ({parsedData.certificates.length})</h4>
+                    {parsedData.certificates.map((cert, idx) => (
+                      <div key={idx} className="flex items-start gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={selection.certificates[idx]}
+                          onChange={() => toggleSelection('certificates', idx)}
+                          className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <div className="text-sm text-muted-foreground">
+                          {cert.certificateNo} - {cert.payerName}: {formatLKR(cert.grossAmount)} (Tax: {formatLKR(cert.taxDeducted)})
                         </div>
                       </div>
                     ))}

@@ -199,6 +199,19 @@ JSON SCHEMA - MUST match this exact structure:
       "wht": 0.33
     }
   ],
+  "certificates": [
+    {
+      "certificateNo": "AIT/2024/12345",
+      "issueDate": "2024-01-15",
+      "type": "interest",
+      "payerName": "ABC BANK",
+      "payerTIN": "123456789",
+      "grossAmount": 6.60,
+      "taxDeducted": 0.33,
+      "netAmount": 6.27,
+      "description": "Interest income from savings account"
+    }
+  ],
   "assets": [
     {
       "description": "LAND IN LOT 123/A, SAMPLE STREET, COLOMBO (CO-OWNERS WITH SPOUSE)",
@@ -317,7 +330,34 @@ CRITICAL EXTRACTION RULES:
    
    **If NO Interest Income data exists**: Return empty array [] for investmentIncome
 
-7. **Assets** - Each asset must have description, category, cost, marketValue, dateAcquired:
+7. **AIT/WHT Certificates** (Extract from Interest Income Section):
+   IMPORTANT: Each row in the Interest Income table represents a WHT certificate
+   
+   **Extraction Rules for Certificates**:
+   - Create ONE certificate entry per row in the Interest Income table
+   - certificateNo: From "AIT/WHT certificate No." column
+   - issueDate: From "Date of payment" column (convert to YYYY-MM-DD format)
+   - type: "interest" (for interest income certificates)
+   - payerName: Extract bank name from context or use "TIN of Withholding Agent"
+   - payerTIN: From "TIN of Withholding Agent" column
+   - grossAmount: From "Amount received (Rs.)" column
+   - taxDeducted: From "AIT/WHT deducted (Rs.)" column
+   - netAmount: grossAmount - taxDeducted
+   - description: "Interest income from [bank name]" or similar
+   
+   **For Employment Income**:
+   - If APIT was deducted, create ONE employment certificate:
+   - certificateNo: Use format "APIT-[year]-[employer TIN]" if not specified
+   - type: "employment"
+   - payerName: Employer name
+   - payerTIN: Employer TIN
+   - grossAmount: Gross remuneration
+   - taxDeducted: APIT deducted
+   - netAmount: grossAmount - taxDeducted
+   
+   **If NO certificates exist**: Return empty array [] for certificates
+
+8. **Assets** - Each asset must have description, category, cost, marketValue, dateAcquired:
    
    **A (Immovable Property)**:
    - description: "LAND IN [full address] ([ownership notes if any])"
@@ -354,7 +394,7 @@ CRITICAL EXTRACTION RULES:
    - marketValue: Same as cost
    - dateAcquired: "2023-03-31"
 
-8. **Liabilities** - CRITICAL - Each liability must have ALL fields with CORRECT values:
+9. **Liabilities** - CRITICAL - Each liability must have ALL fields with CORRECT values:
    
    **IMPORTANT**: The liabilities table has these columns in order:
    - Type (A, B, etc.)
@@ -392,20 +432,21 @@ CRITICAL EXTRACTION RULES:
    - currentBalance: 4500000.00
    - description: "HOUSING LOAN - XXXXXXXXXX (LAND)"
 
-9. **Required Fields**: 
+10. **Required Fields**: 
    - taxYear: REQUIRED (string)
    - All arrays: If section is empty, use [] (empty array)
    - All monetary values: MUST be numeric (no strings, no currency symbols)
    - All dates: MUST be "YYYY-MM-DD" format
    - category: MUST be exactly one of: "A", "Bi", "Bii", "Biii", "Biv", "Bv", "Bvi", "C"
 
-10. **Data Consolidation**:
+11. **Data Consolidation**:
     - Interest Income: If 14 rows for same bank, create ONE investmentIncome entry with total
+    - Certificates: Create ONE certificate entry per row in Interest Income table (do NOT consolidate)
     - Assets: Create ONE entry per asset (each bank account, each property, etc.)
     - Liabilities: Create ONE entry per liability row (each loan separately)
     - Missing values: Use 0 for numeric fields, "" for strings, date format for dates
 
-11. **CRITICAL - LIABILITY AMOUNTS**:
+12. **CRITICAL - LIABILITY AMOUNTS**:
     - The liability table shows amounts in THIS ORDER: Original Amount, Current Balance, Amount Repaid
     - ALWAYS extract originalAmount from "Original amount of liability (Rs.)" column
     - ALWAYS extract currentBalance from "Amount of liability, as at 31.03.YYYY" column

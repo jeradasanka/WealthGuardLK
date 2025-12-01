@@ -28,6 +28,17 @@ export interface ParsedTaxData {
     rent?: number;
     wht?: number;
   }>;
+  certificates?: Array<{
+    certificateNo: string;
+    issueDate?: string;
+    type: 'employment' | 'interest' | 'dividend' | 'rent' | 'other';
+    payerName: string;
+    payerTIN: string;
+    grossAmount: number;
+    taxDeducted: number;
+    netAmount: number;
+    description?: string;
+  }>;
   assets?: Array<{
     description: string;
     category: 'A' | 'Bi' | 'Bii' | 'Biii' | 'Biv' | 'Bv' | 'Bvi' | 'C';
@@ -56,7 +67,7 @@ export interface ImportPreview {
 
 export interface ImportConflict {
   type: 'duplicate' | 'mismatch' | 'missing-info';
-  category: 'employment' | 'business' | 'investment' | 'asset' | 'liability';
+  category: 'employment' | 'business' | 'investment' | 'certificate' | 'asset' | 'liability';
   message: string;
   existingData?: any;
   newData: any;

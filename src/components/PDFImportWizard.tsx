@@ -48,6 +48,7 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
   const geminiModel = useStore((state) => state.geminiModel);
   const setGeminiModel = useStore((state) => state.setGeminiModel);
   const [selectedEntityId, setSelectedEntityId] = useState<string>(entities[0]?.id || '');
+  const [autoDetectedEntity, setAutoDetectedEntity] = useState<string | null>(null);
   const [availableModels, setAvailableModels] = useState<Array<{ value: string; label: string; description: string }>>([
     ...FALLBACK_GEMINI_MODELS
   ]);
@@ -102,6 +103,34 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
       }
       
       setParsedData(data);
+      
+      // Auto-detect entity based on TIN or name
+      let detectedEntityId: string | null = null;
+      if (data.taxpayerInfo?.tin) {
+        // Try to find entity by TIN
+        const entityByTin = entities.find(e => e.tin === data.taxpayerInfo?.tin);
+        if (entityByTin) {
+          detectedEntityId = entityByTin.id;
+          console.log('Auto-detected entity by TIN:', entityByTin.name);
+        }
+      }
+      
+      if (!detectedEntityId && data.taxpayerInfo?.name) {
+        // Try to find entity by name (case-insensitive partial match)
+        const entityByName = entities.find(e => 
+          e.name.toLowerCase().includes(data.taxpayerInfo!.name!.toLowerCase()) ||
+          data.taxpayerInfo!.name!.toLowerCase().includes(e.name.toLowerCase())
+        );
+        if (entityByName) {
+          detectedEntityId = entityByName.id;
+          console.log('Auto-detected entity by name:', entityByName.name);
+        }
+      }
+      
+      if (detectedEntityId) {
+        setSelectedEntityId(detectedEntityId);
+        setAutoDetectedEntity(detectedEntityId);
+      }
       
       // Generate preview with conflict detection
       const previewData = generatePreview(data);
@@ -476,7 +505,10 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
 
             <div className="space-y-2">
               <h3 className="font-medium">Tax Year</h3>
-              <p className="text-sm text-muted-foreground">{parsedData?.taxYear}</p>
+              <p className="text-sm">
+                <span className="font-medium text-lg">{parsedData?.taxYear}</span>
+                <span className="ml-2 text-green-600">✓ Auto-detected from PDF</span>
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -487,9 +519,22 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
                 className="w-full rounded-md border px-3 py-2"
               >
                 {entities.map(entity => (
-                  <option key={entity.id} value={entity.id}>{entity.name}</option>
+                  <option key={entity.id} value={entity.id}>
+                    {entity.name} (TIN: {entity.tin}){entity.id === autoDetectedEntity ? ' ✓ Auto-detected' : ''}
+                  </option>
                 ))}
               </select>
+              {autoDetectedEntity && (
+                <p className="text-sm text-green-600">✓ Entity auto-detected from PDF</p>
+              )}
+              {parsedData?.taxpayerInfo && (
+                <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
+                  <p className="font-medium text-blue-900">Taxpayer Info from PDF:</p>
+                  {parsedData.taxpayerInfo.name && <p className="text-blue-700">Name: {parsedData.taxpayerInfo.name}</p>}
+                  {parsedData.taxpayerInfo.tin && <p className="text-blue-700">TIN: {parsedData.taxpayerInfo.tin}</p>}
+                  {parsedData.taxpayerInfo.nic && <p className="text-blue-700">NIC: {parsedData.taxpayerInfo.nic}</p>}
+                </div>
+              )}
             </div>
 
             {parsedData && (

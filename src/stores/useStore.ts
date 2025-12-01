@@ -12,11 +12,13 @@ interface StoreState extends AppState {
   passphrase: string | null;
   useAiParsing: boolean;
   geminiApiKey: string;
+  geminiModel: string;
   
   // Actions
   setPassphrase: (passphrase: string) => void;
   setUseAiParsing: (enabled: boolean) => void;
   setGeminiApiKey: (apiKey: string) => void;
+  setGeminiModel: (model: string) => void;
   
   // Entity actions
   addEntity: (entity: TaxEntity) => void;
@@ -67,6 +69,7 @@ export const useStore = create<StoreState>((set, get) => ({
   passphrase: null,
   useAiParsing: localStorage.getItem('useAiParsing') === 'true',
   geminiApiKey: localStorage.getItem('geminiApiKey') || '',
+  geminiModel: localStorage.getItem('geminiModel') || 'gemini-2.0-flash-exp',
   
   setPassphrase: (passphrase) => set({ passphrase }),
   
@@ -78,6 +81,11 @@ export const useStore = create<StoreState>((set, get) => ({
   setGeminiApiKey: (apiKey) => {
     set({ geminiApiKey: apiKey });
     localStorage.setItem('geminiApiKey', apiKey);
+  },
+  
+  setGeminiModel: (model) => {
+    set({ geminiModel: model });
+    localStorage.setItem('geminiModel', model);
   },
   
   // Entity actions

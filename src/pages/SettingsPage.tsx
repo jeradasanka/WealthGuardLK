@@ -17,6 +17,7 @@ import { EntityForm } from '@/components/EntityForm';
 import { deriveKey } from '@/utils/crypto';
 import { storePassphrase, clearStoredPassphrase } from '@/utils/storage';
 import { getRecentTaxYears, formatTaxYear } from '@/lib/taxYear';
+import { AVAILABLE_GEMINI_MODELS } from '@/utils/geminiPdfParser';
 
 export function SettingsPage() {
   const navigate = useNavigate();
@@ -32,7 +33,9 @@ export function SettingsPage() {
     useAiParsing,
     setUseAiParsing,
     geminiApiKey,
-    setGeminiApiKey
+    setGeminiApiKey,
+    geminiModel,
+    setGeminiModel
   } = useStore();
   const [showExport, setShowExport] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -291,6 +294,25 @@ export function SettingsPage() {
                     >
                       Google AI Studio
                     </a>
+                  </p>
+                </div>
+                
+                <div>
+                  <Label htmlFor="geminiModel">AI Model</Label>
+                  <select
+                    id="geminiModel"
+                    value={geminiModel}
+                    onChange={(e) => setGeminiModel(e.target.value)}
+                    className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  >
+                    {AVAILABLE_GEMINI_MODELS.map((model) => (
+                      <option key={model.value} value={model.value}>
+                        {model.label} - {model.description}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Select the default Gemini model for PDF parsing. You can change this per-import in the PDF Import dialog.
                   </p>
                 </div>
                 

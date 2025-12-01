@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Upload, FileText, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { ParsedTaxData, ImportPreview, ImportConflict } from '@/types/import';
 import { parseTaxPDF } from '@/utils/pdfParser';
-import { parseWithGeminiDirect } from '@/utils/geminiPdfParser';
+import { parseWithGeminiDirect, AVAILABLE_GEMINI_MODELS } from '@/utils/geminiPdfParser';
 import { useStore } from '@/stores/useStore';
 import { formatLKR } from '@/lib/taxEngine';
 
@@ -41,6 +42,8 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
   const saveToStorage = useStore((state) => state.saveToStorage);
   const useAiParsing = useStore((state) => state.useAiParsing);
   const geminiApiKey = useStore((state) => state.geminiApiKey);
+  const geminiModel = useStore((state) => state.geminiModel);
+  const setGeminiModel = useStore((state) => state.setGeminiModel);
   const [selectedEntityId, setSelectedEntityId] = useState<string>(entities[0]?.id || '');
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,7 +72,7 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
       // Use Gemini AI if enabled and API key is provided
       if (useAiParsing && geminiApiKey) {
         console.log('Using Gemini AI for PDF parsing...');
-        data = await parseWithGeminiDirect(fileToProcess, geminiApiKey);
+        data = await parseWithGeminiDirect(fileToProcess, geminiApiKey, geminiModel);
       } else {
         console.log('Using traditional PDF parsing...');
         data = await parseTaxPDF(fileToProcess);
@@ -303,6 +306,27 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
 
         {step === 'upload' && (
           <div className="space-y-4">
+            {useAiParsing && geminiApiKey && (
+              <div className="space-y-2">
+                <Label htmlFor="model-select">AI Model</Label>
+                <select
+                  id="model-select"
+                  value={geminiModel}
+                  onChange={(e) => setGeminiModel(e.target.value)}
+                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                >
+                  {AVAILABLE_GEMINI_MODELS.map((model) => (
+                    <option key={model.value} value={model.value}>
+                      {model.label} - {model.description}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Select the Gemini model to use for parsing. Newer models may be faster but could have different capabilities.
+                </p>
+              </div>
+            )}
+            
             <div className="border-2 border-dashed rounded-lg p-8 text-center">
               <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
               <div className="mt-4">

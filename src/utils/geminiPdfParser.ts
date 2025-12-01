@@ -6,6 +6,13 @@
 import { ParsedTaxData } from '@/types/import';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+// Available Gemini models for RAMIS PDF parsing
+export const AVAILABLE_GEMINI_MODELS = [
+  { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (Experimental)', description: 'Latest model, fastest' },
+  { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', description: 'Fast and efficient' },
+  { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', description: 'More capable, slower' },
+] as const;
+
 const SYSTEM_PROMPT = `You are an expert Sri Lankan tax document parser specialized in RAMIS (Revenue Administration Management Information System) "Individual income tax - Confirmation" documents.
 
 Your task is to extract ALL structured data from this RAMIS tax return PDF and return it as a valid JSON object.
@@ -261,12 +268,11 @@ CRITICAL EXTRACTION RULES:
    - ✅ Both amounts MUST be positive numbers
    
    **Example from table**:
-   ```
-   HOUSING LOAN - XXXXXXXXXX  LAND  5,000,000.00  5,000,000.00  500,000.00
-   ```
+   Table row: HOUSING LOAN - XXXXXXXXXX | LAND | 5,000,000.00 | 4,500,000.00 | 500,000.00
+   
    Should extract as:
    - originalAmount: 5000000.00
-   - currentBalance: 5000000.00
+   - currentBalance: 4500000.00
    - description: "HOUSING LOAN - XXXXXXXXXX (LAND)"
 
 9. **Required Fields**: 
@@ -384,7 +390,11 @@ export async function parseWithGemini(pdfText: string, apiKey: string): Promise<
  * Parse PDF by uploading directly to Gemini (using inline data)
  * This sends the actual PDF file to Gemini for analysis
  */
-export async function parseWithGeminiDirect(file: File, apiKey: string): Promise<ParsedTaxData> {
+export async function parseWithGeminiDirect(
+  file: File, 
+  apiKey: string,
+  modelName: string = 'gemini-2.0-flash-exp'
+): Promise<ParsedTaxData> {
   try {
     if (!apiKey || apiKey.trim() === '') {
       throw new Error('Gemini API key is required. Please configure it in Settings.');
@@ -399,7 +409,7 @@ export async function parseWithGeminiDirect(file: File, apiKey: string): Promise
     const base64Data = await fileToBase64(file);
     
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+    const model = genAI.getGenerativeModel({ model: modelName });
 
     const filePart = {
       inlineData: {

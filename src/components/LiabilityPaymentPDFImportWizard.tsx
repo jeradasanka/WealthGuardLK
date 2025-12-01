@@ -13,7 +13,7 @@ import { useStore } from '@/stores/useStore';
 import { parseLiabilityPaymentPdf, type ParsedLiabilityPayment } from '@/utils/liabilityPaymentPdfParser';
 import { fetchAvailableGeminiModels, FALLBACK_GEMINI_MODELS } from '@/utils/geminiPdfParser';
 import { formatLKR } from '@/lib/taxEngine';
-import { formatTaxYear } from '@/lib/taxYear';
+import { formatTaxYear, getTaxYearsFromStart } from '@/lib/taxYear';
 
 interface LiabilityPaymentPDFImportWizardProps {
   open: boolean;
@@ -37,8 +37,11 @@ export function LiabilityPaymentPDFImportWizard({
   const [selectedLiabilityId, setSelectedLiabilityId] = useState<string>(preSelectedLiabilityId || '');
   const [availableModels, setAvailableModels] = useState<Array<{ value: string; label: string; description: string }>>([...FALLBACK_GEMINI_MODELS]);
   const [loadingModels, setLoadingModels] = useState(false);
+  const [taxYearOverrides, setTaxYearOverrides] = useState<{ [key: number]: string }>({});
+  const [entityOverride, setEntityOverride] = useState<string>('');
 
   const liabilities = useStore((state) => state.liabilities);
+  const entities = useStore((state) => state.entities);
   const addPaymentToLiability = useStore((state) => state.addPaymentToLiability);
   const geminiApiKey = useStore((state) => state.geminiApiKey);
   const geminiModel = useStore((state) => state.geminiModel);
@@ -261,6 +264,23 @@ export function LiabilityPaymentPDFImportWizard({
         {step === 'preview' && (
           <div className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="entity-filter">Filter by Entity (Optional)</Label>
+              <select
+                id="entity-filter"
+                className="w-full px-3 py-2 border rounded-md bg-white"
+                value={entityOverride}
+                onChange={(e) => setEntityOverride(e.target.value)}
+              >
+                <option value="">-- All Entities --</option>
+                {entities.map((entity) => (
+                  <option key={entity.id} value={entity.id}>
+                    {entity.name} ({entity.tin})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="liability-select">Select Liability (Loan)</Label>
               <select
                 id="liability-select"
@@ -269,7 +289,9 @@ export function LiabilityPaymentPDFImportWizard({
                 onChange={(e) => setSelectedLiabilityId(e.target.value)}
               >
                 <option value="">-- Select Liability --</option>
-                {liabilities.map((liability) => (
+                {liabilities
+                  .filter(liability => !entityOverride || liability.ownerId === entityOverride)
+                  .map((liability) => (
                   <option key={liability.id} value={liability.id}>
                     {liability.description} - {liability.lenderName} (Balance: {formatLKR(liability.currentBalance)})
                   </option>
@@ -281,7 +303,9 @@ export function LiabilityPaymentPDFImportWizard({
               <h3 className="font-medium">Payment Records Found: {parsedData.length}</h3>
               <p className="text-sm text-gray-600">Select the payment records to import:</p>
               
-              {parsedData.map((payment, idx) => (
+              {parsedData.map((payment, idx) => {
+                const availableTaxYears = getTaxYearsFromStart(entities[0]?.taxYear || '2022');
+                return (
                 <Card key={idx} className={!selectedPayments[idx] ? 'opacity-50' : ''}>
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
@@ -292,14 +316,26 @@ export function LiabilityPaymentPDFImportWizard({
                           onChange={() => toggleSelection(idx)}
                           className="mt-1"
                         />
-                        <div>
+                        <div className="flex-1">
                           <CardTitle className="text-base">
-                            Payment on {payment.date} - {formatTaxYear(payment.taxYear)}
+                            Payment on {payment.date} - {formatTaxYear(taxYearOverrides[idx] || payment.taxYear)}
                           </CardTitle>
                           {payment.lenderName && (
                             <p className="text-sm text-gray-600 mt-1">Lender: {payment.lenderName}</p>
                           )}
                         </div>
+                      </div>
+                      <div className="ml-4">
+                        <select
+                          className="text-sm px-2 py-1 border rounded"
+                          value={taxYearOverrides[idx] || payment.taxYear}
+                          onChange={(e) => setTaxYearOverrides({ ...taxYearOverrides, [idx]: e.target.value })}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {availableTaxYears.map(year => (
+                            <option key={year} value={year}>{formatTaxYear(year)}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                   </CardHeader>
@@ -336,7 +372,8 @@ export function LiabilityPaymentPDFImportWizard({
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              );
+              })}
             </div>
 
             {error && (

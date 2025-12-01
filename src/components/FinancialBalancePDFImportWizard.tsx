@@ -13,7 +13,7 @@ import { useStore } from '@/stores/useStore';
 import { parseFinancialBalancePdf, type ParsedFinancialBalance } from '@/utils/financialBalancePdfParser';
 import { fetchAvailableGeminiModels, FALLBACK_GEMINI_MODELS } from '@/utils/geminiPdfParser';
 import { formatLKR } from '@/lib/taxEngine';
-import { formatTaxYear } from '@/lib/taxYear';
+import { formatTaxYear, getTaxYearsFromStart } from '@/lib/taxYear';
 
 interface FinancialBalancePDFImportWizardProps {
   open: boolean;
@@ -37,8 +37,11 @@ export function FinancialBalancePDFImportWizard({
   const [selectedAssetId, setSelectedAssetId] = useState<string>(preSelectedAssetId || '');
   const [availableModels, setAvailableModels] = useState<Array<{ value: string; label: string; description: string }>>([...FALLBACK_GEMINI_MODELS]);
   const [loadingModels, setLoadingModels] = useState(false);
+  const [taxYearOverrides, setTaxYearOverrides] = useState<{ [key: number]: string }>({});
+  const [entityOverride, setEntityOverride] = useState<string>('');
 
   const assets = useStore((state) => state.assets);
+  const entities = useStore((state) => state.entities);
   const addBalanceToAsset = useStore((state) => state.addBalanceToAsset);
   const geminiApiKey = useStore((state) => state.geminiApiKey);
   const geminiModel = useStore((state) => state.geminiModel);
@@ -122,9 +125,10 @@ export function FinancialBalancePDFImportWizard({
     let importedCount = 0;
     parsedData.forEach((balance, index) => {
       if (selectedBalances[index]) {
+        const taxYear = taxYearOverrides[index] || balance.taxYear;
         addBalanceToAsset(selectedAssetId, {
           id: `bal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          taxYear: balance.taxYear,
+          taxYear,
           closingBalance: balance.closingBalance,
           interestEarned: balance.interestEarned,
           notes: balance.notes || `Imported from ${file?.name || 'PDF'} - ${balance.bankName || 'Bank'} ${balance.accountType || 'Account'}`,
@@ -265,6 +269,23 @@ export function FinancialBalancePDFImportWizard({
         {step === 'preview' && (
           <div className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="entity-filter">Filter by Entity (Optional)</Label>
+              <select
+                id="entity-filter"
+                className="w-full px-3 py-2 border rounded-md bg-white"
+                value={entityOverride}
+                onChange={(e) => setEntityOverride(e.target.value)}
+              >
+                <option value="">-- All Entities --</option>
+                {entities.map((entity) => (
+                  <option key={entity.id} value={entity.id}>
+                    {entity.name} ({entity.tin})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="asset-select">Select Financial Asset</Label>
               <select
                 id="asset-select"
@@ -286,7 +307,9 @@ export function FinancialBalancePDFImportWizard({
               <h3 className="font-medium">Balance Records Found: {parsedData.length}</h3>
               <p className="text-sm text-gray-600">Select the balance records to import:</p>
               
-              {parsedData.map((balance, idx) => (
+              {parsedData.map((balance, idx) => {
+                const availableTaxYears = getTaxYearsFromStart(entities[0]?.taxYear || '2022');
+                return (
                 <Card key={idx} className={!selectedBalances[idx] ? 'opacity-50' : ''}>
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
@@ -297,14 +320,26 @@ export function FinancialBalancePDFImportWizard({
                           onChange={() => toggleSelection(idx)}
                           className="mt-1"
                         />
-                        <div>
+                        <div className="flex-1">
                           <CardTitle className="text-base">
-                            {balance.bankName || 'Financial Institution'} - {formatTaxYear(balance.taxYear)}
+                            {balance.bankName || 'Financial Institution'} - {formatTaxYear(taxYearOverrides[idx] || balance.taxYear)}
                           </CardTitle>
                           {balance.accountType && (
                             <p className="text-sm text-gray-600 mt-1">{balance.accountType}</p>
                           )}
                         </div>
+                      </div>
+                      <div className="ml-4">
+                        <select
+                          className="text-sm px-2 py-1 border rounded"
+                          value={taxYearOverrides[idx] || balance.taxYear}
+                          onChange={(e) => setTaxYearOverrides({ ...taxYearOverrides, [idx]: e.target.value })}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {availableTaxYears.map(year => (
+                            <option key={year} value={year}>{formatTaxYear(year)}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                   </CardHeader>
@@ -341,7 +376,8 @@ export function FinancialBalancePDFImportWizard({
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              );
+              })}
             </div>
 
             {error && (

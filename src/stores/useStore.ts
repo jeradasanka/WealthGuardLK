@@ -186,20 +186,34 @@ export const useStore = create<StoreState>((set, get) => ({
   
   addPaymentToLiability: (liabilityId, payment) =>
     set((state) => ({
-      liabilities: state.liabilities.map((l) =>
-        l.id === liabilityId 
-          ? { ...l, payments: [...(l.payments || []), payment] }
-          : l
-      ),
+      liabilities: state.liabilities.map((l) => {
+        if (l.id === liabilityId) {
+          const updatedPayments = [...(l.payments || []), payment];
+          const totalPrincipalPaid = updatedPayments.reduce((sum, p) => sum + p.principalPaid, 0);
+          return { 
+            ...l, 
+            payments: updatedPayments,
+            currentBalance: l.originalAmount - totalPrincipalPaid
+          };
+        }
+        return l;
+      }),
     })),
   
   removePaymentFromLiability: (liabilityId, paymentId) =>
     set((state) => ({
-      liabilities: state.liabilities.map((l) =>
-        l.id === liabilityId 
-          ? { ...l, payments: (l.payments || []).filter(p => p.id !== paymentId) }
-          : l
-      ),
+      liabilities: state.liabilities.map((l) => {
+        if (l.id === liabilityId) {
+          const updatedPayments = (l.payments || []).filter(p => p.id !== paymentId);
+          const totalPrincipalPaid = updatedPayments.reduce((sum, p) => sum + p.principalPaid, 0);
+          return { 
+            ...l, 
+            payments: updatedPayments,
+            currentBalance: l.originalAmount - totalPrincipalPaid
+          };
+        }
+        return l;
+      }),
     })),
   
   // Income actions

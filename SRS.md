@@ -106,6 +106,54 @@ This module maps directly to the "Statement of Assets and Liabilities".
 - **JSON Backup:** Full state dump, encrypted with AES-GCM.
 - **IRD Schedule 7 CSV:** Generates `[TIN]_IIT_WHTSCHEDULE_2425_ORIGINAL_V1.csv` formatted exactly as per IRD specs for WHT certificate upload.
 
+### 3.7 Module: Tax Certificate Tracking
+
+**FR-12: APIT/WHT Certificate Management**
+- **Purpose:** Track tax certificates for Advanced Personal Income Tax (APIT) and Withholding Tax (WHT) to claim tax credits.
+- **Certificate Types:**
+  - **Employment (APIT):** From employers showing APIT deducted (Cage 903)
+  - **Interest (WHT):** From banks/financial institutions showing WHT on interest income (Cage 908)
+  - **Dividend (WHT):** From companies showing WHT on dividend income (Cage 908)
+  - **Rent (WHT):** From tenants showing WHT on rental income (Cage 908)
+  - **Other (WHT):** From other sources showing WHT deductions (Cage 908)
+- **Required Fields:**
+  - Certificate Number (unique identifier)
+  - Issue Date
+  - Tax Year (supports multi-year tracking)
+  - Payer Information (Name, TIN)
+  - Financial Details (Gross Amount, Tax Deducted, Net Amount)
+  - Verification Status (manual flag for document verification)
+  - Description and Notes (optional)
+- **Auto-calculation:** System calculates Net Amount = Gross Amount - Tax Deducted
+- **Data Sources:**
+  - Manual entry through CertificateForm
+  - Auto-import from RAMIS PDFs (Gemini AI extraction)
+  - Auto-display of employment income from Income Schedule 1
+
+**FR-13: Certificate-Income Linking**
+- **Auto-linking:** System automatically links certificates to income entries by:
+  - Matching Payer TIN to Income Source TIN (primary method)
+  - Matching Payer Name to Income Source Name (fallback method)
+- **Manual Linking:** Users can manually select related income entry from dropdown
+- **Verification:** 
+  - Linked certificates display on income detail view with yellow badge
+  - Shows certificate number, payer, amounts, and verification status
+  - Provides navigation to certificate details
+- **Tax Credit Calculation:**
+  - APIT Credits (Cage 903): Sum of employment income APIT + employment certificates
+  - WHT Credits (Cage 908): Sum of investment income WHT + WHT certificates by type
+  - Breakdown displayed in Income page showing:
+    - Employment APIT (with certificate count)
+    - Interest WHT (with certificate count)
+    - Dividend WHT (with certificate count)
+    - Rent WHT (with certificate count)
+    - Other WHT (with certificate count)
+- **Schedule Integration:**
+  - Employment income from Schedule 1 auto-displays in certificate list
+  - Visual distinction with blue background and "From Income Schedule" label
+  - Auto-verified status for schedule-derived entries
+  - Edit/Delete disabled for schedule entries (managed via Income page)
+
 ---
 
 ## 4. Data Dictionary (JSON Schema)
@@ -149,6 +197,29 @@ This module maps directly to the "Statement of Assets and Liabilities".
 }
 ```
 
+### 4.3 AITWHTCertificate Object
+```json
+{
+  "id": "uuid",
+  "ownerId": "u1",
+  "taxYear": "2024/2025",
+  "certificateNo": "CERT-2024-001",
+  "issueDate": "2024-12-15",
+  "type": "interest", // employment | interest | dividend | rent | other
+  "details": {
+    "payerName": "Commercial Bank",
+    "payerTIN": "987654321",
+    "grossAmount": 100000,
+    "taxDeducted": 5000, // 5% WHT on interest
+    "netAmount": 95000 // Auto-calculated
+  },
+  "relatedIncomeId": "income-uuid", // Links to Investment Income entry
+  "verified": true, // Manual verification flag
+  "description": "Interest income WHT certificate",
+  "notes": "Verified against original certificate"
+}
+```
+
 ---
 
 ## 5. Non-Functional Requirements
@@ -162,7 +233,54 @@ This module maps directly to the "Statement of Assets and Liabilities".
 
 ## 6. Development Roadmap (MVP)
 
-- **Phase 1:** Setup React + Zustand + IDB. Build the "Entity" and "Asset" forms.
-- **Phase 2:** Build the Income Schedules (1, 2, 3) and Relief Logic.
-- **Phase 3:** Implement the "Capital Computation" engine (The Danger Meter).
-- **Phase 4:** Add Encryption and CSV Export features.
+- **Phase 1:** Setup React + Zustand + IDB. Build the "Entity" and "Asset" forms. ✅
+- **Phase 2:** Build the Income Schedules (1, 2, 3) and Relief Logic. ✅
+- **Phase 3:** Implement the "Capital Computation" engine (The Danger Meter). ✅
+- **Phase 4:** Add Encryption and CSV Export features. ✅
+- **Phase 5:** Tax Certificate Tracking (APIT/WHT) with PDF import. ✅
+- **Phase 6:** Testing and IRD compliance validation. 🚧
+
+---
+
+## 7. PDF Import Feature (Gemini AI Integration)
+
+### 7.1 Purpose
+Enable automatic extraction of tax data from RAMIS (Revenue Administration Management Information System) PDF documents using Google's Gemini AI.
+
+### 7.2 Extraction Capabilities
+The system extracts the following data from RAMIS PDFs:
+
+**Section 1: Assets**
+- Immovable Properties (Cage 701)
+- Motor Vehicles (Cage 711)
+- Bank Balances/Term Deposits (Cage 721)
+- Shares/Stocks, Cash in Hand, Loans Given, Jewellery/Gold
+
+**Section 2: Liabilities**
+- Loan details with lender information, amounts, and security given
+
+**Section 3: Income Schedules**
+- Schedule 1: Employment Income (Gross, Deductions, APIT)
+- Schedule 2: Business Income (Gross, Expenses, Net Profit)
+- Schedule 3: Investment Income (Interest, Dividends, Rent, WHT)
+
+**Section 4: Tax Certificates**
+- APIT Certificates from employment income
+- WHT Certificates from interest income (one certificate per payer)
+- Auto-calculation of net amounts
+
+### 7.3 Certificate Extraction Logic
+- **Interest Income Table:** Each row becomes a separate WHT certificate
+- **Fields Extracted:** Certificate number, issue date, payer name/TIN, gross amount, tax deducted
+- **Auto-linking:** Certificates are linked to corresponding income entries by TIN/payer name matching
+- **Validation:** System calculates net amount and validates data consistency
+
+### 7.4 User Workflow
+1. User uploads RAMIS PDF through PDFImportWizard
+2. Gemini AI processes PDF and extracts structured data
+3. Preview shows all extracted data organized by category
+4. User reviews and selects items to import (checkboxes)
+5. Selected data is imported with auto-linking applied
+6. User can verify and edit imported data
+
+---

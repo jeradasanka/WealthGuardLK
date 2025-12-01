@@ -11,9 +11,11 @@ WealthGuard LK is a privacy-first, offline-first web application designed to hel
 - **Backup & Restore**: Import/Export encrypted backups (.wglk files) with passphrase protection
 - **Audit Risk Detection**: Real-time "Danger Meter" warns about unexplained wealth
 - **IRD Compliance**: Generates filled values for IRD Schedules (1-10) and Statement of Assets & Liabilities
+- **Tax Certificate Tracking**: Track APIT and WHT certificates with automatic linking to income entries
 - **Family Wealth Tracking**: Manage multiple taxpayer profiles (husband, wife) with joint asset management
 - **Source of Funds Validation**: Links every asset acquisition to its funding source
-- **PDF Import**: Import income data from IRD income tax certificates (experimental)
+- **Tax Certificate Management**: Complete APIT/WHT certificate tracking with auto-linking to income
+- **PDF Import**: AI-powered import of income and certificate data from IRD RAMIS PDFs (experimental)
 
 ## 🏗️ Tech Stack
 
@@ -66,7 +68,15 @@ The app will be available at `http://localhost:5173`
 - **Liabilities**: Loans with security given and current balances
 - Maps directly to IRD Statement of Assets and Liabilities
 
-### 4. Source of Funds Linker (FR-07)
+### 4. Tax Certificate Tracking (FR-12, FR-13)
+- **APIT Certificates**: Track employment tax deduction certificates (Cage 903)
+- **WHT Certificates**: Interest, dividend, rent, and other withholding tax certificates (Cage 908)
+- **Auto-Import**: Extract certificates from RAMIS PDFs via AI parsing
+- **Income Linking**: Automatically link certificates to related income entries by TIN/payer matching
+- **Verification Status**: Mark certificates as verified against original documents
+- **Tax Credit Breakdown**: View detailed breakdown of all tax credits by type and source
+
+### 5. Source of Funds Linker (FR-07)
 - Asset Acquisition Wizard prompts for funding source:
   - Current year income
   - Asset liquidation
@@ -74,20 +84,21 @@ The app will be available at `http://localhost:5173`
   - Gift/Inheritance
 - Alerts on unexplained wealth
 
-### 5. Tax Calculation Engine (FR-08, FR-09)
+### 6. Tax Calculation Engine (FR-08, FR-09)
 - Automatic relief application (Personal: Rs. 1,200,000, Solar: up to Rs. 600,000)
 - Progressive tax rates (6%, 12%, 18%, 24%, 30%, 36%)
-- Tax credit handling (APIT, WHT)
+- Tax credit handling (APIT from employment and certificates, WHT from certificates)
 
-### 6. Danger Meter (FR-10)
+### 7. Danger Meter (FR-10)
 - **Formula**: `(Asset Growth + Living Expenses) - (Declared Income + Loans)`
 - Visual indicators: Green (Safe), Yellow (Warning), Red (Danger)
 - Real-time risk score calculation
 
-### 7. Export & Import (FR-11)
+### 8. Export & Import (FR-11)
 - **Export**: Encrypted JSON backup (.wglk files)
 - **Import**: Restore data from backup during setup or from settings
 - **IRD Schedule 7**: CSV export for WHT certificates
+
 ## 📊 Data Structures & Calculations
 
 ### 1. Data Models
@@ -121,9 +132,25 @@ Represents a debt obligation.
 #### Income (`Income`)
 Represents an income source for a specific tax year.
 - **Schedules**:
-  - `1`: Employment (Gross Remuneration, Non-Cash Benefits, APIT)
-  - `2`: Business (Net Profit/Loss)
-  - `3`: Investment (Interest, Dividends, Rent, WHT)
+  - Schedule 1: Employment Income (Cage 901 - Gross, 902 - Allowable Deductions, 903 - APIT)
+  - Schedule 2: Business Income (Cage 201 - Gross, 202 - Expenses, 203 - Net)
+  - Schedule 3: Investment Income (Cage 301 - Interest, 302 - Dividends, 303 - Rent, 304 - Other, 308 - WHT)
+- **Tax Deductions**: Captures APIT (Cage 903) and WHT (Cage 308/908) at source.
+
+#### AITWHTCertificate (`AITWHTCertificate`)
+Represents a tax certificate for APIT or WHT deductions.
+- **Types**: 
+  - `employment`: APIT certificates from employers (Cage 903)
+  - `interest`, `dividend`, `rent`, `other`: WHT certificates from various income sources (Cage 908)
+- **Key Fields**: 
+  - `certificateNo`: Unique certificate number
+  - `issueDate`: Certificate issue date
+  - `taxYear`: Tax year the certificate applies to
+  - `details`: Payer information (name, TIN), gross amount, tax deducted, net amount
+  - `relatedIncomeId`: Links to corresponding income entry (auto-linked by TIN/payer matching)
+  - `verified`: Manual verification status flag
+- **Auto-calculation**: `netAmount = grossAmount - taxDeducted`
+- **Sources**: Manually entered or auto-imported from RAMIS PDFs
 
 ### 2. Calculation Logic
 
@@ -141,7 +168,10 @@ Implemented in `src/lib/taxEngine.ts`.
     *   First Rs. 500,000 @ 6%
     *   Next Rs. 500,000 @ 12%
     *   ...up to Balance @ 36%
-4.  **Tax Payable**:
+4.  **Tax Credits**: Sum of APIT and WHT from all sources
+    *   *APIT (Cage 903)*: From employment income schedules + employment certificates
+    *   *WHT (Cage 908)*: From investment income schedules + WHT certificates (interest, dividend, rent, other)
+5.  **Tax Payable**:
     `Tax on Income - Tax Credits (APIT + WHT)`
 
 #### ⚠️ Audit Risk / Danger Meter (FR-10)
@@ -222,7 +252,9 @@ See `src/types/index.ts` for complete type definitions.
 - [x] **Phase 9**: Tax Computation page and Settings ✅
 - [x] **Phase 10**: Import backup functionality ✅
 - [x] **Phase 11**: Firebase deployment ✅
-- [ ] **Phase 12**: Testing and IRD compliance validation 🚧
+- [x] **Phase 12**: Tax certificate tracking (APIT/WHT) ✅
+- [x] **Phase 13**: AI-powered PDF import with Gemini ✅
+- [ ] **Phase 14**: Testing and IRD compliance validation 🚧
 
 **MVP Status**: Ready for Production - Deployed at https://wealthguard-f7c26.web.app
 

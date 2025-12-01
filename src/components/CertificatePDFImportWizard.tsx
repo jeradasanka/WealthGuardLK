@@ -3,7 +3,7 @@
  * Allows importing WHT/AIT certificates from PDF documents using Gemini AI
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useStore } from '@/stores/useStore';
 import { parseCertificatePdf, determineTaxYearFromDate, type ParsedCertificateData } from '@/utils/certificatePdfParser';
+import { fetchAvailableGeminiModels, FALLBACK_GEMINI_MODELS } from '@/utils/geminiPdfParser';
 import { FileText, Upload, CheckCircle2, XCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { getTaxYearsFromStart } from '@/lib/taxYear';
 
@@ -25,14 +26,37 @@ export function CertificatePDFImportWizard({ onClose }: CertificatePDFImportWiza
   const saveToStorage = useStore((state) => state.saveToStorage);
   const geminiApiKey = useStore((state) => state.geminiApiKey);
   const geminiModel = useStore((state) => state.geminiModel);
+  const setGeminiModel = useStore((state) => state.setGeminiModel);
 
   const [file, setFile] = useState<File | null>(null);
   const [selectedOwnerId, setSelectedOwnerId] = useState(entities[0]?.id || '');
+  const [selectedModel, setSelectedModel] = useState(geminiModel);
   const [isProcessing, setIsProcessing] = useState(false);
   const [parsedCertificates, setParsedCertificates] = useState<ParsedCertificateData[]>([]);
   const [selectedCertificates, setSelectedCertificates] = useState<boolean[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<'upload' | 'preview' | 'complete'>('upload');
+  const [availableModels, setAvailableModels] = useState<Array<{ value: string; label: string; description: string }>>([...FALLBACK_GEMINI_MODELS]);
+  const [loadingModels, setLoadingModels] = useState(false);
+
+  // Fetch available models when component mounts and API key is available
+  useEffect(() => {
+    if (geminiApiKey && geminiApiKey.trim() !== '') {
+      setLoadingModels(true);
+      fetchAvailableGeminiModels(geminiApiKey)
+        .then(models => {
+          if (models.length > 0) {
+            setAvailableModels(models);
+          }
+        })
+        .catch(err => {
+          console.warn('Failed to fetch models, using fallback:', err);
+        })
+        .finally(() => {
+          setLoadingModels(false);
+        });
+    }
+  }, [geminiApiKey]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -64,7 +88,10 @@ export function CertificatePDFImportWizard({ onClose }: CertificatePDFImportWiza
     setError(null);
 
     try {
-      const certificates = await parseCertificatePdf(file, geminiApiKey, geminiModel);
+      // Save selected model preference
+      setGeminiModel(selectedModel);
+      
+      const certificates = await parseCertificatePdf(file, geminiApiKey, selectedModel);
       
       if (certificates.length === 0) {
         setError('No certificates found in the PDF. Please check the document format.');
@@ -105,6 +132,7 @@ export function CertificatePDFImportWizard({ onClose }: CertificatePDFImportWiza
     }
 
     setIsProcessing(true);
+    setError(null);
 
     try {
       for (const cert of certificatesToImport) {
@@ -121,19 +149,27 @@ export function CertificatePDFImportWizard({ onClose }: CertificatePDFImportWiza
             grossAmount: cert.grossAmount,
             taxDeducted: cert.taxDeducted,
             netAmount: cert.netAmount,
-            description: cert.description,
+            description: cert.description || '',
           },
           notes: cert.period ? `Period: ${cert.period}` : undefined,
           verified: false,
         };
 
+        console.log('Adding certificate:', newCertificate);
         addCertificate(newCertificate);
+        
+        // Small delay to ensure unique IDs
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
 
+      console.log('Saving to storage...');
       await saveToStorage();
+      console.log('Import complete, moving to complete step');
       setStep('complete');
     } catch (err) {
+      console.error('Import error:', err);
       setError(err instanceof Error ? err.message : 'Failed to import certificates');
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -171,6 +207,26 @@ export function CertificatePDFImportWizard({ onClose }: CertificatePDFImportWiza
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="gemini-model">Gemini Model</Label>
+                  <select
+                    id="gemini-model"
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="w-full mt-1 px-3 py-2 border rounded-md"
+                    disabled={loadingModels}
+                  >
+                    {availableModels.map((model) => (
+                      <option key={model.value} value={model.value}>
+                        {model.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {loadingModels ? 'Loading available models...' : availableModels.find(m => m.value === selectedModel)?.description || 'Select AI model for parsing'}
+                  </p>
                 </div>
 
                 <div>

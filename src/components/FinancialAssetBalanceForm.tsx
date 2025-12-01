@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useStore } from '@/stores/useStore';
 import { formatLKR } from '@/lib/taxEngine';
 import { getTaxYearsFromStart, formatTaxYear } from '@/lib/taxYear';
+import { FinancialBalancePDFImportWizard } from '@/components/FinancialBalancePDFImportWizard';
 import type { Asset, FinancialAssetBalance } from '@/types';
 
 interface Props {
@@ -23,6 +24,7 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
   const [selectedYear, setSelectedYear] = useState('');
   const [closingBalance, setClosingBalance] = useState('');
   const [interestEarned, setInterestEarned] = useState('');
+  const [showImportWizard, setShowImportWizard] = useState(false);
 
   const taxYears = getTaxYearsFromStart(entities[0]?.taxYear || '2022');
 
@@ -138,10 +140,21 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
           {/* Add Balance Form */}
           {!asset.closed && (
             <div className="bg-blue-50 rounded-lg p-6 space-y-4">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <Plus className="h-5 w-5" />
-                Record Balance for Tax Year
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-lg flex items-center gap-2">
+                  <Plus className="h-5 w-5" />
+                  Record Balance for Tax Year
+                </h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowImportWizard(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  Import from PDF
+                </Button>
+              </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -323,6 +336,20 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
           )}
         </CardContent>
       </Card>
+
+      {/* PDF Import Wizard */}
+      <FinancialBalancePDFImportWizard
+        open={showImportWizard}
+        onClose={() => {
+          setShowImportWizard(false);
+          // Refresh the asset data after import
+          const updatedAsset = useStore.getState().assets.find(a => a.id === asset.id);
+          if (updatedAsset) {
+            setCurrentAsset(updatedAsset);
+          }
+        }}
+        preSelectedAssetId={asset.id}
+      />
     </div>
   );
 }

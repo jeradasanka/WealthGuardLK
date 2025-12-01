@@ -4,6 +4,7 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { fileToBase64 } from './pdfParserUtils';
 
 export interface ParsedIncomeScheduleData {
   schedule: '1' | '2' | '3'; // Schedule 1: Employment, 2: Business, 3: Investment
@@ -226,32 +227,3 @@ Now analyze this PDF and extract all income schedule data:
   }
 }
 
-/**
- * Convert file to base64
- */
-async function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      const base64Data = base64.split(',')[1];
-      resolve(base64Data);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-/**
- * Determine tax year from date
- * Sri Lankan tax year: April 1 to March 31
- */
-export function determineTaxYearFromDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  const month = date.getMonth() + 1; // 1-12
-  const year = date.getFullYear();
-  
-  // If Jan-Mar, tax year is previous calendar year
-  // If Apr-Dec, tax year is current calendar year
-  return month <= 3 ? (year - 1).toString() : year.toString();
-}

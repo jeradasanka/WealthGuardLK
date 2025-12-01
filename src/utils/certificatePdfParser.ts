@@ -4,7 +4,6 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import type { AITWHTCertificate } from '@/types';
 
 export interface ParsedCertificateData {
   certificateNo: string;
@@ -166,21 +165,3 @@ Analyze the PDF and extract the certificate data:`;
   }
 }
 
-/**
- * Determine tax year from issue date
- * Sri Lankan tax year: April 1 to March 31
- * Returns the starting year (e.g., "2024" for FY 2024/2025)
- */
-export function determineTaxYearFromDate(dateString: string): string {
-  const date = new Date(dateString);
-  const month = date.getMonth() + 1; // 1-12
-  const year = date.getFullYear();
-
-  if (month >= 4) {
-    // April to December: current year is the tax year
-    return year.toString();
-  } else {
-    // January to March: previous year is the tax year
-    return (year - 1).toString();
-  }
-}

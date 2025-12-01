@@ -12,7 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { formatLKR } from '@/lib/taxEngine';
 import { getTaxYearsFromStart, formatTaxYear, getCurrentTaxYear } from '@/lib/taxYear';
 import { useStore } from '@/stores/useStore';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Upload } from 'lucide-react';
+import { LiabilityPaymentPDFImportWizard } from '@/components/LiabilityPaymentPDFImportWizard';
 
 interface LiabilityPaymentFormProps {
   liability: Liability;
@@ -29,6 +30,7 @@ export function LiabilityPaymentForm({ liability, onSave, onClose }: LiabilityPa
   const [principalPaid, setPrincipalPaid] = useState('0');
   const [interestPaid, setInterestPaid] = useState('0');
   const [notes, setNotes] = useState('');
+  const [showImportWizard, setShowImportWizard] = useState(false);
 
   const totalPaid = Number(principalPaid) + Number(interestPaid);
   const balanceAfterPayment = currentLiability.currentBalance - Number(principalPaid);
@@ -141,7 +143,18 @@ export function LiabilityPaymentForm({ liability, onSave, onClose }: LiabilityPa
         <CardContent className="space-y-6">
           {/* Add New Payment Section */}
           <div className="bg-slate-50 p-4 rounded-lg space-y-4">
-            <h3 className="font-semibold text-lg">Add New Payment</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-lg">Add New Payment</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowImportWizard(true)}
+                className="flex items-center gap-2"
+              >
+                <Upload className="h-4 w-4" />
+                Import from PDF
+              </Button>
+            </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -318,6 +331,20 @@ export function LiabilityPaymentForm({ liability, onSave, onClose }: LiabilityPa
           </div>
         </CardContent>
       </Card>
+
+      {/* PDF Import Wizard */}
+      <LiabilityPaymentPDFImportWizard
+        open={showImportWizard}
+        onClose={() => {
+          setShowImportWizard(false);
+          // Refresh the liability data after import
+          const updatedLiability = useStore.getState().liabilities.find(l => l.id === liability.id);
+          if (updatedLiability) {
+            setCurrentLiability(updatedLiability);
+          }
+        }}
+        preSelectedLiabilityId={liability.id}
+      />
     </div>
   );
 }

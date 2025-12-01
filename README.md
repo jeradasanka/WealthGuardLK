@@ -15,7 +15,12 @@ WealthGuard LK is a privacy-first, offline-first web application designed to hel
 - **Family Wealth Tracking**: Manage multiple taxpayer profiles (husband, wife) with joint asset management
 - **Source of Funds Validation**: Links every asset acquisition to its funding source
 - **Tax Certificate Management**: Complete APIT/WHT certificate tracking with auto-linking to income
-- **PDF Import**: AI-powered import of income and certificate data from IRD RAMIS PDFs (experimental)
+- **PDF Import (AI-Powered)**: Import from multiple PDF types using Gemini AI
+  - IRD RAMIS PDFs (income schedules, certificates, assets, liabilities)
+  - Income Schedule T10 forms (employment, business, investment)
+  - Bank statements and account summaries (financial asset balances)
+  - Loan statements and payment receipts (liability payments)
+  - Tax certificate PDFs (APIT/WHT certificates)
 
 ## 🏗️ Tech Stack
 
@@ -99,6 +104,25 @@ The app will be available at `http://localhost:5173`
 - **Import**: Restore data from backup during setup or from settings
 - **IRD Schedule 7**: CSV export for WHT certificates
 
+### 9. AI-Powered PDF Import (FR-14)
+- **RAMIS Import**: Extract income, assets, liabilities, and certificates from IRD RAMIS PDFs
+- **Income Schedule Import**: Import T10 forms (Schedules 1, 2, 3) with auto-detection
+- **Financial Balance Import**: Extract balance records from bank statements
+  - Opening balance, closing balance, interest earned
+  - Account details (number, holder name, bank name)
+  - Statement period auto-detection
+  - Tax year auto-assignment based on statement dates
+- **Liability Payment Import**: Extract payment records from loan documents
+  - Principal paid, interest paid, total payment
+  - Balance after payment tracking
+  - Payment date and reference extraction
+  - Loan account and lender information
+- **Certificate Import**: Dedicated parser for APIT/WHT certificate PDFs
+- **Model Selection**: Choose between Gemini 2.0 Flash, 1.5 Pro, or 1.5 Flash
+- **OCR Support**: Handles scanned documents (images converted to text)
+- **Smart Filtering**: Entity filter and tax year override for each imported record
+- **Preview & Select**: Review extracted data before importing with selective import
+
 ## 📊 Data Structures & Calculations
 
 ### 1. Data Models
@@ -128,6 +152,17 @@ Represents a physical or financial asset owned by an entity.
 Represents a debt obligation.
 - **Key Fields**: `originalAmount`, `currentBalance`, `lenderName`, `securityGiven`.
 - **Payment Tracking**: Records principal and interest payments to calculate reducing balance.
+- **Annual Records**: `payments` array tracks payment history by tax year
+  - Each payment: `{ id, taxYear, date, principalPaid, interestPaid, notes }`
+  - Auto-calculates balance reduction
+  - Interest paid flows to tax deductible expenses
+
+#### FinancialAssetBalance
+Represents annual balance records for financial assets (Bank/Term Deposits, Cash, Loans Given).
+- **Key Fields**: `taxYear`, `closingBalance`, `interestEarned`
+- **Usage**: Tracks year-end balances for Cage Bii, Biv, Bv assets
+- **Auto-calculation**: Interest earned flows to Investment Income (Schedule 3)
+- **Import Source**: Can be manually entered or imported from bank statement PDFs
 
 #### Income (`Income`)
 Represents an income source for a specific tax year.
@@ -253,8 +288,9 @@ See `src/types/index.ts` for complete type definitions.
 - [x] **Phase 10**: Import backup functionality ✅
 - [x] **Phase 11**: Firebase deployment ✅
 - [x] **Phase 12**: Tax certificate tracking (APIT/WHT) ✅
-- [x] **Phase 13**: AI-powered PDF import with Gemini ✅
-- [ ] **Phase 14**: Testing and IRD compliance validation 🚧
+- [x] **Phase 13**: AI-powered PDF import (RAMIS, T10, Certificates) ✅
+- [x] **Phase 14**: Financial PDF import (Bank statements, Loan payments) ✅
+- [ ] **Phase 15**: Testing and IRD compliance validation 🚧
 
 **MVP Status**: Ready for Production - Deployed at https://wealthguard-f7c26.web.app
 

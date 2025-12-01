@@ -236,7 +236,7 @@ export function IncomeSchedulePDFImportWizard({ open, onClose }: IncomeScheduleP
         <DialogHeader>
           <DialogTitle>Import Income Schedule (T10 Forms)</DialogTitle>
           <DialogDescription>
-            Upload income schedule PDFs and extract data using AI
+            Upload income schedule PDFs and extract data using AI. Supports both digital and scanned PDFs.
           </DialogDescription>
         </DialogHeader>
 
@@ -292,8 +292,14 @@ export function IncomeSchedulePDFImportWizard({ open, onClose }: IncomeScheduleP
                 <p className="text-sm font-medium mb-1">
                   {file ? file.name : 'Click to upload income schedule PDF'}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mb-2">
                   T10 forms, employment certificates, or other income schedules
+                </p>
+                <p className="text-xs text-green-600 font-medium">
+                  ✓ Scanned PDFs supported (with OCR)
+                </p>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Tips for scanned PDFs: Use high-quality scans (300 DPI+), ensure proper alignment
                 </p>
               </label>
             </div>

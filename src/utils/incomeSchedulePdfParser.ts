@@ -56,6 +56,16 @@ export interface ParsedIncomeScheduleData {
 
 /**
  * Parse income schedule PDF using Gemini AI
+ * 
+ * **SCANNED PDF SUPPORT:**
+ * This parser works with both digital and scanned PDFs.
+ * Gemini AI has built-in OCR capabilities to extract text from scanned documents.
+ * 
+ * Tips for best results with scanned PDFs:
+ * - Use high-quality scans (300 DPI or higher recommended)
+ * - Ensure the document is properly aligned and not skewed
+ * - Make sure the text is clearly visible and not too faded
+ * - Use gemini-2.0-flash-exp or gemini-1.5-pro for best OCR results
  */
 export async function parseIncomeSchedulePdf(
   file: File,
@@ -74,7 +84,16 @@ export async function parseIncomeSchedulePdf(
     const prompt = `
 You are an expert in Sri Lankan tax forms and income schedules. Analyze this PDF which contains income schedule forms (T10 or similar) from the Sri Lankan Inland Revenue Department.
 
-**IMPORTANT INSTRUCTIONS:**
+**IMPORTANT: This PDF may be a scanned document or a digital PDF. Use OCR to extract text from scanned images if needed.**
+
+**SCANNING INSTRUCTIONS:**
+1. If this is a scanned/image-based PDF, carefully read ALL visible text using OCR
+2. Look for handwritten or typed entries in form fields
+3. Extract numbers carefully, distinguishing between similar-looking digits (0 vs O, 1 vs l, 5 vs S)
+4. Pay attention to currency formatting (commas, decimal points)
+5. If text is unclear, make your best interpretation based on context
+
+**DATA EXTRACTION INSTRUCTIONS:**
 1. Extract ALL income entries from the PDF
 2. Identify the schedule type for each entry (Schedule 1: Employment, Schedule 2: Business, Schedule 3: Investment)
 3. Extract the tax year (format: "YYYY" e.g., "2024" for tax year 2024/2025)

@@ -1,38 +1,65 @@
 # Tax Legislation Reference Library
 
-This folder contains Sri Lankan tax legislation PDFs that the AI Tax Agent can reference.
+This folder contains Sri Lankan tax legislation that the AI Tax Agent can reference.
 
 ## Folder Structure
 
 ```
 tax-legislation/
-├── acts/                    # Primary tax legislation
-│   ├── inland-revenue-act-2017.pdf
-│   ├── vat-act-2002.pdf
-│   └── ...
+├── acts/                    # Source PDF files (for reference)
+│   └── inland-revenue-act-2017.pdf
+├── extracted/               # Pre-extracted JSON files (used by AI)
+│   └── inland-revenue-act-2017.json
 ├── amendments/             # Year-wise amendments
-│   ├── 2024/
-│   │   ├── amendment-act-1-2024.pdf
-│   │   └── ...
-│   ├── 2023/
-│   └── ...
 ├── circulars/              # IRD circulars and notices
-│   ├── personal-tax/
-│   ├── corporate-tax/
-│   └── ...
 └── README.md
 ```
 
-## How to Add PDFs
+## How It Works
 
-1. **Acts**: Place primary legislation PDFs in `acts/` folder
-   - Example: `inland-revenue-act-2017.pdf`
+### Performance Optimization
+Instead of parsing PDFs on-the-fly (slow, expensive), we:
+1. **Extract once** during development using Gemini API
+2. **Store as JSON** in `extracted/` folder
+3. **Load instantly** when users open the chatbot (no API call!)
 
-2. **Amendments**: Organize by year in `amendments/YYYY/` folders
-   - Example: `amendments/2024/amendment-act-1-2024.pdf`
+### Benefits
+- ⚡ **Instant loading** (JSON fetch vs PDF parsing)
+- 💰 **No API costs** during normal use
+- 📉 **Lower token usage** (pre-extracted text)
+- ✅ **No timeouts** or hanging issues
 
-3. **Circulars**: Organize by tax type in `circulars/` subfolders
-   - Example: `circulars/personal-tax/ird-circular-2024-01.pdf`
+## How to Add New Legislation
+
+### Step 1: Add PDF to Source Folder
+```bash
+cp inland-revenue-act-2017.pdf public/tax-legislation/acts/
+```
+
+### Step 2: Extract to JSON
+Run the extraction script with your Gemini API key:
+```bash
+node scripts/extractLegislation.js YOUR_GEMINI_API_KEY
+```
+
+This will:
+- Parse the PDF using Gemini AI
+- Extract all text content with structure
+- Save to `public/tax-legislation/extracted/FILENAME.json`
+
+### Step 3: Register in Code
+Update `src/utils/legislationLoader.ts`:
+```typescript
+export const AVAILABLE_LEGISLATION: LegislationDocument[] = [
+  {
+    name: 'Inland Revenue Act No. 24 of 2017',
+    path: '/tax-legislation/extracted/inland-revenue-act-2017.json',
+    category: 'acts',
+    year: '2017'
+  },
+  // Add your new legislation here
+];
+```
 
 ## Naming Convention
 

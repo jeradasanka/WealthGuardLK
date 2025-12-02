@@ -1,6 +1,6 @@
 /**
  * Tax Legislation Loader
- * Loads and parses PDF files from public/tax-legislation folder
+ * Loads pre-extracted legislation JSON files from public/tax-legislation/extracted
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -8,23 +8,66 @@ import { fileToBase64 } from './pdfParserUtils';
 
 export interface LegislationDocument {
   name: string;
-  path: string;
+  path: string; // Path to pre-extracted JSON file
   category: 'acts' | 'amendments' | 'circulars';
   year?: string;
 }
 
-// Registry of available legislation PDFs
+export interface ExtractedLegislation {
+  name: string;
+  category: string;
+  year: number;
+  extractedAt: string;
+  content: string;
+  metadata: {
+    textLength: number;
+    extractionModel: string;
+  };
+}
+
+// Registry of available legislation JSON files (pre-extracted)
 export const AVAILABLE_LEGISLATION: LegislationDocument[] = [
   {
     name: 'Inland Revenue Act No. 24 of 2017',
-    path: '/tax-legislation/acts/inland-revenue-act-2017.pdf',
-    category: 'acts'
+    path: '/tax-legislation/extracted/inland-revenue-act-2017.json',
+    category: 'acts',
+    year: '2017'
   },
-  // Add more documents as they are added to public/tax-legislation
+  // Add more documents as they are extracted
 ];
 
 /**
- * Load and parse a legislation PDF using Gemini AI
+ * Load pre-extracted legislation JSON (fast, no API call needed)
+ */
+export async function loadLegislationJSON(jsonPath: string): Promise<string> {
+  try {
+    console.log('📥 Fetching pre-extracted legislation from:', jsonPath);
+    
+    const response = await fetch(jsonPath);
+    console.log('📡 Fetch response status:', response.status, response.statusText);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to load JSON: ${jsonPath} (Status: ${response.status})`);
+    }
+    
+    const data: ExtractedLegislation = await response.json();
+    console.log('✅ Legislation loaded:', data.name);
+    console.log('📊 Text length:', data.content.length, 'characters');
+    console.log('📅 Extracted at:', new Date(data.extractedAt).toLocaleString());
+    
+    return data.content;
+  } catch (error) {
+    console.error('❌ Error loading legislation JSON:', error);
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+    }
+    throw error;
+  }
+}
+
+/**
+ * DEPRECATED: Load and parse a legislation PDF using Gemini AI
+ * Use loadLegislationJSON instead for better performance
  */
 export async function loadLegislationPDF(
   pdfPath: string,

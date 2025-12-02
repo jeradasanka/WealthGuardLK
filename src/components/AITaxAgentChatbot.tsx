@@ -15,7 +15,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { calculateAuditRisk, formatLKR, computeTax } from '@/lib/taxEngine';
 import { formatTaxYear } from '@/lib/taxYear';
 import { fetchAvailableGeminiModels, FALLBACK_GEMINI_MODELS } from '@/utils/geminiPdfParser';
-import { loadLegislationPDF, AVAILABLE_LEGISLATION } from '@/utils/legislationLoader';
+import { loadLegislationJSON, AVAILABLE_LEGISLATION } from '@/utils/legislationLoader';
 
 interface AITaxAgentChatbotProps {
   readonly open: boolean;
@@ -167,7 +167,7 @@ export function AITaxAgentChatbot({
     };
   }, []);
 
-  // Load legislation PDFs using the model from settings
+  // Load legislation from pre-extracted JSON files (fast, no API call)
   const loadLegislation = useCallback(async (modelToUse: string) => {
     // Use refs to avoid dependency on state variables
     if (!geminiApiKey) {
@@ -187,17 +187,17 @@ export function AITaxAgentChatbot({
       return;
     }
 
-    console.log('✅ Starting legislation load with model:', modelToUse);
+    console.log('✅ Starting legislation load (pre-extracted JSON)');
     hasLoadedLegislationRef.current = true; // Prevent multiple calls
     isLoadingLegislationRef.current = true;
     setLoadingLegislation(true);
     
     try {
-      // Load the first available legislation (Inland Revenue Act)
+      // Load the first available legislation (pre-extracted JSON)
       const mainAct = AVAILABLE_LEGISLATION[0];
-      console.log('📄 Loading PDF from:', mainAct.path);
-      const text = await loadLegislationPDF(mainAct.path, geminiApiKey, modelToUse);
-      console.log('✅ PDF loaded, text length:', text.length);
+      console.log('📄 Loading JSON from:', mainAct.path);
+      const text = await loadLegislationJSON(mainAct.path);
+      console.log('✅ JSON loaded, text length:', text.length);
       setLegislationText(text);
       setLegislationLoaded(true);
       console.log('✅ Legislation loaded successfully');
@@ -636,9 +636,9 @@ Be specific and explain tax implications of any recommendations.`;
                 <div className="flex items-start gap-2">
                   <Loader2 className="w-4 h-4 mt-0.5 text-blue-600 animate-spin" />
                   <div className="text-xs text-blue-700">
-                    <p className="font-medium mb-1">Loading Tax Legislation (Optional)...</p>
+                    <p className="font-medium mb-1">Loading Tax Legislation...</p>
                     <p className="text-blue-600">
-                      Parsing Inland Revenue Act PDF in background. You can start analysis now - legislation will be added when ready.
+                      Loading Inland Revenue Act from pre-extracted file...
                     </p>
                   </div>
                 </div>

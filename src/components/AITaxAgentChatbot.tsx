@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, Loader2, Sparkles, RotateCcw } from 'lucide-react';
+import { MessageCircle, Send, Loader2, Sparkles, RotateCcw, BookOpen } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { calculateAuditRisk, formatLKR, computeTax } from '@/lib/taxEngine';
 import { formatTaxYear } from '@/lib/taxYear';
 import { fetchAvailableGeminiModels, FALLBACK_GEMINI_MODELS } from '@/utils/geminiPdfParser';
+import { loadLegislationPDF, AVAILABLE_LEGISLATION } from '@/utils/legislationLoader';
 
 interface AITaxAgentChatbotProps {
   readonly open: boolean;
@@ -150,6 +151,9 @@ export function AITaxAgentChatbot({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [showConfig, setShowConfig] = useState(true);
+  const [legislationLoaded, setLegislationLoaded] = useState(false);
+  const [legislationText, setLegislationText] = useState<string>('');
+  const [loadingLegislation, setLoadingLegislation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch available Gemini models on mount
@@ -182,7 +186,7 @@ export function AITaxAgentChatbot({
   useEffect(() => {
     if (open && !geminiApiKey) {
       setMessages([{
-        id: 'error-' + Date.now(),
+        id: 'no-api-key-' + Date.now(),
         role: 'assistant',
         content: '⚠️ Gemini API key is not configured. Please set up your API key in Settings to use the AI Tax Agent.',
         timestamp: new Date()
@@ -190,6 +194,26 @@ export function AITaxAgentChatbot({
       setShowConfig(false);
     }
   }, [open, geminiApiKey]);
+
+  // Load legislation PDFs when chat starts
+  const loadLegislation = async () => {
+    if (!geminiApiKey || legislationLoaded || AVAILABLE_LEGISLATION.length === 0) return;
+
+    setLoadingLegislation(true);
+    try {
+      // Load the first available legislation (Inland Revenue Act)
+      const mainAct = AVAILABLE_LEGISLATION[0];
+      const text = await loadLegislationPDF(mainAct.path, geminiApiKey, selectedModel);
+      setLegislationText(text);
+      setLegislationLoaded(true);
+      console.log('Legislation loaded successfully');
+    } catch (error) {
+      console.error('Failed to load legislation:', error);
+      // Continue without legislation - chatbot will work with general knowledge
+    } finally {
+      setLoadingLegislation(false);
+    }
+  };
 
   const generateFinancialContext = () => {
     const entity = entities.find(e => e.id === selectedEntityId);
@@ -253,11 +277,20 @@ export function AITaxAgentChatbot({
     setIsAnalyzing(true);
     setShowConfig(false);
 
+    // Load legislation in background if not already loaded
+    if (!legislationLoaded && !loadingLegislation) {
+      loadLegislation();
+    }
+
     try {
       const genAI = new GoogleGenerativeAI(geminiApiKey);
       const model = genAI.getGenerativeModel({ model: selectedModel });
 
       const context = generateFinancialContext();
+
+      const legislationContext = legislationLoaded 
+        ? `\n\n**Reference Legislation:**\nInland Revenue Act No. 24 of 2017 (loaded)\n${legislationText.slice(0, 30000)}\n\nUse the above legislation to support your analysis with specific section references.`
+        : '\n\n**Note:** Reference to Sri Lankan tax law based on general knowledge of Inland Revenue Act No. 24 of 2017.';
 
       const prompt = `You are an expert Sri Lankan tax advisor. Analyze the following taxpayer's financial situation and provide a comprehensive tax advisory report.
 
@@ -297,6 +330,7 @@ export function AITaxAgentChatbot({
 **Tax Certificates:**
 - Certificates Filed: ${context.certificates.count}
 - Total Tax Withheld: ${context.certificates.totalWithheld}
+${legislationContext}
 
 Please provide a well-structured analysis using this format:
 
@@ -390,6 +424,10 @@ Use **bold text** for important terms and numbers. Keep paragraphs concise and a
         `${m.role === 'user' ? 'User' : 'Tax Advisor'}: ${m.content}`
       ).join('\n\n');
 
+      const legislationContext = legislationLoaded 
+        ? `\n\n**Reference Legislation:**\n${legislationText.slice(0, 20000)}\n\nCite specific sections when applicable.`
+        : '';
+
       const prompt = `You are an expert Sri Lankan tax advisor helping a taxpayer with their ${context.taxYear} tax filing.
 
 **Current Financial Context:**
@@ -397,6 +435,7 @@ Use **bold text** for important terms and numbers. Keep paragraphs concise and a
 - Assets: ${context.assets.totalValue}
 - Tax Payable: ${context.tax.taxPayable}
 - Audit Risk: ${context.auditRisk.level.toUpperCase()}
+${legislationContext}
 
 **Previous Conversation:**
 ${conversationHistory}
@@ -410,6 +449,7 @@ Provide a helpful, accurate response based on Sri Lankan tax law. Format your re
 - Use numbered lists (1. 2.) for step-by-step instructions
 - Keep paragraphs concise and actionable
 - Include specific numbers and references when relevant
+- Cite legislation sections (e.g., "Section 3 of the Inland Revenue Act") when applicable
 
 Be specific and explain tax implications of any recommendations.`;
 
@@ -534,11 +574,39 @@ Be specific and explain tax implications of any recommendations.`;
               <MessageCircle className="w-4 h-4 mr-2" />
               Start Tax Analysis
             </Button>
+
+            {/* Legislation Info */}
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <div className="flex items-start gap-2">
+                <BookOpen className="w-4 h-4 mt-0.5 text-blue-600" />
+                <div className="text-xs text-blue-700">
+                  <p className="font-medium mb-1">Tax Legislation Integration</p>
+                  <p className="text-blue-600">
+                    The AI will reference Sri Lankan tax legislation (Inland Revenue Act, amendments, IRD circulars) 
+                    when providing advice. Place PDF files in the public/tax-legislation/ folder to enable this feature.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           <>
             {/* Chat Messages */}
             <div className="flex-1 overflow-y-auto space-y-4 py-4 min-h-[400px] max-h-[500px]">
+              {/* Legislation Status Indicator */}
+              {legislationLoaded && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-md text-sm text-green-700">
+                  <BookOpen className="w-4 h-4" />
+                  <span>Tax legislation loaded - AI will reference relevant acts and sections</span>
+                </div>
+              )}
+              {loadingLegislation && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-700">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Loading tax legislation...</span>
+                </div>
+              )}
+
               {isAnalyzing ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">

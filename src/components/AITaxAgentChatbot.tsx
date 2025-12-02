@@ -214,7 +214,8 @@ export function AITaxAgentChatbot({
           loadLegislation(initialModelRef.current);
         });
     }
-  }, [geminiApiKey, open, loadLegislation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geminiApiKey, open]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

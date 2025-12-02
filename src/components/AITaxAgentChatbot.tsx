@@ -624,19 +624,10 @@ Be specific and explain tax implications of any recommendations.`;
             <Button 
               onClick={handleStartChat} 
               className="w-full"
-              disabled={!geminiApiKey || !selectedEntityId || loadingLegislation}
+              disabled={!geminiApiKey || !selectedEntityId}
             >
-              {loadingLegislation ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Loading Legislation...
-                </>
-              ) : (
-                <>
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Start Tax Analysis
-                </>
-              )}
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Start Tax Analysis
             </Button>
 
             {/* Legislation Status */}
@@ -645,9 +636,9 @@ Be specific and explain tax implications of any recommendations.`;
                 <div className="flex items-start gap-2">
                   <Loader2 className="w-4 h-4 mt-0.5 text-blue-600 animate-spin" />
                   <div className="text-xs text-blue-700">
-                    <p className="font-medium mb-1">Loading Tax Legislation...</p>
+                    <p className="font-medium mb-1">Loading Tax Legislation (Optional)...</p>
                     <p className="text-blue-600">
-                      Parsing Inland Revenue Act PDF. Please wait...
+                      Parsing Inland Revenue Act PDF in background. You can start analysis now - legislation will be added when ready.
                     </p>
                   </div>
                 </div>

@@ -69,7 +69,12 @@ Preserve the structure including:
 
 Format the output as structured text with clear hierarchy.`;
 
-    const result = await aiModel.generateContent([
+    // Set a timeout for the API call (60 seconds)
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Gemini API timeout after 60 seconds')), 60000);
+    });
+
+    const apiPromise = aiModel.generateContent([
       prompt,
       {
         inlineData: {
@@ -78,6 +83,8 @@ Format the output as structured text with clear hierarchy.`;
         }
       }
     ]);
+
+    const result = await Promise.race([apiPromise, timeoutPromise]);
 
     const extractedText = result.response.text();
     console.log('✅ Gemini extraction complete, text length:', extractedText.length);

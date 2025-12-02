@@ -543,19 +543,24 @@ export function computeTax(
 
 /**
  * Calculates the Danger Meter / Audit Risk (FR-10)
- * Formula: Risk = (Asset Growth + Living Expenses) - (Declared Income + New Loans)
+ * Formula: Risk = (Asset Growth + Property Expenses + Derived Living Expenses + Loan Payments) - (Declared Income - Tax + New Loans + Asset Sales)
+ * Living expenses are derived as the balancing figure between outflows and inflows
  */
 export function calculateAuditRisk(
   assets: Asset[],
   liabilities: Liability[],
   incomes: Income[],
-  currentYear: string,
-  estimatedLivingExpenses: number = 0
+  currentYear: string
 ): AuditRisk {
-  // Calculate asset growth (assets acquired in current tax year)
+  // Calculate asset growth (assets acquired in current tax year, excluding disposed)
   const assetGrowth = assets
     .filter((a) => isDateInTaxYear(a.meta.dateAcquired, currentYear) && !a.disposed)
     .reduce((sum, a) => sum + a.financials.cost, 0);
+
+  // Calculate asset sales (proceeds from disposed assets in current tax year)
+  const assetSales = assets
+    .filter((a) => a.disposed && isDateInTaxYear(a.disposed.date, currentYear))
+    .reduce((sum, a) => sum + (a.disposed?.salePrice || 0), 0);
 
   // Calculate property expenses made in current tax year
   const propertyExpenses = assets
@@ -572,16 +577,22 @@ export function calculateAuditRisk(
     .filter((l) => isDateInTaxYear(l.dateAcquired, currentYear))
     .reduce((sum, l) => sum + l.originalAmount, 0);
 
-  // Calculate loan payments made in current tax year (principal + interest)
-  const loanPayments = liabilities.reduce((sum, l) => {
-    if (!l.payments || l.payments.length === 0) return sum;
+  // Calculate loan payments made in current tax year (split by principal and interest)
+  let loanPrincipal = 0;
+  let loanInterest = 0;
+  
+  liabilities.forEach((l) => {
+    if (!l.payments || l.payments.length === 0) return;
     
-    const yearPayments = l.payments
-      .filter(p => p.taxYear.toString() === currentYear)
-      .reduce((total, p) => total + p.principalPaid + p.interestPaid, 0);
+    const yearPayments = l.payments.filter(p => p.taxYear.toString() === currentYear);
     
-    return sum + yearPayments;
-  }, 0);
+    yearPayments.forEach(p => {
+      loanPrincipal += p.principalPaid;
+      loanInterest += p.interestPaid;
+    });
+  });
+
+  const loanPayments = loanPrincipal + loanInterest;
 
   // Calculate declared income with breakdown
   const incomeBreakdown = calculateTotalIncome(
@@ -590,10 +601,21 @@ export function calculateAuditRisk(
     currentYear
   );
 
-  // Calculate risk score (include property expenses in outflows, subtract tax already paid from inflows)
-  const outflows = assetGrowth + propertyExpenses + estimatedLivingExpenses + loanPayments;
-  const inflows = incomeBreakdown.totalIncome - ((incomeBreakdown.totalAPIT || 0) + (incomeBreakdown.totalWHT || 0)) + newLoans;
-  const riskScore = outflows - inflows;
+  // Calculate actual outflows (excluding living expenses)
+  const actualOutflows = assetGrowth + propertyExpenses + loanPayments;
+  
+  // Calculate actual inflows
+  const netIncome = incomeBreakdown.totalIncome - ((incomeBreakdown.totalAPIT || 0) + (incomeBreakdown.totalWHT || 0));
+  const actualInflows = netIncome + newLoans + assetSales;
+  
+  // DERIVE living expenses as the balancing figure
+  // Living expenses = Inflows - Outflows (what's left after known expenses)
+  // If negative (outflows > inflows), it means unexplained funding
+  const derivedLivingExpenses = Math.max(0, actualInflows - actualOutflows);
+
+  // Calculate risk score (if outflows exceed inflows even after accounting for living expenses)
+  const totalOutflows = actualOutflows + derivedLivingExpenses;
+  const riskScore = totalOutflows - actualInflows;
 
   // Determine risk level
   let riskLevel: 'safe' | 'warning' | 'danger' = 'safe';
@@ -606,7 +628,7 @@ export function calculateAuditRisk(
   return {
     assetGrowth,
     propertyExpenses,
-    estimatedLivingExpenses,
+    derivedLivingExpenses,
     loanPayments,
     employmentIncome: incomeBreakdown.employmentIncome,
     businessIncome: incomeBreakdown.businessIncome,
@@ -614,8 +636,23 @@ export function calculateAuditRisk(
     totalIncome: incomeBreakdown.totalIncome,
     taxDeducted: (incomeBreakdown.totalAPIT || 0) + (incomeBreakdown.totalWHT || 0),
     newLoans,
+    assetSales,
     riskScore,
     riskLevel,
+    inflowBreakdown: {
+      employmentIncome: incomeBreakdown.employmentIncome,
+      businessIncome: incomeBreakdown.businessIncome,
+      investmentIncome: incomeBreakdown.investmentIncome,
+      newLoans,
+      assetSales,
+    },
+    outflowBreakdown: {
+      assetPurchases: assetGrowth,
+      loanPrincipal,
+      loanInterest,
+      propertyExpenses,
+      livingExpenses: derivedLivingExpenses,
+    },
   };
 }
 

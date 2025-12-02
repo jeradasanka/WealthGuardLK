@@ -102,9 +102,17 @@ The app will be available at `http://localhost:5173`
 - Tax credit handling (APIT from employment and certificates, WHT from certificates)
 
 ### 7. Danger Meter (FR-10)
-- **Formula**: `(Asset Growth + Living Expenses) - (Declared Income + Loans)`
-- Visual indicators: Green (Safe), Yellow (Warning), Red (Danger)
-- Real-time risk score calculation
+- **Entity-Based Filtering**: Calculates risk per selected entity (family combined or individual)
+- **Derived Living Expenses**: Automatically calculates living expenses as balance of inflows minus outflows (no estimation needed)
+- **Formula**: `Risk_Score = Total_Outflows - Total_Inflows`
+  - **Inflows**: Employment + Business + Investment Income + New Loans + Asset Sales
+  - **Outflows**: Tax Deducted + Asset Purchases + Property Expenses + Loan Principal + Loan Interest + Living Expenses (derived)
+- **Comprehensive Breakdown**: Pie chart visualization showing all 10 income/expense categories
+  - 5 inflow categories (employment, business, investment, loans, asset sales)
+  - 6 outflow categories (tax, asset purchases, property expenses, loan principal, interest, living expenses)
+- **Visual Indicators**: Green (Safe), Yellow (Warning), Red (Danger)
+- **Real-time Updates**: Risk score recalculates when switching between family and individual entity views
+- **Tax Year Display**: Shows selected entity and tax year in meter header
 - **AI Tax Agent**: Integrated chatbot button for instant tax advice
 
 ### 7a. AI Tax Agent Chatbot (FR-15)
@@ -238,22 +246,42 @@ Implemented in `src/lib/taxEngine.ts`.
 #### ⚠️ Audit Risk / Danger Meter (FR-10)
 Detects "Unexplained Wealth" by balancing Inflows vs. Outflows for the current tax year.
 
-**Formula**: `Risk Score = Outflows - Inflows`
+**Entity Filtering**: Calculations respect Dashboard entity selection:
+- **Family View**: Combines all family members' data
+- **Individual View**: Filters to show only selected entity's assets, liabilities, and incomes (including joint ownership proportions)
 
-*   **Outflows**:
-    *   (+) Cost of Assets acquired in current year
-    *   (+) Property Expenses (Renovations/Improvements)
-    *   (+) Loan Payments (Principal + Interest)
-    *   (+) Estimated Living Expenses
+**Formula**: `Risk Score = Total Outflows - Total Inflows`
+
 *   **Inflows**:
-    *   (+) Net Income (Total Income - APIT - WHT)
+    *   (+) Employment Income (Schedule 1)
+    *   (+) Business Income (Schedule 2)
+    *   (+) Investment Income (Schedule 3)
     *   (+) New Loans taken in current year
-    *   (+) Asset Disposals (Sale Proceeds)
+    *   (+) Asset Sales (proceeds from disposed assets)
+*   **Outflows**:
+    *   (+) Tax Deducted (APIT + WHT paid at source)
+    *   (+) Asset Purchases (cost of assets acquired in current year)
+    *   (+) Property Expenses (renovations/improvements)
+    *   (+) Loan Principal Payments
+    *   (+) Loan Interest Payments
+    *   (+) **Derived Living Expenses** = max(0, Inflows - Other Outflows)
+
+**Living Expenses Calculation**:
+- System automatically derives living expenses as the balancing figure
+- Formula: `Living_Expenses = Total_Inflows - (Tax + Assets + Property + Loan_Principal + Loan_Interest)`
+- No need for user estimation - calculated mathematically from actual financial flows
+
+**Visual Breakdown**:
+- Single pie chart with 10 categories (5 inflows + 6 outflows)
+- Color-coded: Green (inflows), Red/Orange (outflows), Yellow (living expenses)
+- Detailed breakdown tables showing amounts and percentages
+- Balance calculation box showing derivation of living expenses
 
 **Risk Levels**:
 *   🟢 **Safe**: Risk Score ≤ 0 (Inflows cover Outflows)
 *   🟡 **Warning**: Risk Score > 0 but ≤ 500,000
 *   🔴 **Danger**: Risk Score > 500,000 (High risk of audit)
+*   ⚖️ **Balanced**: Risk Score = 0 (Perfect balance - no unexplained wealth or surplus)
 
 #### 💰 Net Worth
 Displayed on the Dashboard.

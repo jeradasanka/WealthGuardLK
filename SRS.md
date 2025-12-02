@@ -97,10 +97,27 @@ This module maps directly to the "Statement of Assets and Liabilities".
 ### 3.6 Module: Reporting & Export
 
 **FR-10: The "Danger Meter" (Audit Risk Gauge)**
-- **Formula:** `Risk_Score = (Asset_Growth + Est_Living_Expenses) - (Declared_Income + Loans)`
-- **Visual:**
-  - **Green:** If Risk_Score ≈ 0 (Balanced).
-  - **Red:** If Risk_Score > 0 (You spent more than you earned).
+- **Entity-Based Calculation:** Respects Dashboard entity selection (family combined vs individual entity)
+- **Derived Living Expenses:** System automatically calculates living expenses as the balancing figure between inflows and outflows
+  - Formula: `Living_Expenses = max(0, Total_Inflows - Other_Outflows)`
+  - Eliminates need for user estimation
+- **Formula:** `Risk_Score = Total_Outflows - Total_Inflows`
+  - **Inflows:** Employment Income + Business Income + Investment Income + New Loans + Asset Sales
+  - **Outflows:** Tax Deducted + Asset Purchases + Property Expenses + Loan Principal + Loan Interest + Living Expenses (derived)
+- **Comprehensive Breakdown:**
+  - Single pie chart with 10 categories (5 inflows, 6 outflows)
+  - Detailed breakdown tables showing amounts and percentages
+  - Balance calculation showing derivation of living expenses
+  - Visual display of selected entity and tax year
+- **Visual Indicators:**
+  - **Green:** Risk_Score ≤ 0 (Safe - Inflows cover Outflows)
+  - **Yellow:** 0 < Risk_Score ≤ 500,000 (Warning - Minor discrepancies)
+  - **Red:** Risk_Score > 500,000 (Danger - High audit risk)
+  - **Balanced:** Risk_Score = 0 (Perfect balance)
+- **Entity Filtering:**
+  - Family view: Shows combined data for all family members
+  - Individual view: Filters to specific entity's assets, liabilities, incomes (including joint ownership)
+  - Real-time updates when switching entities
 
 **FR-11: Data Export**
 - **JSON Backup:** Full state dump, encrypted with AES-GCM.

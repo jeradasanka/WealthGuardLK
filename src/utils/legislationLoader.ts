@@ -32,20 +32,29 @@ export async function loadLegislationPDF(
   model: string = 'gemini-2.0-flash-exp'
 ): Promise<string> {
   try {
+    console.log('📥 Fetching PDF from:', pdfPath);
+    
     // Fetch the PDF from public folder
     const response = await fetch(pdfPath);
+    console.log('📡 Fetch response status:', response.status, response.statusText);
+    
     if (!response.ok) {
-      throw new Error(`Failed to load PDF: ${pdfPath}`);
+      throw new Error(`Failed to load PDF: ${pdfPath} (Status: ${response.status})`);
     }
     
     const blob = await response.blob();
+    console.log('📦 PDF blob size:', blob.size, 'bytes');
+    
     const file = new File([blob], pdfPath.split('/').pop() || 'document.pdf', {
       type: 'application/pdf'
     });
 
+    console.log('🔄 Converting PDF to base64...');
     // Convert to base64
     const base64Data = await fileToBase64(file);
+    console.log('✅ Base64 conversion complete, length:', base64Data.length);
 
+    console.log('🤖 Sending to Gemini AI for text extraction with model:', model);
     // Use Gemini AI to extract text
     const genAI = new GoogleGenerativeAI(apiKey);
     const aiModel = genAI.getGenerativeModel({ model });
@@ -71,9 +80,14 @@ Format the output as structured text with clear hierarchy.`;
     ]);
 
     const extractedText = result.response.text();
+    console.log('✅ Gemini extraction complete, text length:', extractedText.length);
     return extractedText;
   } catch (error) {
-    console.error('Error loading legislation PDF:', error);
+    console.error('❌ Error loading legislation PDF:', error);
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     throw error;
   }
 }

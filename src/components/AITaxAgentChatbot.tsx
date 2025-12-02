@@ -30,6 +30,100 @@ interface Message {
   timestamp: Date;
 }
 
+// Message content renderer with proper markdown formatting
+function MessageContent({ content }: { readonly content: string }) {
+  const renderLine = (line: string, index: number) => {
+    // Skip empty lines
+    if (!line.trim()) {
+      return <div key={index} className="h-2" />;
+    }
+
+    // Headers (# ## ###)
+    const h1Regex = /^# (.+)$/;
+    const h1Match = h1Regex.exec(line);
+    if (h1Match) {
+      return <h1 key={index} className="text-2xl font-bold mb-3 mt-4 text-gray-900">{h1Match[1]}</h1>;
+    }
+    
+    const h2Regex = /^## (.+)$/;
+    const h2Match = h2Regex.exec(line);
+    if (h2Match) {
+      return <h2 key={index} className="text-xl font-bold mb-2 mt-3 text-gray-800">{h2Match[1]}</h2>;
+    }
+    
+    const h3Regex = /^### (.+)$/;
+    const h3Match = h3Regex.exec(line);
+    if (h3Match) {
+      return <h3 key={index} className="text-lg font-semibold mb-2 mt-2 text-gray-700">{h3Match[1]}</h3>;
+    }
+
+    // Bold text (**text**)
+    const boldRegex = /^\*\*(.+)\*\*:?(.*)$/;
+    const boldMatch = boldRegex.exec(line);
+    if (boldMatch) {
+      return (
+        <p key={index} className="mb-2">
+          <strong className="font-semibold text-gray-900">{boldMatch[1]}</strong>
+          {boldMatch[2] && <span>{boldMatch[2]}</span>}
+        </p>
+      );
+    }
+
+    // Bullet points (- or *)
+    const bulletRegex = /^[*-]\s+/;
+    if (bulletRegex.test(line)) {
+      const bulletContent = line.replace(bulletRegex, '');
+      return (
+        <li key={index} className="ml-4 mb-1 text-gray-700">
+          {formatInlineText(bulletContent)}
+        </li>
+      );
+    }
+
+    // Numbered lists (1. 2. etc)
+    const numberedRegex = /^(\d+)\.\s+(.+)$/;
+    const numberedMatch = numberedRegex.exec(line);
+    if (numberedMatch) {
+      return (
+        <li key={index} className="ml-4 mb-1 text-gray-700" style={{ listStyleType: 'decimal' }}>
+          {formatInlineText(numberedMatch[2])}
+        </li>
+      );
+    }
+
+    // Regular paragraph with inline formatting
+    return (
+      <p key={index} className="mb-2 text-gray-700 leading-relaxed">
+        {formatInlineText(line)}
+      </p>
+    );
+  };
+
+  const formatInlineText = (text: string) => {
+    // Handle **bold**, `code`, and regular text
+    const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+    
+    return parts.map((part, i) => {
+      const key = `${text.slice(0, 10)}-${i}`; // Use content prefix + index for more stable keys
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={key} className="font-semibold text-gray-900">{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return <code key={key} className="px-1.5 py-0.5 bg-gray-100 rounded text-sm font-mono text-purple-700">{part.slice(1, -1)}</code>;
+      }
+      return <span key={key}>{part}</span>;
+    });
+  };
+
+  const lines = content.split('\n');
+  
+  return (
+    <div className="prose prose-sm max-w-none">
+      {lines.map((line, index) => renderLine(line, index))}
+    </div>
+  );
+}
+
 export function AITaxAgentChatbot({ 
   open, 
   onClose, 
@@ -204,14 +298,30 @@ export function AITaxAgentChatbot({
 - Certificates Filed: ${context.certificates.count}
 - Total Tax Withheld: ${context.certificates.totalWithheld}
 
-Please provide:
-1. **Tax Compliance Status**: Are they compliant? Any immediate concerns?
-2. **Audit Risk Analysis**: Explain the risk level and what's causing it
-3. **Optimization Opportunities**: How can they reduce their tax liability legally?
-4. **Recommendations**: Specific actions they should take before filing
-5. **Red Flags**: Any potential issues that might trigger an audit
+Please provide a well-structured analysis using this format:
 
-Keep your response professional, clear, and actionable. Use bullet points for clarity.`;
+## 1. Tax Compliance Status
+[Brief assessment of compliance - are they on track? Any immediate concerns?]
+
+## 2. Audit Risk Analysis
+[Explain the ${context.auditRisk.level} risk level and what's causing it]
+
+## 3. Tax Optimization Opportunities
+[Specific legal ways to reduce tax liability - use bullet points]
+- Opportunity 1
+- Opportunity 2
+
+## 4. Pre-Filing Recommendations
+[Action items they should complete before filing]
+1. Action item 1
+2. Action item 2
+
+## 5. Potential Red Flags
+[Issues that might trigger an audit - be specific]
+- Red flag 1
+- Red flag 2
+
+Use **bold text** for important terms and numbers. Keep paragraphs concise and actionable.`;
 
       const result = await model.generateContent(prompt);
       const response = result.response;
@@ -274,15 +384,25 @@ Keep your response professional, clear, and actionable. Use bullet points for cl
       const prompt = `You are an expert Sri Lankan tax advisor helping a taxpayer with their ${context.taxYear} tax filing.
 
 **Current Financial Context:**
-Income: ${context.income.total} | Assets: ${context.assets.totalValue} | Tax Payable: ${context.tax.taxPayable} | Audit Risk: ${context.auditRisk.level}
+- Income: ${context.income.total}
+- Assets: ${context.assets.totalValue}
+- Tax Payable: ${context.tax.taxPayable}
+- Audit Risk: ${context.auditRisk.level.toUpperCase()}
 
 **Previous Conversation:**
 ${conversationHistory}
 
-**User's New Question:**
+**User's Question:**
 ${inputMessage}
 
-Provide a helpful, accurate response based on Sri Lankan tax law. Be specific and actionable. If recommending actions, explain the tax implications.`;
+Provide a helpful, accurate response based on Sri Lankan tax law. Format your response clearly:
+- Use **bold** for important terms and amounts
+- Use bullet points (-) for lists
+- Use numbered lists (1. 2.) for step-by-step instructions
+- Keep paragraphs concise and actionable
+- Include specific numbers and references when relevant
+
+Be specific and explain tax implications of any recommendations.`;
 
       const result = await model.generateContent(prompt);
       const response = result.response;
@@ -417,10 +537,8 @@ Provide a helpful, accurate response based on Sri Lankan tax law. Be specific an
                             {message.timestamp.toLocaleTimeString()}
                           </div>
                         </div>
-                        <div className="mt-2 prose prose-sm max-w-none">
-                          {message.content.split('\n').map((line, i) => (
-                            <p key={`${message.id}-line-${i}`} className="mb-2">{line}</p>
-                          ))}
+                        <div className="mt-2">
+                          <MessageContent content={message.content} />
                         </div>
                       </CardContent>
                     </Card>

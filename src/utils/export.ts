@@ -231,8 +231,7 @@ export function generateDetailedTaxReport(
     filteredAssets,
     filteredLiabilities,
     incomes,
-    taxYear,
-    0 // estimatedLivingExpenses - could be passed as parameter
+    taxYear
   );
 
   // Group incomes by schedule
@@ -593,17 +592,22 @@ Risk Level:                           ${auditRisk.riskLevel.toUpperCase()}
 Risk Score:                           ${formatLKR(Math.abs(auditRisk.riskScore))}
 
 Outflows:
-  Asset Growth:                       ${formatLKR(auditRisk.assetGrowth)}
-  Living Expenses:                    ${formatLKR(auditRisk.estimatedLivingExpenses)}
+  Asset Purchases:                    ${formatLKR(auditRisk.assetGrowth)}
+  Property Expenses:                  ${formatLKR(auditRisk.propertyExpenses)}
+  Living Expenses (Derived):          ${formatLKR(auditRisk.derivedLivingExpenses)}
   Loan Payments:                      ${formatLKR(auditRisk.loanPayments)}
                                       ────────────────────
-  Total Outflows:                     ${formatLKR(auditRisk.assetGrowth + auditRisk.estimatedLivingExpenses + auditRisk.loanPayments)}
+  Total Outflows:                     ${formatLKR(auditRisk.assetGrowth + auditRisk.propertyExpenses + auditRisk.derivedLivingExpenses + auditRisk.loanPayments)}
 
 Inflows:
-  Declared Income:                    ${formatLKR(auditRisk.declaredIncome)}
+  Employment Income:                  ${formatLKR(auditRisk.employmentIncome)}
+  Business Income:                    ${formatLKR(auditRisk.businessIncome)}
+  Investment Income:                  ${formatLKR(auditRisk.investmentIncome)}
+  Less: Tax Deducted:                 - ${formatLKR(auditRisk.taxDeducted)}
   New Loans:                          ${formatLKR(auditRisk.newLoans)}
+  Asset Sales:                        ${formatLKR(auditRisk.assetSales)}
                                       ────────────────────
-  Total Inflows:                      ${formatLKR(auditRisk.declaredIncome + auditRisk.newLoans)}
+  Total Inflows:                      ${formatLKR(auditRisk.totalIncome - auditRisk.taxDeducted + auditRisk.newLoans + auditRisk.assetSales)}
 
 Recommendation:                       ${auditRisk.riskLevel === 'safe' ? 'Low Risk - Good Standing' : 
                                        auditRisk.riskLevel === 'warning' ? 'Medium Risk - Review Recommended' : 
@@ -727,8 +731,7 @@ export function downloadDetailedTaxReportPDF(
     filteredAssets,
     filteredLiabilities,
     incomes,
-    taxYear,
-    0
+    taxYear
   );
 
   // Group incomes by schedule
@@ -1276,18 +1279,21 @@ export function downloadDetailedTaxReportPDF(
   doc.text('Outflows:', margin + 5, yPos);
   yPos += lineHeight;
   doc.setFont('helvetica', 'normal');
-  doc.text(`Asset Growth:`, margin + 10, yPos);
+  doc.text(`Asset Purchases:`, margin + 10, yPos);
   doc.text(formatLKR(auditRisk.assetGrowth), margin + 90, yPos);
   yPos += lineHeight;
-  doc.text(`Living Expenses:`, margin + 10, yPos);
-  doc.text(formatLKR(auditRisk.estimatedLivingExpenses), margin + 90, yPos);
+  doc.text(`Property Expenses:`, margin + 10, yPos);
+  doc.text(formatLKR(auditRisk.propertyExpenses), margin + 90, yPos);
+  yPos += lineHeight;
+  doc.text(`Living Expenses (Derived):`, margin + 10, yPos);
+  doc.text(formatLKR(auditRisk.derivedLivingExpenses), margin + 90, yPos);
   yPos += lineHeight;
   doc.text(`Loan Payments:`, margin + 10, yPos);
   doc.text(formatLKR(auditRisk.loanPayments), margin + 90, yPos);
   yPos += lineHeight;
   doc.setFont('helvetica', 'bold');
   doc.text(`Total Outflows:`, margin + 10, yPos);
-  doc.text(formatLKR(auditRisk.assetGrowth + auditRisk.estimatedLivingExpenses + auditRisk.loanPayments), margin + 90, yPos);
+  doc.text(formatLKR(auditRisk.assetGrowth + auditRisk.propertyExpenses + auditRisk.derivedLivingExpenses + auditRisk.loanPayments), margin + 90, yPos);
   yPos += lineHeight + 2;
 
   // Inflows section
@@ -1295,14 +1301,23 @@ export function downloadDetailedTaxReportPDF(
   doc.text('Inflows:', margin + 5, yPos);
   yPos += lineHeight;
   doc.setFont('helvetica', 'normal');
-  doc.text(`Declared Income:`, margin + 10, yPos);
-  doc.text(formatLKR(auditRisk.totalIncome), margin + 90, yPos);
+  doc.text(`Employment Income:`, margin + 10, yPos);
+  doc.text(formatLKR(auditRisk.employmentIncome), margin + 90, yPos);
+  yPos += lineHeight;
+  doc.text(`Business Income:`, margin + 10, yPos);
+  doc.text(formatLKR(auditRisk.businessIncome), margin + 90, yPos);
+  yPos += lineHeight;
+  doc.text(`Investment Income:`, margin + 10, yPos);
+  doc.text(formatLKR(auditRisk.investmentIncome), margin + 90, yPos);
   yPos += lineHeight;
   doc.text(`Less: Tax Deducted:`, margin + 10, yPos);
   doc.text(`- ${formatLKR(auditRisk.taxDeducted)}`, margin + 90, yPos);
   yPos += lineHeight;
   doc.text(`New Loans:`, margin + 10, yPos);
   doc.text(formatLKR(auditRisk.newLoans), margin + 90, yPos);
+  yPos += lineHeight;
+  doc.text(`Asset Sales:`, margin + 10, yPos);
+  doc.text(formatLKR(auditRisk.assetSales), margin + 90, yPos);
   yPos += lineHeight;
   doc.setFont('helvetica', 'bold');
   doc.text(`Total Inflows:`, margin + 10, yPos);

@@ -304,10 +304,10 @@ export function SettingsPage() {
                     placeholder="Enter your Gemini API key"
                     className="font-mono text-sm"
                   />
-                  <p className="text-xs text-gray-600 mt-1">
+                  <p className="text-sm text-muted-foreground">
                     Get your free API key from{' '}
                     <a 
-                      href="https://ai.google.dev/" 
+                      href="https://aistudio.google.com/apikey" 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:underline"

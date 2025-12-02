@@ -219,7 +219,7 @@ export interface TaxComputation {
 export interface AuditRisk {
   assetGrowth: number;
   propertyExpenses: number; // Property expenses (repairs, construction, etc.) for the year
-  estimatedLivingExpenses: number;
+  derivedLivingExpenses: number; // Calculated as balance between outflows and inflows
   loanPayments: number; // Total loan payments (principal + interest) for the year
   employmentIncome: number;
   businessIncome: number;
@@ -227,8 +227,23 @@ export interface AuditRisk {
   totalIncome: number;
   taxDeducted: number; // APIT + WHT
   newLoans: number;
-  riskScore: number; // (assetGrowth + propertyExpenses + expenses + loanPayments) - (income - tax + newLoans)
+  assetSales: number; // Proceeds from asset disposals
+  riskScore: number; // (assetGrowth + propertyExpenses + derivedLivingExpenses + loanPayments) - (income - tax + newLoans + assetSales)
   riskLevel: 'safe' | 'warning' | 'danger';
+  inflowBreakdown: {
+    employmentIncome: number;
+    businessIncome: number;
+    investmentIncome: number;
+    newLoans: number;
+    assetSales: number;
+  };
+  outflowBreakdown: {
+    assetPurchases: number;
+    loanPrincipal: number;
+    loanInterest: number;
+    propertyExpenses: number;
+    livingExpenses: number;
+  };
 }
 
 // App State

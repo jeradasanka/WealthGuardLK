@@ -141,7 +141,7 @@ export function AITaxAgentChatbot({
   const geminiModel = useStore((state) => state.geminiModel);
   const setGeminiModel = useStore((state) => state.setGeminiModel);
 
-  const [selectedEntityId, setSelectedEntityId] = useState(defaultEntityId || entities[0]?.id || '');
+  const [selectedEntityId, setSelectedEntityId] = useState('');
   const [selectedTaxYear, setSelectedTaxYear] = useState(defaultTaxYear || currentTaxYear);
   const [selectedModel, setSelectedModel] = useState(geminiModel);
   const [availableModels, setAvailableModels] = useState<Array<{ value: string; label: string; description: string }>>([...FALLBACK_GEMINI_MODELS]);
@@ -158,6 +158,14 @@ export function AITaxAgentChatbot({
   const hasLoadedLegislationRef = useRef(false);
   const isLoadingLegislationRef = useRef(false);
   const initialModelRef = useRef<string>(geminiModel);
+
+  // Initialize selectedEntityId after entities are loaded
+  useEffect(() => {
+    if (entities.length > 0 && !selectedEntityId) {
+      const initialEntityId = defaultEntityId || entities[0]?.id || '';
+      setSelectedEntityId(initialEntityId);
+    }
+  }, [entities, defaultEntityId, selectedEntityId]);
 
   // Debug: Track component lifecycle
   useEffect(() => {
@@ -343,10 +351,10 @@ export function AITaxAgentChatbot({
       const context = generateFinancialContext();
 
       const legislationContext = legislationLoaded 
-        ? `\n\n**Reference Legislation:**\nInland Revenue Act No. 24 of 2017 (loaded)\n${legislationText.slice(0, 30000)}\n\nUse the above legislation to support your analysis with specific section references.`
-        : '\n\n**Note:** Reference to Sri Lankan tax law based on general knowledge of Inland Revenue Act No. 24 of 2017.';
+        ? `\n\n**CRITICAL INSTRUCTION - LEGISLATION REFERENCE:**\nYou have been provided with the COMPLETE text of the Inland Revenue Act No. 24 of 2017 below. You MUST base ALL your tax advice, calculations, rates, and recommendations EXCLUSIVELY on this provided legislation text. DO NOT use general knowledge or training data about Sri Lankan tax law.\n\nWhen citing the Act:\n1. Quote the exact text from the legislation provided below\n2. Include the specific section number (e.g., "Section 3 states: '[exact quote]'")\n3. If a section is not found in the provided text, explicitly state "This information is not available in the provided legislation"\n4. Never assume or infer tax rules not explicitly stated in the text below\n\n--- BEGIN INLAND REVENUE ACT NO. 24 OF 2017 ---\n${legislationText.slice(0, 30000)}\n--- END LEGISLATION EXCERPT ---\n\nIMPORTANT: Base your entire analysis on the legislation text provided above. Cite specific sections with exact quotes.`
+        : '\n\n**Note:** Legislation not loaded. Providing general guidance only - taxpayer should verify all information with official IRD sources.';
 
-      const prompt = `You are an expert Sri Lankan tax advisor. Analyze the following taxpayer's financial situation and provide a comprehensive tax advisory report.
+      const prompt = `You are an expert Sri Lankan tax advisor. Analyze the following taxpayer's financial situation and provide a comprehensive tax advisory report.\n\nIMPORTANT: If legislation is loaded, you MUST cite specific sections from the provided Inland Revenue Act text with exact quotes. Do not rely on general knowledge.
 
 **Taxpayer Information:**
 - Name: ${context.taxpayer.name}
@@ -480,33 +488,10 @@ Use **bold text** for important terms and numbers. Keep paragraphs concise and a
       ).join('\n\n');
 
       const legislationContext = legislationLoaded 
-        ? `\n\n**Reference Legislation:**\n${legislationText.slice(0, 20000)}\n\nCite specific sections when applicable.`
-        : '';
+        ? `\n\n**CRITICAL INSTRUCTION - LEGISLATION REFERENCE:**\nYou have been provided with the COMPLETE text of the Inland Revenue Act No. 24 of 2017 below. You MUST answer the user's question EXCLUSIVELY based on this provided legislation text. DO NOT use general knowledge.\n\nWhen answering:\n1. Search the provided legislation text for relevant sections\n2. Quote exact text from the legislation (e.g., "Section 52 states: '[exact quote]'")\n3. If the answer is not in the provided text, say "The provided legislation does not cover this topic"\n4. Never make up or assume tax rules not in the text below\n\n--- BEGIN INLAND REVENUE ACT NO. 24 OF 2017 ---\n${legislationText.slice(0, 20000)}\n--- END LEGISLATION EXCERPT ---\n\nYou MUST base your answer on the above legislation text with specific citations and quotes.`
+        : '\n\n**Note:** Legislation not loaded. Providing general guidance only.';
 
-      const prompt = `You are an expert Sri Lankan tax advisor helping a taxpayer with their ${context.taxYear} tax filing.
-
-**Current Financial Context:**
-- Income: ${context.income.total}
-- Assets: ${context.assets.totalValue}
-- Tax Payable: ${context.tax.taxPayable}
-- Audit Risk: ${context.auditRisk.level.toUpperCase()}
-${legislationContext}
-
-**Previous Conversation:**
-${conversationHistory}
-
-**User's Question:**
-${inputMessage}
-
-Provide a helpful, accurate response based on Sri Lankan tax law. Format your response clearly:
-- Use **bold** for important terms and amounts
-- Use bullet points (-) for lists
-- Use numbered lists (1. 2.) for step-by-step instructions
-- Keep paragraphs concise and actionable
-- Include specific numbers and references when relevant
-- Cite legislation sections (e.g., "Section 3 of the Inland Revenue Act") when applicable
-
-Be specific and explain tax implications of any recommendations.`;
+      const prompt = `You are an expert Sri Lankan tax advisor helping a taxpayer with their ${context.taxYear} tax filing.\n\nCRITICAL: If legislation text is provided above, you MUST:\n- Answer based ONLY on that exact text\n- Quote specific sections with exact wording\n- State clearly if information is not in the provided legislation\n- Never rely on general knowledge when legislation is provided\n\n**Current Financial Context:**\n- Income: ${context.income.total}\n- Assets: ${context.assets.totalValue}\n- Tax Payable: ${context.tax.taxPayable}\n- Audit Risk: ${context.auditRisk.level.toUpperCase()}\n${legislationContext}\n\n**Previous Conversation:**\n${conversationHistory}\n\n**User's Question:**\n${inputMessage}\n\nProvide a helpful, accurate response. Format your response clearly:\n- Use **bold** for important terms and amounts\n- Use bullet points (-) for lists\n- Use numbered lists (1. 2.) for step-by-step instructions\n- Keep paragraphs concise and actionable\n- Include specific numbers and references when relevant\n- ALWAYS cite legislation sections with exact quotes (e.g., 'Section 3 of the Inland Revenue Act states: "[exact text]"')\n- If using the provided legislation, quote the exact text, don't paraphrase\n\nBe specific and explain tax implications of any recommendations.`;
 
       const result = await model.generateContent(prompt);
       const response = result.response;

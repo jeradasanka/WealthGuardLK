@@ -37,13 +37,13 @@ cp inland-revenue-act-2017.pdf public/tax-legislation/acts/
 ```
 
 ### Step 2: Extract to JSON
-Run the extraction script with your Gemini API key:
+Run the extraction script (no API key needed!):
 ```bash
-node scripts/extractLegislation.js YOUR_GEMINI_API_KEY
+node scripts/extractLegislation.js
 ```
 
 This will:
-- Parse the PDF using Gemini AI
+- Parse the PDF using pdf-parse library (direct extraction)
 - Extract all text content with structure
 - Save to `public/tax-legislation/extracted/FILENAME.json`
 

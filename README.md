@@ -35,6 +35,8 @@ WealthGuard LK is a privacy-first, offline-first web application designed to hel
 - **State Management**: Zustand
 - **Storage**: Browser localStorage (encrypted)
 - **Encryption**: Web Crypto API (AES-GCM + PBKDF2)
+- **AI Integration**: Google Gemini AI (PDF parsing, tax advice)
+- **PDF Processing**: pdfjs-dist (legislation extraction), Gemini AI (document import)
 - **Hosting**: Firebase Hosting
 
 ## 🚀 Getting Started
@@ -109,14 +111,19 @@ The app will be available at `http://localhost:5173`
 - **Auto-Analysis**: Immediate comprehensive tax situation analysis on entry
 - **Conversational AI**: Ask follow-up questions about tax planning and compliance
 - **Financial Context**: AI receives full taxpayer data (income, assets, liabilities, tax computation)
+- **Legislation Integration**: Pre-extracted Inland Revenue Act No. 24 of 2017 loaded instantly
+  - 524,462 characters of full tax legislation text
+  - AI provides specific section references in advice (e.g., "Section 3 of the Inland Revenue Act")
+  - Build-time PDF extraction (no runtime API calls for legislation)
+  - Instant loading (< 1 second vs previous 60+ second timeout)
 - **Model Selection**: Choose between Gemini 2.0 Flash, 1.5 Pro, or 1.5 Flash (same as PDF import)
 - **Entity & Tax Year Filter**: Focus analysis on specific taxpayer and year
 - **Advice Categories**:
   - Tax compliance status and immediate concerns
-  - Audit risk analysis and explanations
-  - Legal optimization opportunities
+  - Audit risk analysis with legislative citations
+  - Legal optimization opportunities with Act references
   - Specific pre-filing recommendations
-  - Potential red flags identification
+  - Potential red flags identification with regulatory context
 
 ### 8. Export & Import (FR-11)
 - **Export**: Encrypted JSON backup (.wglk files)
@@ -309,7 +316,10 @@ See `src/types/index.ts` for complete type definitions.
 - [x] **Phase 12**: Tax certificate tracking (APIT/WHT) ✅
 - [x] **Phase 13**: AI-powered PDF import (RAMIS, T10, Certificates) ✅
 - [x] **Phase 14**: Financial PDF import (Bank statements, Loan payments) ✅
-- [x] **Phase 15**: AI Tax Agent Chatbot ✅
+- [x] **Phase 15**: AI Tax Agent Chatbot with legislation integration ✅
+  - Build-time PDF extraction using pdfjs-dist (no Gemini API for legislation)
+  - Instant JSON loading (524KB pre-extracted legislation)
+  - Full Inland Revenue Act No. 24 of 2017 text
 - [ ] **Phase 16**: Testing and IRD compliance validation 🚧
 
 **MVP Status**: Ready for Production - Deployed at https://wealthguard-f7c26.web.app

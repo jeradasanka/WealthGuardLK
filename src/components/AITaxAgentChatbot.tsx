@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, Loader2, Sparkles } from 'lucide-react';
+import { MessageCircle, Send, Loader2, Sparkles, RotateCcw } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -356,6 +356,15 @@ Use **bold text** for important terms and numbers. Keep paragraphs concise and a
     performInitialAnalysis();
   };
 
+  const handleNewChat = () => {
+    // Reset to configuration screen
+    setShowConfig(true);
+    setMessages([]);
+    setInputMessage('');
+    setIsAnalyzing(false);
+    setIsSending(false);
+  };
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || !geminiApiKey || isSending) return;
 
@@ -441,10 +450,23 @@ Be specific and explain tax implications of any recommendations.`;
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-purple-600" />
-            AI Tax Agent - Sri Lankan Tax Advisory
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-purple-600" />
+              <DialogTitle>AI Tax Agent - Sri Lankan Tax Advisory</DialogTitle>
+            </div>
+            {!showConfig && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleNewChat}
+                className="gap-2"
+              >
+                <RotateCcw className="w-4 h-4" />
+                New Chat
+              </Button>
+            )}
+          </div>
           <DialogDescription>
             Get personalized tax advice powered by Gemini AI
           </DialogDescription>
@@ -569,10 +591,27 @@ Be specific and explain tax implications of any recommendations.`;
                     <Send className="w-4 h-4" />
                   )}
                 </Button>
+                <Button 
+                  variant="outline"
+                  onClick={handleNewChat}
+                  disabled={isSending || isAnalyzing}
+                  title="Start a new chat for a different entity or tax year"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground text-center">
-                Tax Year: {formatTaxYear(selectedTaxYear)} | Model: {availableModels.find(m => m.value === selectedModel)?.label}
-              </p>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>
+                  Tax Year: {formatTaxYear(selectedTaxYear)} | Model: {availableModels.find(m => m.value === selectedModel)?.label}
+                </span>
+                <button
+                  onClick={handleNewChat}
+                  className="text-purple-600 hover:text-purple-700 hover:underline"
+                  disabled={isSending || isAnalyzing}
+                >
+                  Change entity/year
+                </button>
+              </div>
             </div>
           </>
         )}

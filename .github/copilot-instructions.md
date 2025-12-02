@@ -85,6 +85,27 @@ export function MyForm({ onClose, itemId?: string }) {
 2. Auto-set `relatedIncomeId` if certificate.payerTIN matches
 3. Fallback: match by payer name (case-insensitive)
 
+**AI Tax Agent Chatbot**: `src/components/AITaxAgentChatbot.tsx`
+- Integrated into DangerMeter component via "Ask AI Tax Agent" button
+- Uses same Gemini model management as PDF imports:
+  * `fetchAvailableGeminiModels()` to dynamically fetch available models
+  * `FALLBACK_GEMINI_MODELS` for offline/error fallback
+  * Stores selected model in Zustand: `geminiModel` and `setGeminiModel()`
+- Configuration screen:
+  * Entity selector (defaults to current entity from dashboard)
+  * Tax year selector (defaults to currentTaxYear)
+  * AI model selector with dynamic loading
+- Auto-analysis on entry:
+  * Generates comprehensive financial context object
+  * Sends structured prompt to Gemini with all taxpayer data
+  * Returns 5-section analysis: compliance, audit risk, optimization, recommendations, red flags
+- Conversational chat:
+  * Message history with user/assistant roles
+  * Each question includes financial context for accuracy
+  * Real-time responses from Gemini API
+  * Auto-scroll to latest message
+- **Pattern**: When extending chatbot, always include full financial context in prompts
+
 ### 7. Routing Structure
 `src/App.tsx` uses React Router:
 - `/` - Dashboard (entity overview, danger meter, quick actions)

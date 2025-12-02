@@ -21,6 +21,11 @@ WealthGuard LK is a privacy-first, offline-first web application designed to hel
   - Bank statements and account summaries (financial asset balances)
   - Loan statements and payment receipts (liability payments)
   - Tax certificate PDFs (APIT/WHT certificates)
+- **AI Tax Agent**: Conversational AI chatbot for personalized tax advice
+  - Auto-analysis of current financial situation and audit risk
+  - Sri Lankan tax law expertise via Gemini AI
+  - Context-aware recommendations and optimization strategies
+  - Integrated into Audit Risk Meter for immediate access
 
 ## 🏗️ Tech Stack
 
@@ -98,6 +103,20 @@ The app will be available at `http://localhost:5173`
 - **Formula**: `(Asset Growth + Living Expenses) - (Declared Income + Loans)`
 - Visual indicators: Green (Safe), Yellow (Warning), Red (Danger)
 - Real-time risk score calculation
+- **AI Tax Agent**: Integrated chatbot button for instant tax advice
+
+### 7a. AI Tax Agent Chatbot (FR-15)
+- **Auto-Analysis**: Immediate comprehensive tax situation analysis on entry
+- **Conversational AI**: Ask follow-up questions about tax planning and compliance
+- **Financial Context**: AI receives full taxpayer data (income, assets, liabilities, tax computation)
+- **Model Selection**: Choose between Gemini 2.0 Flash, 1.5 Pro, or 1.5 Flash (same as PDF import)
+- **Entity & Tax Year Filter**: Focus analysis on specific taxpayer and year
+- **Advice Categories**:
+  - Tax compliance status and immediate concerns
+  - Audit risk analysis and explanations
+  - Legal optimization opportunities
+  - Specific pre-filing recommendations
+  - Potential red flags identification
 
 ### 8. Export & Import (FR-11)
 - **Export**: Encrypted JSON backup (.wglk files)
@@ -290,7 +309,8 @@ See `src/types/index.ts` for complete type definitions.
 - [x] **Phase 12**: Tax certificate tracking (APIT/WHT) ✅
 - [x] **Phase 13**: AI-powered PDF import (RAMIS, T10, Certificates) ✅
 - [x] **Phase 14**: Financial PDF import (Bank statements, Loan payments) ✅
-- [ ] **Phase 15**: Testing and IRD compliance validation 🚧
+- [x] **Phase 15**: AI Tax Agent Chatbot ✅
+- [ ] **Phase 16**: Testing and IRD compliance validation 🚧
 
 **MVP Status**: Ready for Production - Deployed at https://wealthguard-f7c26.web.app
 

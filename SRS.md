@@ -142,6 +142,41 @@ This module maps directly to the "Statement of Assets and Liabilities".
   - Preview with checkboxes for selective import
   - 3-step wizard (upload → preview → complete)
 
+**FR-15: AI Tax Agent Chatbot**
+- Accessible via "Ask AI Tax Agent" button in Audit Risk Meter (Danger Meter)
+- **Configuration Screen:**
+  - Entity selector (defaults to current dashboard entity)
+  - Tax year selector (defaults to current tax year)
+  - AI model selector (Gemini 2.0 Flash, 1.5 Pro, 1.5 Flash - same as PDF import)
+  - Fetches available models dynamically from Gemini API
+  - Saves selected model to Zustand store for consistency
+- **Auto-Analysis on Entry:**
+  - Immediately analyzes taxpayer's financial situation when chat starts
+  - Generates comprehensive tax advisory report including:
+    - Tax Compliance Status (are they compliant? immediate concerns?)
+    - Audit Risk Analysis (explain risk level and causes)
+    - Optimization Opportunities (legal ways to reduce tax liability)
+    - Recommendations (specific pre-filing actions)
+    - Red Flags (potential audit triggers)
+- **Conversational Interface:**
+  - Chat-based UI with message history
+  - User can ask follow-up questions in natural language
+  - AI maintains context of previous conversation
+  - Each response includes taxpayer's current financial data for accuracy
+- **Financial Context Sent to AI:**
+  - Taxpayer info (name, TIN, role, tax year)
+  - Income summary (employment, business, investment, tax deducted)
+  - Assets (count, total value, growth)
+  - Liabilities (count, total, new loans, payments)
+  - Tax computation (taxable income, tax payable, credits, net tax)
+  - Audit risk assessment (level, score, surplus/deficit message)
+  - Certificates (count, total tax withheld)
+- **Privacy & Security:**
+  - Requires Gemini API key (user must configure in Settings)
+  - Data sent to Gemini API only when user actively uses chatbot
+  - No persistent storage of chat history (session-only)
+  - User controls when AI has access to their data
+
 ---
 
 ## 4. Data Dictionary (JSON Schema)

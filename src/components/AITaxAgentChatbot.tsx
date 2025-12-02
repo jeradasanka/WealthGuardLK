@@ -156,17 +156,25 @@ export function AITaxAgentChatbot({
   const [loadingLegislation, setLoadingLegislation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasLoadedLegislationRef = useRef(false);
+  const isLoadingLegislationRef = useRef(false);
 
   // Load legislation PDFs when dialog opens (wrapped in useCallback to prevent re-creation)
   const loadLegislation = useCallback(async () => {
-    if (!geminiApiKey || hasLoadedLegislationRef.current || AVAILABLE_LEGISLATION.length === 0 || loadingLegislation) return;
+    // Use refs to avoid dependency on state variables
+    if (!geminiApiKey || hasLoadedLegislationRef.current || isLoadingLegislationRef.current || AVAILABLE_LEGISLATION.length === 0) {
+      return;
+    }
 
+    console.log('Starting legislation load...');
     hasLoadedLegislationRef.current = true; // Prevent multiple calls
+    isLoadingLegislationRef.current = true;
     setLoadingLegislation(true);
+    
     try {
       // Load the first available legislation (Inland Revenue Act)
+      // Use a fixed fast model for PDF parsing regardless of user selection
       const mainAct = AVAILABLE_LEGISLATION[0];
-      const text = await loadLegislationPDF(mainAct.path, geminiApiKey, selectedModel);
+      const text = await loadLegislationPDF(mainAct.path, geminiApiKey, 'gemini-2.0-flash-exp');
       setLegislationText(text);
       setLegislationLoaded(true);
       console.log('Legislation loaded successfully');
@@ -176,11 +184,14 @@ export function AITaxAgentChatbot({
       setLegislationLoaded(true); // Mark as "loaded" to unblock the button
     } finally {
       setLoadingLegislation(false);
+      isLoadingLegislationRef.current = false;
     }
-  }, [geminiApiKey, selectedModel, loadingLegislation]);
+  }, [geminiApiKey]);
 
   // Fetch available Gemini models and load legislation on mount
   useEffect(() => {
+    console.log('Main effect triggered:', { geminiApiKey: !!geminiApiKey, open, hasLoaded: hasLoadedLegislationRef.current });
+    
     if (geminiApiKey && open) {
       setLoadingModels(true);
       fetchAvailableGeminiModels(geminiApiKey)
@@ -196,8 +207,10 @@ export function AITaxAgentChatbot({
           setLoadingModels(false);
         });
       
-      // Load legislation immediately when dialog opens
-      loadLegislation();
+      // Load legislation immediately when dialog opens (only if not already loaded)
+      if (!hasLoadedLegislationRef.current) {
+        loadLegislation();
+      }
     }
   }, [geminiApiKey, open, loadLegislation]);
 
@@ -224,10 +237,13 @@ export function AITaxAgentChatbot({
   // Reset legislation ref when dialog is fully closed
   useEffect(() => {
     if (!open) {
-      // Reset the ref when dialog closes to allow re-loading next time
+      // Reset the refs when dialog closes to allow re-loading next time
+      console.log('Dialog closed - resetting legislation state');
       hasLoadedLegislationRef.current = false;
+      isLoadingLegislationRef.current = false;
       setLegislationLoaded(false);
       setLegislationText('');
+      setLoadingLegislation(false);
     }
   }, [open]);
 

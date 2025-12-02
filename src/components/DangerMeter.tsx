@@ -71,19 +71,19 @@ export function DangerMeter({ estimatedLivingExpenses = 0 }: DangerMeterProps) {
     <>
       <Card className={`border-2 ${getRiskColor()}`}>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 flex-1">
               {getRiskIcon()}
               <CardTitle>Audit Risk Meter</CardTitle>
             </div>
             <Button 
-              variant="outline" 
-              size="sm"
               onClick={() => setShowChatbot(true)}
-              className="gap-2"
+              className="gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
+              size="default"
             >
-              <MessageCircle className="w-4 h-4" />
-              Ask AI Tax Agent
+              <MessageCircle className="w-5 h-5" />
+              <span className="hidden sm:inline">Ask AI Tax Agent</span>
+              <span className="sm:hidden">AI Agent</span>
             </Button>
           </div>
           <CardDescription>{getRiskMessage()}</CardDescription>
@@ -176,6 +176,28 @@ export function DangerMeter({ estimatedLivingExpenses = 0 }: DangerMeterProps) {
           <p className="text-xs text-muted-foreground mt-1">
             Formula: Total Outflows - Total Inflows (after tax)
           </p>
+        </div>
+
+        {/* AI Tax Agent CTA */}
+        <div className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
+              <MessageCircle className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-semibold text-gray-900 mb-1">Need Tax Planning Advice?</h4>
+              <p className="text-sm text-gray-600 mb-3">
+                Get personalized recommendations from our AI Tax Agent. Analyze your situation, discover optimization opportunities, and ensure compliance.
+              </p>
+              <Button 
+                onClick={() => setShowChatbot(true)}
+                className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Start AI Tax Consultation
+              </Button>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -3,7 +3,7 @@
  * Provides AI-powered tax advice using Gemini AI
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { MessageCircle, Send, Loader2, Sparkles, RotateCcw, BookOpen } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -155,6 +155,29 @@ export function AITaxAgentChatbot({
   const [legislationText, setLegislationText] = useState<string>('');
   const [loadingLegislation, setLoadingLegislation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const hasLoadedLegislationRef = useRef(false);
+
+  // Load legislation PDFs when dialog opens (wrapped in useCallback to prevent re-creation)
+  const loadLegislation = useCallback(async () => {
+    if (!geminiApiKey || hasLoadedLegislationRef.current || AVAILABLE_LEGISLATION.length === 0 || loadingLegislation) return;
+
+    hasLoadedLegislationRef.current = true; // Prevent multiple calls
+    setLoadingLegislation(true);
+    try {
+      // Load the first available legislation (Inland Revenue Act)
+      const mainAct = AVAILABLE_LEGISLATION[0];
+      const text = await loadLegislationPDF(mainAct.path, geminiApiKey, selectedModel);
+      setLegislationText(text);
+      setLegislationLoaded(true);
+      console.log('Legislation loaded successfully');
+    } catch (error) {
+      console.error('Failed to load legislation:', error);
+      // Continue without legislation - chatbot will work with general knowledge
+      setLegislationLoaded(true); // Mark as "loaded" to unblock the button
+    } finally {
+      setLoadingLegislation(false);
+    }
+  }, [geminiApiKey, selectedModel, loadingLegislation]);
 
   // Fetch available Gemini models and load legislation on mount
   useEffect(() => {
@@ -176,7 +199,7 @@ export function AITaxAgentChatbot({
       // Load legislation immediately when dialog opens
       loadLegislation();
     }
-  }, [geminiApiKey, open]);
+  }, [geminiApiKey, open, loadLegislation]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -198,26 +221,15 @@ export function AITaxAgentChatbot({
     }
   }, [open, geminiApiKey]);
 
-  // Load legislation PDFs when dialog opens
-  const loadLegislation = async () => {
-    if (!geminiApiKey || legislationLoaded || AVAILABLE_LEGISLATION.length === 0 || loadingLegislation) return;
-
-    setLoadingLegislation(true);
-    try {
-      // Load the first available legislation (Inland Revenue Act)
-      const mainAct = AVAILABLE_LEGISLATION[0];
-      const text = await loadLegislationPDF(mainAct.path, geminiApiKey, selectedModel);
-      setLegislationText(text);
-      setLegislationLoaded(true);
-      console.log('Legislation loaded successfully');
-    } catch (error) {
-      console.error('Failed to load legislation:', error);
-      // Continue without legislation - chatbot will work with general knowledge
-      setLegislationLoaded(true); // Mark as "loaded" to unblock the button
-    } finally {
-      setLoadingLegislation(false);
+  // Reset legislation ref when dialog is fully closed
+  useEffect(() => {
+    if (!open) {
+      // Reset the ref when dialog closes to allow re-loading next time
+      hasLoadedLegislationRef.current = false;
+      setLegislationLoaded(false);
+      setLegislationText('');
     }
-  };
+  }, [open]);
 
   const generateFinancialContext = () => {
     const entity = entities.find(e => e.id === selectedEntityId);
@@ -396,6 +408,7 @@ Use **bold text** for important terms and numbers. Keep paragraphs concise and a
     setInputMessage('');
     setIsAnalyzing(false);
     setIsSending(false);
+    // Don't reset legislation - keep it loaded for next chat
   };
 
   const handleSendMessage = async () => {

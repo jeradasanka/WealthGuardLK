@@ -159,14 +159,35 @@ export function AITaxAgentChatbot({
   const isLoadingLegislationRef = useRef(false);
   const initialModelRef = useRef<string>(geminiModel);
 
+  // Debug: Track component lifecycle
+  useEffect(() => {
+    console.log('🔵 AITaxAgentChatbot mounted');
+    return () => {
+      console.log('🔴 AITaxAgentChatbot unmounted');
+    };
+  }, []);
+
   // Load legislation PDFs using the model from settings
   const loadLegislation = useCallback(async (modelToUse: string) => {
     // Use refs to avoid dependency on state variables
-    if (!geminiApiKey || hasLoadedLegislationRef.current || isLoadingLegislationRef.current || AVAILABLE_LEGISLATION.length === 0) {
+    if (!geminiApiKey) {
+      console.log('❌ Load legislation aborted: No API key');
+      return;
+    }
+    if (hasLoadedLegislationRef.current) {
+      console.log('❌ Load legislation aborted: Already loaded');
+      return;
+    }
+    if (isLoadingLegislationRef.current) {
+      console.log('❌ Load legislation aborted: Already loading');
+      return;
+    }
+    if (AVAILABLE_LEGISLATION.length === 0) {
+      console.log('❌ Load legislation aborted: No legislation configured');
       return;
     }
 
-    console.log('Starting legislation load with model:', modelToUse);
+    console.log('✅ Starting legislation load with model:', modelToUse);
     hasLoadedLegislationRef.current = true; // Prevent multiple calls
     isLoadingLegislationRef.current = true;
     setLoadingLegislation(true);
@@ -174,17 +195,20 @@ export function AITaxAgentChatbot({
     try {
       // Load the first available legislation (Inland Revenue Act)
       const mainAct = AVAILABLE_LEGISLATION[0];
+      console.log('📄 Loading PDF from:', mainAct.path);
       const text = await loadLegislationPDF(mainAct.path, geminiApiKey, modelToUse);
+      console.log('✅ PDF loaded, text length:', text.length);
       setLegislationText(text);
       setLegislationLoaded(true);
-      console.log('Legislation loaded successfully');
+      console.log('✅ Legislation loaded successfully');
     } catch (error) {
-      console.error('Failed to load legislation:', error);
+      console.error('❌ Failed to load legislation:', error);
       // Continue without legislation - chatbot will work with general knowledge
       setLegislationLoaded(true); // Mark as "loaded" to unblock the button
     } finally {
       setLoadingLegislation(false);
       isLoadingLegislationRef.current = false;
+      console.log('🏁 Legislation loading process complete');
     }
   }, [geminiApiKey]);
 

@@ -5,23 +5,64 @@
 
 import { useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle, AlertCircle, MessageCircle } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useStore } from '@/stores/useStore';
 import { calculateAuditRisk, formatLKR } from '@/lib/taxEngine';
+import { formatTaxYear } from '@/lib/taxYear';
 import { AITaxAgentChatbot } from './AITaxAgentChatbot';
 
-// Color schemes for pie charts
-const INFLOW_COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#06b6d4'];
-const OUTFLOW_COLORS = ['#ef4444', '#f97316', '#eab308', '#ec4899', '#6366f1'];
+interface DangerMeterProps {
+  selectedEntityId?: string | 'family';
+}
 
-export function DangerMeter() {
-  const assets = useStore((state) => state.assets);
-  const liabilities = useStore((state) => state.liabilities);
-  const incomes = useStore((state) => state.incomes);
+export function DangerMeter({ selectedEntityId = 'family' }: DangerMeterProps) {
+  const allAssets = useStore((state) => state.assets);
+  const allLiabilities = useStore((state) => state.liabilities);
+  const allIncomes = useStore((state) => state.incomes);
+  const entities = useStore((state) => state.entities);
   const currentTaxYear = useStore((state) => state.currentTaxYear);
   const [showChatbot, setShowChatbot] = useState(false);
+
+  // Get selected entity details
+  const selectedEntity = useMemo(() => {
+    if (selectedEntityId === 'family') {
+      return null;
+    }
+    return entities.find((e) => e.id === selectedEntityId);
+  }, [entities, selectedEntityId]);
+
+  // Filter data based on selected entity (matching Dashboard logic)
+  const assets = useMemo(() => {
+    if (selectedEntityId === 'family') {
+      return allAssets;
+    }
+    return allAssets.filter((a) => 
+      a.ownerId === selectedEntityId || 
+      (a.ownershipShares && a.ownershipShares.some((s) => s.entityId === selectedEntityId))
+    );
+  }, [allAssets, selectedEntityId]);
+
+  const liabilities = useMemo(() => {
+    if (selectedEntityId === 'family') {
+      return allLiabilities;
+    }
+    return allLiabilities.filter((l) => {
+      // Include liabilities owned directly by this entity
+      if (l.ownerId === selectedEntityId) return true;
+      // Include liabilities with joint ownership where this entity has a share
+      if (l.ownershipShares && l.ownershipShares.some((s) => s.entityId === selectedEntityId)) return true;
+      return false;
+    });
+  }, [allLiabilities, selectedEntityId]);
+
+  const incomes = useMemo(() => {
+    if (selectedEntityId === 'family') {
+      return allIncomes.filter((i) => i.taxYear === currentTaxYear);
+    }
+    return allIncomes.filter((i) => i.ownerId === selectedEntityId && i.taxYear === currentTaxYear);
+  }, [allIncomes, selectedEntityId, currentTaxYear]);
 
   const auditRisk = useMemo(
     () =>
@@ -108,7 +149,20 @@ export function DangerMeter() {
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 flex-1">
               {getRiskIcon()}
-              <CardTitle>Audit Risk Meter</CardTitle>
+              <div>
+                <CardTitle>Audit Risk Meter</CardTitle>
+                <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    {selectedEntityId === 'family' ? (
+                      <><span className="font-semibold">👨‍👩‍👧‍👦 Combined Family</span> ({entities.length} member{entities.length > 1 ? 's' : ''})</>
+                    ) : (
+                      <><span className="font-semibold">{selectedEntity?.name || 'Unknown'}</span> {selectedEntity?.tin ? `(TIN: ${selectedEntity.tin})` : ''}</>
+                    )}
+                  </span>
+                  <span className="text-gray-300">•</span>
+                  <span className="font-semibold">Tax Year: {formatTaxYear(currentTaxYear)}</span>
+                </div>
+              </div>
             </div>
             <Button 
               onClick={() => setShowChatbot(true)}
@@ -139,7 +193,11 @@ export function DangerMeter() {
                     cy="45%"
                     labelLine={true}
                     label={({ cx, cy, midAngle, outerRadius, percent, name }) => {
-                      if (percent < 0.02) return null; // Hide labels for slices less than 2%
+                      // Add type guards for optional parameters
+                      if (!percent || percent < 0.02) return null; // Hide labels for slices less than 2%
+                      if (typeof midAngle !== 'number' || typeof outerRadius !== 'number') return null;
+                      if (!cx || !cy) return null;
+                      
                       const RADIAN = Math.PI / 180;
                       const radius = outerRadius + 30;
                       const x = cx + radius * Math.cos(-midAngle * RADIAN);

@@ -438,7 +438,7 @@ export function Dashboard() {
 
         {/* Danger Meter */}
         <div className="mb-8">
-          <DangerMeter />
+          <DangerMeter selectedEntityId={selectedEntityId} />
         </div>
 
         {/* Quick Actions */}

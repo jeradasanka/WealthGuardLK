@@ -157,24 +157,24 @@ export function AITaxAgentChatbot({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasLoadedLegislationRef = useRef(false);
   const isLoadingLegislationRef = useRef(false);
+  const initialModelRef = useRef<string>(geminiModel);
 
-  // Load legislation PDFs when dialog opens (wrapped in useCallback to prevent re-creation)
-  const loadLegislation = useCallback(async () => {
+  // Load legislation PDFs using the model from settings
+  const loadLegislation = useCallback(async (modelToUse: string) => {
     // Use refs to avoid dependency on state variables
     if (!geminiApiKey || hasLoadedLegislationRef.current || isLoadingLegislationRef.current || AVAILABLE_LEGISLATION.length === 0) {
       return;
     }
 
-    console.log('Starting legislation load...');
+    console.log('Starting legislation load with model:', modelToUse);
     hasLoadedLegislationRef.current = true; // Prevent multiple calls
     isLoadingLegislationRef.current = true;
     setLoadingLegislation(true);
     
     try {
       // Load the first available legislation (Inland Revenue Act)
-      // Use a fixed fast model for PDF parsing regardless of user selection
       const mainAct = AVAILABLE_LEGISLATION[0];
-      const text = await loadLegislationPDF(mainAct.path, geminiApiKey, 'gemini-2.0-flash-exp');
+      const text = await loadLegislationPDF(mainAct.path, geminiApiKey, modelToUse);
       setLegislationText(text);
       setLegislationLoaded(true);
       console.log('Legislation loaded successfully');
@@ -188,29 +188,31 @@ export function AITaxAgentChatbot({
     }
   }, [geminiApiKey]);
 
-  // Fetch available Gemini models and load legislation on mount
+  // Fetch available Gemini models first, then load legislation
   useEffect(() => {
     console.log('Main effect triggered:', { geminiApiKey: !!geminiApiKey, open, hasLoaded: hasLoadedLegislationRef.current });
     
-    if (geminiApiKey && open) {
+    if (geminiApiKey && open && !hasLoadedLegislationRef.current) {
       setLoadingModels(true);
       fetchAvailableGeminiModels(geminiApiKey)
         .then((models) => {
           if (models.length > 0) {
             setAvailableModels(models);
           }
+          return models;
         })
         .catch((err) => {
           console.error('Failed to fetch Gemini models:', err);
+          return [];
         })
         .finally(() => {
           setLoadingModels(false);
+        })
+        .then(() => {
+          // Load legislation AFTER models are fetched, using the default model from settings
+          console.log('Models loaded, now loading legislation with model:', initialModelRef.current);
+          loadLegislation(initialModelRef.current);
         });
-      
-      // Load legislation immediately when dialog opens (only if not already loaded)
-      if (!hasLoadedLegislationRef.current) {
-        loadLegislation();
-      }
     }
   }, [geminiApiKey, open, loadLegislation]);
 

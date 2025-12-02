@@ -156,7 +156,7 @@ export function AITaxAgentChatbot({
   const [loadingLegislation, setLoadingLegislation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch available Gemini models on mount
+  // Fetch available Gemini models and load legislation on mount
   useEffect(() => {
     if (geminiApiKey && open) {
       setLoadingModels(true);
@@ -172,6 +172,9 @@ export function AITaxAgentChatbot({
         .finally(() => {
           setLoadingModels(false);
         });
+      
+      // Load legislation immediately when dialog opens
+      loadLegislation();
     }
   }, [geminiApiKey, open]);
 
@@ -195,9 +198,9 @@ export function AITaxAgentChatbot({
     }
   }, [open, geminiApiKey]);
 
-  // Load legislation PDFs when chat starts
+  // Load legislation PDFs when dialog opens
   const loadLegislation = async () => {
-    if (!geminiApiKey || legislationLoaded || AVAILABLE_LEGISLATION.length === 0) return;
+    if (!geminiApiKey || legislationLoaded || AVAILABLE_LEGISLATION.length === 0 || loadingLegislation) return;
 
     setLoadingLegislation(true);
     try {
@@ -210,6 +213,7 @@ export function AITaxAgentChatbot({
     } catch (error) {
       console.error('Failed to load legislation:', error);
       // Continue without legislation - chatbot will work with general knowledge
+      setLegislationLoaded(true); // Mark as "loaded" to unblock the button
     } finally {
       setLoadingLegislation(false);
     }
@@ -276,11 +280,6 @@ export function AITaxAgentChatbot({
 
     setIsAnalyzing(true);
     setShowConfig(false);
-
-    // Load legislation in background if not already loaded
-    if (!legislationLoaded && !loadingLegislation) {
-      loadLegislation();
-    }
 
     try {
       const genAI = new GoogleGenerativeAI(geminiApiKey);
@@ -569,44 +568,64 @@ Be specific and explain tax implications of any recommendations.`;
             <Button 
               onClick={handleStartChat} 
               className="w-full"
-              disabled={!geminiApiKey || !selectedEntityId}
+              disabled={!geminiApiKey || !selectedEntityId || loadingLegislation}
             >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Start Tax Analysis
+              {loadingLegislation ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Loading Legislation...
+                </>
+              ) : (
+                <>
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Start Tax Analysis
+                </>
+              )}
             </Button>
 
-            {/* Legislation Info */}
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <div className="flex items-start gap-2">
-                <BookOpen className="w-4 h-4 mt-0.5 text-blue-600" />
-                <div className="text-xs text-blue-700">
-                  <p className="font-medium mb-1">Tax Legislation Integration</p>
-                  <p className="text-blue-600">
-                    The AI will reference Sri Lankan tax legislation (Inland Revenue Act, amendments, IRD circulars) 
-                    when providing advice. Place PDF files in the public/tax-legislation/ folder to enable this feature.
-                  </p>
+            {/* Legislation Status */}
+            {loadingLegislation ? (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <div className="flex items-start gap-2">
+                  <Loader2 className="w-4 h-4 mt-0.5 text-blue-600 animate-spin" />
+                  <div className="text-xs text-blue-700">
+                    <p className="font-medium mb-1">Loading Tax Legislation...</p>
+                    <p className="text-blue-600">
+                      Parsing Inland Revenue Act PDF. Please wait...
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : legislationText ? (
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <div className="flex items-start gap-2">
+                  <BookOpen className="w-4 h-4 mt-0.5 text-green-600" />
+                  <div className="text-xs text-green-700">
+                    <p className="font-medium mb-1">Tax Legislation Ready</p>
+                    <p className="text-green-600">
+                      AI will reference Inland Revenue Act No. 24 of 2017 with specific section citations.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                <div className="flex items-start gap-2">
+                  <BookOpen className="w-4 h-4 mt-0.5 text-amber-600" />
+                  <div className="text-xs text-amber-700">
+                    <p className="font-medium mb-1">Tax Legislation Unavailable</p>
+                    <p className="text-amber-600">
+                      Place PDF files in public/tax-legislation/ folder to enable legislation references.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <>
             {/* Chat Messages */}
             <div className="flex-1 overflow-y-auto space-y-4 py-4 min-h-[400px] max-h-[500px]">
-              {/* Legislation Status Indicator */}
-              {legislationLoaded && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-md text-sm text-green-700">
-                  <BookOpen className="w-4 h-4" />
-                  <span>Tax legislation loaded - AI will reference relevant acts and sections</span>
-                </div>
-              )}
-              {loadingLegislation && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-700">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Loading tax legislation...</span>
-                </div>
-              )}
-
               {isAnalyzing ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">

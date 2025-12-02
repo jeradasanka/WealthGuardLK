@@ -3,14 +3,16 @@
  * Visual audit risk indicator
  */
 
-import { useMemo } from 'react';
-import { AlertTriangle, CheckCircle, AlertCircle } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { AlertTriangle, CheckCircle, AlertCircle, MessageCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useStore } from '@/stores/useStore';
 import { calculateAuditRisk, formatLKR } from '@/lib/taxEngine';
+import { AITaxAgentChatbot } from './AITaxAgentChatbot';
 
 interface DangerMeterProps {
-  estimatedLivingExpenses?: number;
+  readonly estimatedLivingExpenses?: number;
 }
 
 export function DangerMeter({ estimatedLivingExpenses = 0 }: DangerMeterProps) {
@@ -18,6 +20,7 @@ export function DangerMeter({ estimatedLivingExpenses = 0 }: DangerMeterProps) {
   const liabilities = useStore((state) => state.liabilities);
   const incomes = useStore((state) => state.incomes);
   const currentTaxYear = useStore((state) => state.currentTaxYear);
+  const [showChatbot, setShowChatbot] = useState(false);
 
   const auditRisk = useMemo(
     () =>
@@ -65,14 +68,26 @@ export function DangerMeter({ estimatedLivingExpenses = 0 }: DangerMeterProps) {
   };
 
   return (
-    <Card className={`border-2 ${getRiskColor()}`}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          {getRiskIcon()}
-          <span>Audit Risk Meter</span>
-        </CardTitle>
-        <CardDescription>{getRiskMessage()}</CardDescription>
-      </CardHeader>
+    <>
+      <Card className={`border-2 ${getRiskColor()}`}>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {getRiskIcon()}
+              <CardTitle>Audit Risk Meter</CardTitle>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowChatbot(true)}
+              className="gap-2"
+            >
+              <MessageCircle className="w-4 h-4" />
+              Ask AI Tax Agent
+            </Button>
+          </div>
+          <CardDescription>{getRiskMessage()}</CardDescription>
+        </CardHeader>
       <CardContent className="space-y-4">
         {/* Two Column Layout: Outflows vs Inflows */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -164,5 +179,12 @@ export function DangerMeter({ estimatedLivingExpenses = 0 }: DangerMeterProps) {
         </div>
       </CardContent>
     </Card>
+
+    <AITaxAgentChatbot 
+      open={showChatbot}
+      onClose={() => setShowChatbot(false)}
+      defaultTaxYear={currentTaxYear}
+    />
+    </>
   );
 }

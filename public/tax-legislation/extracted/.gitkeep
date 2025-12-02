@@ -1,0 +1,3 @@
+# Pre-extracted legislation JSON files
+
+Run `node scripts/extractLegislation.js YOUR_API_KEY` to generate JSON files from PDFs.

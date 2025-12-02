@@ -142,6 +142,53 @@ This module maps directly to the "Statement of Assets and Liabilities".
   - Preview with checkboxes for selective import
   - 3-step wizard (upload → preview → complete)
 
+**FR-15: AI Tax Agent Chatbot**
+- Accessible via "Ask AI Tax Agent" button in Audit Risk Meter (Danger Meter)
+- **Configuration Screen:**
+  - Entity selector (defaults to current dashboard entity)
+  - Tax year selector (defaults to current tax year)
+  - AI model selector (Gemini 2.0 Flash, 1.5 Pro, 1.5 Flash - same as PDF import)
+  - Fetches available models dynamically from Gemini API
+  - Saves selected model to Zustand store for consistency
+  - Displays legislation loading status with visual indicators
+- **Legislation Integration:**
+  - Pre-extracted Inland Revenue Act No. 24 of 2017 (524,462 characters)
+  - Build-time extraction using pdfjs-dist (no runtime Gemini API calls for legislation)
+  - Instant JSON loading (< 1 second) via public/tax-legislation/extracted/
+  - AI receives full legislation text to provide specific section references
+  - Extraction script: scripts/extractLegislation.cjs (CommonJS)
+  - Developer workflow: `node scripts/extractLegislation.cjs` to update legislation
+- **Auto-Analysis on Entry:**
+  - Immediately analyzes taxpayer's financial situation when chat starts
+  - Generates comprehensive tax advisory report including:
+    - Tax Compliance Status (are they compliant? immediate concerns?)
+    - Audit Risk Analysis with legislative citations (explain risk level and causes)
+    - Optimization Opportunities with Act references (legal ways to reduce tax liability)
+    - Recommendations with section numbers (specific pre-filing actions)
+    - Red Flags with regulatory context (potential audit triggers)
+  - Analysis includes references to specific sections of the Inland Revenue Act
+- **Conversational Interface:**
+  - Chat-based UI with message history
+  - User can ask follow-up questions in natural language
+  - AI maintains context of previous conversation
+  - Each response includes taxpayer's current financial data for accuracy
+  - AI cites specific legislation sections when applicable
+- **Financial Context Sent to AI:**
+  - Taxpayer info (name, TIN, role, tax year)
+  - Income summary (employment, business, investment, tax deducted)
+  - Assets (count, total value, growth)
+  - Liabilities (count, total, new loans, payments)
+  - Tax computation (taxable income, tax payable, credits, net tax)
+  - Audit risk assessment (level, score, surplus/deficit message)
+  - Certificates (count, total tax withheld)
+  - Full text of Inland Revenue Act No. 24 of 2017 (first 30,000 characters for initial analysis, 20,000 for follow-up questions)
+- **Privacy & Security:**
+  - Requires Gemini API key (user must configure in Settings)
+  - Data sent to Gemini API only when user actively uses chatbot
+  - No persistent storage of chat history (session-only)
+  - User controls when AI has access to their data
+  - Legislation loaded from local JSON (no external API call for legislation)
+
 ---
 
 ## 4. Data Dictionary (JSON Schema)
@@ -225,3 +272,50 @@ This module maps directly to the "Statement of Assets and Liabilities".
 - **Phase 2:** Build the Income Schedules (1, 2, 3) and Relief Logic.
 - **Phase 3:** Implement the "Capital Computation" engine (The Danger Meter).
 - **Phase 4:** Add Encryption and CSV Export features.
+- **Phase 5:** AI-powered PDF import (RAMIS, T10, Certificates, Financial statements).
+- **Phase 6:** AI Tax Agent Chatbot with pre-extracted legislation.
+- **Phase 7:** Build-time legislation extraction pipeline (pdfjs-dist).
+
+---
+
+## 7. Legislation Management
+
+### 7.1 Architecture
+- **Source PDFs:** Stored in `public/tax-legislation/acts/`
+- **Extracted JSON:** Stored in `public/tax-legislation/extracted/`
+- **Extraction Script:** `scripts/extractLegislation.cjs` (CommonJS format)
+- **Runtime Loader:** `src/utils/legislationLoader.ts`
+
+### 7.2 Extraction Process
+1. Developer places PDF in `public/tax-legislation/acts/`
+2. Run extraction: `node scripts/extractLegislation.cjs`
+3. Script uses pdfjs-dist to extract text from all 249 pages
+4. Outputs structured JSON to `public/tax-legislation/extracted/`
+5. JSON structure:
+   ```json
+   {
+     "name": "Inland Revenue Act No. 24 of 2017",
+     "category": "act",
+     "year": 2017,
+     "extractedAt": "2024-12-01T...",
+     "content": "[full text]",
+     "metadata": {
+       "textLength": 524462,
+       "extractionMethod": "pdfjs-dist (direct extraction)"
+     }
+   }
+   ```
+6. Commit JSON to repository (versioned with code)
+
+### 7.3 Runtime Loading
+- Chatbot loads JSON via fetch() on dialog open
+- Instant loading (< 1 second) - no API calls
+- Full text passed to Gemini AI for context
+- AI can reference specific sections in responses
+
+### 7.4 Benefits
+- **Zero Runtime Cost:** No Gemini API calls for legislation loading
+- **Instant Performance:** 515KB JSON loads in < 1 second vs 60+ second PDF parsing timeout
+- **Offline Support:** Legislation available without network after initial load
+- **Version Control:** Legislation updates tracked in git
+- **Reliability:** No dependency on external PDF parsing APIs

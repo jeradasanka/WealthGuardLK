@@ -377,8 +377,8 @@ export function calculatePreciousItemMarketValue(
   const baseUSDIndex = priceIndex[acquisitionYear] || 100;
   const currentUSDIndex = priceIndex[valuationYear] || priceIndex['2025'];
   
-  const baseExchangeRate = USD_TO_LKR_RATES[acquisitionYear] || 135;
-  const currentExchangeRate = USD_TO_LKR_RATES[valuationYear] || USD_TO_LKR_RATES['2025'];
+  const baseExchangeRate = CURRENCY_TO_LKR_RATES['USD'][acquisitionYear] || 135;
+  const currentExchangeRate = CURRENCY_TO_LKR_RATES['USD'][valuationYear] || CURRENCY_TO_LKR_RATES['USD']['2025'];
   
   if (baseUSDIndex === 0) return originalCost;
   

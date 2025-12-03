@@ -118,16 +118,25 @@ export function AssetsPage() {
           if (a.cageCategory === 'Bii' && a.balances && a.balances.length > 0) {
             const yearBalance = a.balances.find((b) => b.taxYear === year);
             if (yearBalance) {
+              // Convert foreign currency to LKR using exchange rate index
+              if (a.meta.currency && a.meta.currency !== 'LKR') {
+                return sum + getForeignCurrencyMarketValue(a, year);
+              }
               return sum + yearBalance.closingBalance;
             }
             // If no exact year match, use previous year's closing balance
             const previousBalances = a.balances.filter((b) => b.taxYear < year);
             if (previousBalances.length > 0) {
-              return sum + previousBalances[previousBalances.length - 1].closingBalance;
+              const prevBalance = previousBalances[previousBalances.length - 1];
+              // Convert foreign currency to LKR using exchange rate index
+              if (a.meta.currency && a.meta.currency !== 'LKR') {
+                return sum + getForeignCurrencyMarketValue(a, prevBalance.taxYear);
+              }
+              return sum + prevBalance.closingBalance;
             }
           }
           
-          // For cash in hand (Biv) and loans given (Bv), use balance from records if available
+          // For cash in hand (Biv) and loans given (Bv), use balance from records if available (always in LKR)
           if ((a.cageCategory === 'Biv' || a.cageCategory === 'Bv') && a.balances && a.balances.length > 0) {
             const yearBalance = a.balances.find((b) => b.taxYear === year);
             if (yearBalance) {
@@ -632,9 +641,11 @@ export function AssetsPage() {
                               {asset.balances.length} balance record{asset.balances.length > 1 ? 's' : ''}
                               {asset.cageCategory === 'Bii' && (
                                 <> •{' '}
-                                  Total interest: {formatLKR(
-                                    asset.balances.reduce((sum, b) => sum + b.interestEarned, 0)
-                                  )}
+                                  Total interest: {
+                                    asset.meta.currency && asset.meta.currency !== 'LKR'
+                                      ? `${asset.balances.reduce((sum, b) => sum + b.interestEarned, 0).toFixed(2)} ${asset.meta.currency}`
+                                      : formatLKR(asset.balances.reduce((sum, b) => sum + b.interestEarned, 0))
+                                  }
                                 </>
                               )}
                             </p>

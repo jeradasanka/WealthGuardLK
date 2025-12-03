@@ -125,6 +125,40 @@ Uses Radix UI primitives in `src/components/ui/`:
 
 ## Development Workflows
 
+### Git Workflow (CRITICAL)
+**NEVER commit directly to `master` branch.** Always create a feature/fix branch first:
+
+```bash
+# Create a new branch for your changes
+git checkout -b feature/your-feature-name
+# OR
+git checkout -b fix/bug-description
+# OR
+git checkout -b test/test-description
+
+# Make your changes, then commit
+git add .
+git commit -m "type: description"
+
+# Push to remote and create PR
+git push origin your-branch-name
+gh pr create --title "..." --body "..." --base master
+```
+
+**Branch Naming Convention**:
+- `feature/*` - New features or enhancements
+- `fix/*` - Bug fixes
+- `test/*` - Test improvements or additions
+- `chore/*` - Maintenance tasks, dependency updates
+- `docs/*` - Documentation updates
+
+**When making ANY code changes**:
+1. Check current branch: `git branch`
+2. If on `master`, STOP and create a new branch first
+3. Make changes on the feature branch
+4. Commit and push to the feature branch
+5. Create a pull request to merge into `master`
+
 ### Running the App
 ```bash
 npm run dev         # Starts Vite dev server on port 5183

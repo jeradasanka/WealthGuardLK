@@ -496,7 +496,15 @@ export function getForeignCurrencyMarketValue(asset: Asset, taxYear: string): nu
     }
   }
 
-  // Fallback: use stored market value if no balance data or exchange rate
+  // Fallback: If no balance record, use stored market value (which is in foreign currency)
+  // Convert it to LKR using current year's exchange rate
+  const exchangeRate = CURRENCY_TO_LKR_RATES[currency]?.[taxYear];
+  if (exchangeRate) {
+    // Market value is stored in foreign currency, convert to LKR
+    return asset.financials.marketValue * exchangeRate;
+  }
+
+  // Last resort: return as-is (shouldn't happen if exchange rates are complete)
   return asset.financials.marketValue;
 }
 

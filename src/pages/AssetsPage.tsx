@@ -15,7 +15,7 @@ import { LiabilityPaymentForm } from '@/components/LiabilityPaymentForm';
 import { FinancialAssetBalanceForm } from '@/components/FinancialAssetBalanceForm';
 import { PropertyExpenseForm } from '@/components/PropertyExpenseForm';
 import { SourceOfFundsWizard } from '@/components/SourceOfFundsWizard';
-import { formatLKR, getJewelleryMarketValue } from '@/lib/taxEngine';
+import { formatLKR, getJewelleryMarketValue, getForeignCurrencyMarketValue } from '@/lib/taxEngine';
 import { getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Asset, Liability, FundingSource } from '@/types';
 
@@ -58,6 +58,10 @@ export function AssetsPage() {
     // For jewellery, calculate market value based on price appreciation
     if (asset.cageCategory === 'Bvi') {
       return getJewelleryMarketValue(asset, currentTaxYear);
+    }
+    // For foreign currency deposits, calculate LKR value using exchange rate
+    if (asset.cageCategory === 'Bii' && asset.meta.currency && asset.meta.currency !== 'LKR') {
+      return getForeignCurrencyMarketValue(asset, currentTaxYear);
     }
     // Otherwise use the asset's market value
     return asset.financials.marketValue;

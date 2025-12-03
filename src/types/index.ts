@@ -43,6 +43,7 @@ export interface Asset {
     accountNo?: string;
     bankName?: string;
     accountType?: string; // Savings, Current, Fixed Deposit, etc.
+    currency?: 'LKR' | 'USD' | 'EUR' | 'GBP' | 'AUD' | 'CAD' | 'JPY' | 'CNY' | 'INR' | 'SGD'; // Currency for foreign deposits
     // Biii - Shares/stocks/securities
     companyName?: string;
     numberOfShares?: number;
@@ -94,8 +95,9 @@ export interface LiabilityPayment {
 export interface FinancialAssetBalance {
   id: string;
   taxYear: string;
-  closingBalance: number; // Balance as of March 31 of the tax year
-  interestEarned: number; // Interest income for the year
+  closingBalance: number; // Balance as of March 31 of the tax year (in original currency)
+  interestEarned: number; // Interest income for the year (in original currency)
+  exchangeRate?: number; // Exchange rate to LKR at year end (for foreign currency deposits)
   notes?: string;
 }
 

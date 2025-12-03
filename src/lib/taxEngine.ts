@@ -347,6 +347,33 @@ export function getJewelleryMarketValue(asset: Asset, taxYear: string): number {
 }
 
 /**
+ * Calculate market value for foreign currency deposits (Bii) in LKR
+ * Similar to jewellery appreciation, uses exchange rate from balance records
+ * @param asset The financial asset (must be cageCategory 'Bii')
+ * @param taxYear The tax year for valuation
+ * @returns Market value in LKR for the given tax year
+ */
+export function getForeignCurrencyMarketValue(asset: Asset, taxYear: string): number {
+  // Only applicable to bank balances/term deposits with foreign currency
+  if (asset.cageCategory !== 'Bii' || !asset.meta.currency || asset.meta.currency === 'LKR') {
+    return asset.financials.marketValue;
+  }
+
+  // Find the balance record for this tax year
+  const yearBalance = asset.balances?.find((b) => {
+    return b.taxYear === taxYear || b.taxYear.startsWith(taxYear);
+  });
+
+  // If we have a balance with exchange rate, calculate market value in LKR
+  if (yearBalance && yearBalance.exchangeRate) {
+    return yearBalance.closingBalance * yearBalance.exchangeRate;
+  }
+
+  // Fallback to stored market value if no exchange rate data
+  return asset.financials.marketValue;
+}
+
+/**
  * Calculate investment income derived from assets (Interest, Dividends)
  */
 export function calculateDerivedInvestmentIncome(assets: Asset[], taxYear: string): { type: 'interest' | 'dividend' | 'rent'; amount: number; source: string; wht: number; ownerId: string }[] {
@@ -361,9 +388,14 @@ export function calculateDerivedInvestmentIncome(assets: Asset[], taxYear: strin
         return b.taxYear === taxYear || b.taxYear.startsWith(taxYear);
       });
       if (yearBalance && yearBalance.interestEarned > 0) {
+        // Convert to LKR if foreign currency
+        const interestInLKR = (asset.cageCategory === 'Bii' && asset.meta.currency && asset.meta.currency !== 'LKR' && yearBalance.exchangeRate)
+          ? yearBalance.interestEarned * yearBalance.exchangeRate
+          : yearBalance.interestEarned;
+        
         income.push({
           type: 'interest',
-          amount: yearBalance.interestEarned,
+          amount: interestInLKR,
           source: asset.meta.accountType ? `${asset.meta.bankName || 'Account'} - ${asset.meta.accountType}` : asset.meta.bankName || 'Interest Income',
           wht: 0, // WHT for interest is typically 0 for most deposits
           ownerId: asset.ownerId,

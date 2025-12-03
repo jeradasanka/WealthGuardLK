@@ -48,6 +48,7 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
     accountNo: asset?.meta.accountNo || '',
     bankName: asset?.meta.bankName || '',
     accountType: asset?.meta.accountType || '',
+    currency: asset?.meta.currency || 'LKR',
     // Biii - Shares/stocks/securities
     companyName: asset?.meta.companyName || '',
     numberOfShares: asset?.meta.numberOfShares || 0,
@@ -107,6 +108,7 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
           accountNo: formData.accountNo,
           bankName: formData.bankName,
           accountType: formData.accountType,
+          currency: formData.currency,
         }),
         ...(formData.cageCategory === 'Biii' && {
           companyName: formData.companyName,
@@ -605,6 +607,33 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
                   onChange={handleChange('accountType')}
                   placeholder="e.g., Savings, Current, Fixed Deposit"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency *</Label>
+                <select
+                  id="currency"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={formData.currency}
+                  onChange={handleChange('currency')}
+                  required
+                >
+                  <option value="LKR">🇱🇰 LKR (Sri Lankan Rupee)</option>
+                  <option value="USD">🇺🇸 USD (US Dollar)</option>
+                  <option value="EUR">🇪🇺 EUR (Euro)</option>
+                  <option value="GBP">🇬🇧 GBP (British Pound)</option>
+                  <option value="AUD">🇦🇺 AUD (Australian Dollar)</option>
+                  <option value="CAD">🇨🇦 CAD (Canadian Dollar)</option>
+                  <option value="JPY">🇯🇵 JPY (Japanese Yen)</option>
+                  <option value="CNY">🇨🇳 CNY (Chinese Yuan)</option>
+                  <option value="INR">🇮🇳 INR (Indian Rupee)</option>
+                  <option value="SGD">🇸🇬 SGD (Singapore Dollar)</option>
+                </select>
+                {formData.currency !== 'LKR' && (
+                  <p className="text-xs text-muted-foreground">
+                    💡 Foreign currency deposits require exchange rates in balance records for accurate LKR valuation
+                  </p>
+                )}
               </div>
 
               {/* Account Closure Section */}

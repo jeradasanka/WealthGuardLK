@@ -31,3 +31,4 @@ dist-ssr
 samples/
 *.pdf
 test-data/
+coverage/

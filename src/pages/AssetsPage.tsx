@@ -701,11 +701,20 @@ export function AssetsPage() {
                                 {formatLKR(getAssetDisplayValue(asset))}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {asset.cageCategory === 'Bvi' ? 'Original Cost' : 'Cost'}: {formatLKR(asset.financials.cost)}
+                                {asset.cageCategory === 'Bvi' ? 'Original Cost' : 'Cost'}: {
+                                  asset.cageCategory === 'Bii' && asset.meta.currency && asset.meta.currency !== 'LKR'
+                                    ? `${asset.financials.cost.toFixed(2)} ${asset.meta.currency}`
+                                    : formatLKR(asset.financials.cost)
+                                }
                               </p>
                               {asset.cageCategory === 'Bvi' && asset.meta.itemType && (
                                 <p className="text-xs text-amber-600 font-medium">
                                   {asset.meta.itemType} • Auto-valued
+                                </p>
+                              )}
+                              {asset.cageCategory === 'Bii' && asset.meta.currency && asset.meta.currency !== 'LKR' && (
+                                <p className="text-xs text-blue-600 font-medium">
+                                  💱 {asset.meta.currency} • Auto-converted to LKR
                                 </p>
                               )}
                             </>

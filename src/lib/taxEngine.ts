@@ -98,18 +98,137 @@ const MAX_SOLAR_RELIEF = 600000; // Rs. 600,000
  * Based on historical Central Bank of Sri Lanka data
  * Index represents the exchange rate (1 USD = X LKR)
  */
-const USD_TO_LKR_RATES: { [year: string]: number } = {
-  '2015': 135,
-  '2016': 149,
-  '2017': 153,
-  '2018': 162,
-  '2019': 178,
-  '2020': 185,
-  '2021': 200,
-  '2022': 360,  // Major devaluation
-  '2023': 325,
-  '2024': 300,
-  '2025': 295,
+const CURRENCY_TO_LKR_RATES: { [currency: string]: { [year: string]: number } } = {
+  USD: {
+    '2015': 135,
+    '2016': 149,
+    '2017': 153,
+    '2018': 162,
+    '2019': 178,
+    '2020': 185,
+    '2021': 200,
+    '2022': 360,
+    '2023': 325,
+    '2024': 300,
+    '2025': 295,
+  },
+  EUR: {
+    '2015': 150,
+    '2016': 165,
+    '2017': 180,
+    '2018': 190,
+    '2019': 200,
+    '2020': 210,
+    '2021': 235,
+    '2022': 380,
+    '2023': 350,
+    '2024': 330,
+    '2025': 325,
+  },
+  GBP: {
+    '2015': 205,
+    '2016': 200,
+    '2017': 210,
+    '2018': 220,
+    '2019': 230,
+    '2020': 240,
+    '2021': 270,
+    '2022': 435,
+    '2023': 405,
+    '2024': 385,
+    '2025': 378,
+  },
+  AUD: {
+    '2015': 100,
+    '2016': 110,
+    '2017': 118,
+    '2018': 120,
+    '2019': 125,
+    '2020': 128,
+    '2021': 148,
+    '2022': 250,
+    '2023': 215,
+    '2024': 200,
+    '2025': 195,
+  },
+  CAD: {
+    '2015': 105,
+    '2016': 112,
+    '2017': 120,
+    '2018': 125,
+    '2019': 135,
+    '2020': 140,
+    '2021': 160,
+    '2022': 280,
+    '2023': 245,
+    '2024': 225,
+    '2025': 218,
+  },
+  JPY: {
+    '2015': 1.15,
+    '2016': 1.35,
+    '2017': 1.38,
+    '2018': 1.48,
+    '2019': 1.65,
+    '2020': 1.75,
+    '2021': 1.75,
+    '2022': 2.75,
+    '2023': 2.30,
+    '2024': 2.05,
+    '2025': 2.00,
+  },
+  CNY: {
+    '2015': 21,
+    '2016': 22,
+    '2017': 23,
+    '2018': 24,
+    '2019': 26,
+    '2020': 27,
+    '2021': 31,
+    '2022': 54,
+    '2023': 45,
+    '2024': 42,
+    '2025': 41,
+  },
+  INR: {
+    '2015': 2.10,
+    '2016': 2.25,
+    '2017': 2.35,
+    '2018': 2.38,
+    '2019': 2.50,
+    '2020': 2.48,
+    '2021': 2.70,
+    '2022': 4.60,
+    '2023': 3.95,
+    '2024': 3.60,
+    '2025': 3.55,
+  },
+  SGD: {
+    '2015': 98,
+    '2016': 108,
+    '2017': 113,
+    '2018': 120,
+    '2019': 132,
+    '2020': 138,
+    '2021': 148,
+    '2022': 265,
+    '2023': 242,
+    '2024': 225,
+    '2025': 220,
+  },
+  LKR: {
+    '2015': 1,
+    '2016': 1,
+    '2017': 1,
+    '2018': 1,
+    '2019': 1,
+    '2020': 1,
+    '2021': 1,
+    '2022': 1,
+    '2023': 1,
+    '2024': 1,
+    '2025': 1,
+  },
 };
 
 /**
@@ -359,17 +478,25 @@ export function getForeignCurrencyMarketValue(asset: Asset, taxYear: string): nu
     return asset.financials.marketValue;
   }
 
+  const currency = asset.meta.currency;
+  
   // Find the balance record for this tax year
   const yearBalance = asset.balances?.find((b) => {
     return b.taxYear === taxYear || b.taxYear.startsWith(taxYear);
   });
 
-  // If we have a balance with exchange rate, calculate market value in LKR
-  if (yearBalance && yearBalance.exchangeRate) {
-    return yearBalance.closingBalance * yearBalance.exchangeRate;
+  // If we have a balance, calculate market value using currency exchange rate index
+  if (yearBalance) {
+    // Get exchange rate for the tax year from indices
+    const exchangeRate = CURRENCY_TO_LKR_RATES[currency]?.[taxYear];
+    
+    if (exchangeRate) {
+      // Balance (foreign currency) × Exchange Rate = Value in LKR
+      return yearBalance.closingBalance * exchangeRate;
+    }
   }
 
-  // Fallback to stored market value if no exchange rate data
+  // Fallback: use stored market value if no balance data or exchange rate
   return asset.financials.marketValue;
 }
 
@@ -388,10 +515,14 @@ export function calculateDerivedInvestmentIncome(assets: Asset[], taxYear: strin
         return b.taxYear === taxYear || b.taxYear.startsWith(taxYear);
       });
       if (yearBalance && yearBalance.interestEarned > 0) {
-        // Convert to LKR if foreign currency
-        const interestInLKR = (asset.cageCategory === 'Bii' && asset.meta.currency && asset.meta.currency !== 'LKR' && yearBalance.exchangeRate)
-          ? yearBalance.interestEarned * yearBalance.exchangeRate
-          : yearBalance.interestEarned;
+        // Convert to LKR if foreign currency using exchange rate indices
+        let interestInLKR = yearBalance.interestEarned;
+        if (asset.cageCategory === 'Bii' && asset.meta.currency && asset.meta.currency !== 'LKR') {
+          const exchangeRate = CURRENCY_TO_LKR_RATES[asset.meta.currency]?.[taxYear];
+          if (exchangeRate) {
+            interestInLKR = yearBalance.interestEarned * exchangeRate;
+          }
+        }
         
         income.push({
           type: 'interest',

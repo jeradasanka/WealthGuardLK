@@ -631,7 +631,7 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
                 </select>
                 {formData.currency !== 'LKR' && (
                   <p className="text-xs text-muted-foreground">
-                    💡 Foreign currency deposits require exchange rates in balance records for accurate LKR valuation
+                    💡 Foreign currency balances are stored in {formData.currency}. Market value is auto-calculated in LKR using exchange rate indices (similar to gold/jewellery valuation).
                   </p>
                 )}
               </div>

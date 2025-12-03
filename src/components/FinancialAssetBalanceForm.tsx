@@ -24,7 +24,6 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
   const [selectedYear, setSelectedYear] = useState('');
   const [closingBalance, setClosingBalance] = useState('');
   const [interestEarned, setInterestEarned] = useState('');
-  const [exchangeRate, setExchangeRate] = useState('');
   const [showImportWizard, setShowImportWizard] = useState(false);
 
   const taxYears = getTaxYearsFromStart(entities[0]?.taxYear || '2022');
@@ -79,7 +78,6 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
       taxYear: selectedYear,
       closingBalance: parseFloat(closingBalance),
       interestEarned: (asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') ? (parseFloat(interestEarned) || 0) : 0,
-      exchangeRate: isForeignCurrency && exchangeRate ? parseFloat(exchangeRate) : undefined,
     };
 
     const updatedAsset: Asset = {
@@ -103,7 +101,6 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
     setSelectedYear('');
     setClosingBalance('');
     setInterestEarned('');
-    setExchangeRate('');
   };
 
   const handleDeleteBalance = async (balanceId: string) => {
@@ -196,28 +193,7 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
                   onChange={(e) => setClosingBalance(e.target.value)}
                   placeholder="0.00"
                 />
-                {isForeignCurrency && exchangeRate && closingBalance && (
-                  <p className="text-xs text-green-600 mt-1">
-                    ≈ {formatLKR(parseFloat(closingBalance) * parseFloat(exchangeRate))}
-                  </p>
-                )}
               </div>
-
-              {isForeignCurrency && (
-                <div>
-                  <Label>Exchange Rate ({asset.meta.currency}/LKR) *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={exchangeRate}
-                    onChange={(e) => setExchangeRate(e.target.value)}
-                    placeholder="e.g., 320.50 for USD"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    💱 Enter the exchange rate as of March 31{selectedYear ? `, ${parseInt(selectedYear) + 1}` : ''}
-                  </p>
-                </div>
-              )}
 
               {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && (
                 <div className="col-span-2">
@@ -272,7 +248,7 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
                       <Card key={balance.id} className="bg-gray-50">
                         <CardContent className="pt-4">
                           <div className="flex items-start justify-between">
-                            <div className={`flex-1 grid gap-4 ${(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') ? (isForeignCurrency && balance.exchangeRate ? 'grid-cols-5' : 'grid-cols-4') : 'grid-cols-3'}`}>
+                            <div className={`flex-1 grid gap-4 ${(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') ? 'grid-cols-4' : 'grid-cols-3'}`}>
                               <div>
                                 <p className="text-sm font-semibold text-blue-600">
                                   {formatTaxYear(balance.taxYear)}
@@ -293,17 +269,6 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
                                 </p>
                                 <p className="text-xs text-muted-foreground">Closing</p>
                               </div>
-                              {isForeignCurrency && balance.exchangeRate && (
-                                <div>
-                                  <p className="text-sm font-semibold text-blue-600">
-                                    {balance.exchangeRate.toFixed(2)}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">Rate ({asset.meta.currency}/LKR)</p>
-                                  <p className="text-xs text-green-600 mt-1">
-                                    ≈ {formatLKR(balance.closingBalance * balance.exchangeRate)}
-                                  </p>
-                                </div>
-                              )}
                               {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && (
                                 <div>
                                   <p className="text-sm font-semibold text-purple-600">
@@ -317,11 +282,6 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
                                     {asset.cageCategory === 'Biv' && 'Interest'}
                                     {asset.cageCategory === 'Bv' && 'Interest Income'}
                                   </p>
-                                  {isForeignCurrency && balance.exchangeRate && (
-                                    <p className="text-xs text-green-600 mt-1">
-                                      ≈ {formatLKR(balance.interestEarned * balance.exchangeRate)}
-                                    </p>
-                                  )}
                                 </div>
                               )}
                             </div>

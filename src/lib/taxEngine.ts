@@ -94,172 +94,315 @@ const TAX_YEAR_CONFIGS: { [year: string]: TaxYearConfig } = {
 const MAX_SOLAR_RELIEF = 600000; // Rs. 600,000
 
 /**
- * USD to LKR exchange rate indices (2015-2025)
- * Based on historical Central Bank of Sri Lanka data
- * Index represents the exchange rate (1 USD = X LKR)
+ * Currency exchange rate indices (as of March 31 each year)
+ * Key = Tax year start year (e.g., "2024" = tax year 2024/2025, rate as of March 31, 2025)
+ * Based on Central Bank of Sri Lanka historical data
+ * Index represents the exchange rate (1 foreign currency = X LKR) as of March 31
  */
-const USD_TO_LKR_RATES: { [year: string]: number } = {
-  '2015': 135,
-  '2016': 149,
-  '2017': 153,
-  '2018': 162,
-  '2019': 178,
-  '2020': 185,
-  '2021': 200,
-  '2022': 360,  // Major devaluation
-  '2023': 325,
-  '2024': 300,
-  '2025': 295,
+const CURRENCY_TO_LKR_RATES: { [currency: string]: { [year: string]: number } } = {
+  USD: {
+    '2014': 135,   // As of March 31, 2015
+    '2015': 149,   // As of March 31, 2016
+    '2016': 153,   // As of March 31, 2017
+    '2017': 162,   // As of March 31, 2018
+    '2018': 178,   // As of March 31, 2019
+    '2019': 185,   // As of March 31, 2020
+    '2020': 200,   // As of March 31, 2021
+    '2021': 360,   // As of March 31, 2022 (Major devaluation)
+    '2022': 325,   // As of March 31, 2023
+    '2023': 300,   // As of March 31, 2024
+    '2024': 295,   // As of March 31, 2025
+    '2025': 290,   // As of March 31, 2026 (projected)
+  },
+  EUR: {
+    '2014': 150,
+    '2015': 165,
+    '2016': 180,
+    '2017': 190,
+    '2018': 200,
+    '2019': 210,
+    '2020': 235,
+    '2021': 380,
+    '2022': 350,
+    '2023': 330,
+    '2024': 325,
+    '2025': 320,
+  },
+  GBP: {
+    '2014': 205,
+    '2015': 200,
+    '2016': 210,
+    '2017': 220,
+    '2018': 230,
+    '2019': 240,
+    '2020': 270,
+    '2021': 435,
+    '2022': 405,
+    '2023': 385,
+    '2024': 378,
+    '2025': 375,
+  },
+  AUD: {
+    '2014': 100,
+    '2015': 110,
+    '2016': 118,
+    '2017': 120,
+    '2018': 125,
+    '2019': 128,
+    '2020': 148,
+    '2021': 250,
+    '2022': 215,
+    '2023': 200,
+    '2024': 195,
+    '2025': 192,
+  },
+  CAD: {
+    '2014': 105,
+    '2015': 112,
+    '2016': 120,
+    '2017': 125,
+    '2018': 135,
+    '2019': 140,
+    '2020': 160,
+    '2021': 280,
+    '2022': 245,
+    '2023': 225,
+    '2024': 218,
+    '2025': 215,
+  },
+  JPY: {
+    '2014': 1.15,
+    '2015': 1.35,
+    '2016': 1.38,
+    '2017': 1.48,
+    '2018': 1.65,
+    '2019': 1.75,
+    '2020': 1.75,
+    '2021': 2.75,
+    '2022': 2.30,
+    '2023': 2.05,
+    '2024': 2.00,
+    '2025': 1.95,
+  },
+  CNY: {
+    '2014': 21,
+    '2015': 22,
+    '2016': 23,
+    '2017': 24,
+    '2018': 26,
+    '2019': 27,
+    '2020': 31,
+    '2021': 54,
+    '2022': 45,
+    '2023': 42,
+    '2024': 41,
+    '2025': 40,
+  },
+  INR: {
+    '2014': 2.10,
+    '2015': 2.25,
+    '2016': 2.35,
+    '2017': 2.38,
+    '2018': 2.50,
+    '2019': 2.48,
+    '2020': 2.70,
+    '2021': 4.60,
+    '2022': 3.95,
+    '2023': 3.60,
+    '2024': 3.55,
+    '2025': 3.50,
+  },
+  SGD: {
+    '2014': 98,
+    '2015': 108,
+    '2016': 113,
+    '2017': 120,
+    '2018': 132,
+    '2019': 138,
+    '2020': 148,
+    '2021': 265,
+    '2022': 242,
+    '2023': 225,
+    '2024': 220,
+    '2025': 218,
+  },
+  LKR: {
+    '2014': 1,
+    '2015': 1,
+    '2016': 1,
+    '2017': 1,
+    '2018': 1,
+    '2019': 1,
+    '2020': 1,
+    '2021': 1,
+    '2022': 1,
+    '2023': 1,
+    '2024': 1,
+    '2025': 1,
+  },
 };
 
 /**
- * Precious metals and gems price indices in USD (2015-2025)
+ * Precious metals and gems price indices in USD (as of March 31 each year)
+ * Key = Tax year start year (e.g., "2024" = tax year 2024/2025, price as of March 31, 2025)
  * Based on global commodity markets (London, New York, etc.)
- * Index value (2015 = 100) represents international USD prices
+ * Index value (2014 = 100) represents international USD prices as of March 31
  * 
  * Sources: World Gold Council, Silver Institute, Gemological Institute
  */
 interface PriceIndexData {
-  [year: string]: number; // Index value (2015 = 100)
+  [year: string]: number; // Index value (2014 = 100)
 }
 
 const COMMODITY_PRICE_INDICES_USD: { [itemType: string]: PriceIndexData } = {
   Gold: {
-    // London Bullion Market prices
-    '2015': 100,   // ~$1,160/oz
-    '2016': 105,   // ~$1,250/oz
-    '2017': 107,   // ~$1,257/oz
-    '2018': 104,   // ~$1,268/oz
-    '2019': 120,   // ~$1,393/oz
-    '2020': 153,   // ~$1,770/oz (pandemic surge)
-    '2021': 155,   // ~$1,799/oz
-    '2022': 148,   // ~$1,800/oz
-    '2023': 165,   // ~$1,940/oz
-    '2024': 198,   // ~$2,300/oz
-    '2025': 210,   // ~$2,450/oz
+    // London Bullion Market prices (as of March 31)
+    '2014': 100,   // ~$1,160/oz (March 31, 2015)
+    '2015': 105,   // ~$1,250/oz (March 31, 2016)
+    '2016': 107,   // ~$1,257/oz (March 31, 2017)
+    '2017': 104,   // ~$1,268/oz (March 31, 2018)
+    '2018': 120,   // ~$1,393/oz (March 31, 2019)
+    '2019': 153,   // ~$1,770/oz (March 31, 2020 - pandemic surge)
+    '2020': 155,   // ~$1,799/oz (March 31, 2021)
+    '2021': 148,   // ~$1,800/oz (March 31, 2022)
+    '2022': 165,   // ~$1,940/oz (March 31, 2023)
+    '2023': 198,   // ~$2,300/oz (March 31, 2024)
+    '2024': 210,   // ~$2,450/oz (March 31, 2025)
+    '2025': 220,   // ~$2,550/oz (March 31, 2026 - projected)
   },
   Silver: {
-    // Silver spot prices
-    '2015': 100,   // ~$15.70/oz
-    '2016': 106,   // ~$17.10/oz
-    '2017': 109,   // ~$17.05/oz
-    '2018': 102,   // ~$15.50/oz
-    '2019': 108,   // ~$16.20/oz
-    '2020': 134,   // ~$20.50/oz
-    '2021': 161,   // ~$25.10/oz
-    '2022': 138,   // ~$21.70/oz
-    '2023': 149,   // ~$23.35/oz
-    '2024': 183,   // ~$28.80/oz
-    '2025': 195,   // ~$30.50/oz
+    // Silver spot prices (as of March 31)
+    '2014': 100,   // ~$15.70/oz
+    '2015': 106,   // ~$17.10/oz
+    '2016': 109,   // ~$17.05/oz
+    '2017': 102,   // ~$15.50/oz
+    '2018': 108,   // ~$16.20/oz
+    '2019': 134,   // ~$20.50/oz
+    '2020': 161,   // ~$25.10/oz
+    '2021': 138,   // ~$21.70/oz
+    '2022': 149,   // ~$23.35/oz
+    '2023': 183,   // ~$28.80/oz
+    '2024': 195,   // ~$30.50/oz
+    '2025': 205,   // ~$32.00/oz (projected)
   },
   Gems: {
-    // Colored gemstone market indices (composite)
-    '2015': 100,
-    '2016': 103,
-    '2017': 108,
-    '2018': 112,
-    '2019': 118,
-    '2020': 115,   // Pandemic dip
-    '2021': 125,
-    '2022': 135,
-    '2023': 145,
-    '2024': 160,
-    '2025': 175,
-  },
-  Diamond: {
-    // Polished diamond prices (Rapaport)
-    '2015': 100,
-    '2016': 98,
-    '2017': 102,
-    '2018': 105,
-    '2019': 108,
-    '2020': 95,    // Pandemic impact
-    '2021': 110,
-    '2022': 115,
-    '2023': 118,
-    '2024': 125,
-    '2025': 130,
-  },
-  Ruby: {
-    // Premium ruby prices (Myanmar, Mozambique)
-    '2015': 100,
-    '2016': 105,
+    // Colored gemstone market indices (composite, as of March 31)
+    '2014': 100,
+    '2015': 103,
+    '2016': 108,
     '2017': 112,
     '2018': 118,
-    '2019': 125,
-    '2020': 122,
-    '2021': 135,
-    '2022': 148,
-    '2023': 160,
-    '2024': 175,
-    '2025': 190,
-  },
-  Sapphire: {
-    // Premium sapphire prices (Sri Lankan, Kashmir, Madagascar)
-    '2015': 100,
-    '2016': 104,
-    '2017': 110,
-    '2018': 115,
-    '2019': 122,
-    '2020': 120,
-    '2021': 132,
-    '2022': 145,
-    '2023': 158,
-    '2024': 172,
-    '2025': 185,
-  },
-  Jewellery: {
-    // Composite jewellery retail index (gold-based with craftsmanship)
-    '2015': 100,
-    '2016': 106,
-    '2017': 109,
-    '2018': 107,
-    '2019': 118,
-    '2020': 145,
-    '2021': 150,
-    '2022': 148,
-    '2023': 162,
-    '2024': 192,
-    '2025': 205,
-  },
-  Other: {
-    // Other precious items (platinum, palladium, semi-precious stones)
-    '2015': 100,
-    '2016': 103,
-    '2017': 107,
-    '2018': 110,
-    '2019': 115,
+    '2019': 115,   // Pandemic dip
     '2020': 125,
     '2021': 135,
-    '2022': 138,
-    '2023': 145,
-    '2024': 158,
-    '2025': 170,
+    '2022': 145,
+    '2023': 160,
+    '2024': 175,
+    '2025': 185,
+  },
+  Diamond: {
+    // Polished diamond prices (Rapaport, as of March 31)
+    '2014': 100,
+    '2015': 98,
+    '2016': 102,
+    '2017': 105,
+    '2018': 108,
+    '2019': 95,    // Pandemic impact
+    '2020': 110,
+    '2021': 115,
+    '2022': 118,
+    '2023': 125,
+    '2024': 130,
+    '2025': 135,
+  },
+  Ruby: {
+    // Premium ruby prices (Myanmar, Mozambique, as of March 31)
+    '2014': 100,
+    '2015': 105,
+    '2016': 112,
+    '2017': 118,
+    '2018': 125,
+    '2019': 122,
+    '2020': 135,
+    '2021': 148,
+    '2022': 160,
+    '2023': 175,
+    '2024': 190,
+    '2025': 200,
+  },
+  Sapphire: {
+    // Premium sapphire prices (Sri Lankan, Kashmir, Madagascar, as of March 31)
+    '2014': 100,
+    '2015': 104,
+    '2016': 110,
+    '2017': 115,
+    '2018': 122,
+    '2019': 120,
+    '2020': 132,
+    '2021': 145,
+    '2022': 158,
+    '2023': 172,
+    '2024': 185,
+    '2025': 195,
+  },
+  Jewellery: {
+    // Composite jewellery retail index (gold-based with craftsmanship, as of March 31)
+    '2014': 100,
+    '2015': 106,
+    '2016': 109,
+    '2017': 107,
+    '2018': 118,
+    '2019': 145,
+    '2020': 150,
+    '2021': 148,
+    '2022': 162,
+    '2023': 192,
+    '2024': 205,
+    '2025': 215,
+  },
+  Other: {
+    // Other precious items (platinum, palladium, semi-precious stones, as of March 31)
+    '2014': 100,
+    '2015': 103,
+    '2016': 107,
+    '2017': 110,
+    '2018': 115,
+    '2019': 125,
+    '2020': 135,
+    '2021': 138,
+    '2022': 145,
+    '2023': 158,
+    '2024': 170,
+    '2025': 180,
   },
 };
 
 /**
  * Calculate market value for precious items in LKR considering both USD price appreciation 
- * and USD/LKR exchange rate changes
+ * and USD/LKR exchange rate changes (both as of March 31)
  * @param originalCost - Original purchase cost in LKR
  * @param itemType - Type of item (Gold, Silver, Gems, etc.)
- * @param acquisitionYear - Year item was acquired
- * @param valuationYear - Year for which to calculate market value
+ * @param acquisitionYear - Year item was acquired (YYYY)
+ * @param taxYear - Tax year for valuation (uses March 31 of taxYear+1)
  * @returns Estimated market value in LKR
  */
 export function calculatePreciousItemMarketValue(
   originalCost: number,
   itemType: string,
   acquisitionYear: string,
-  valuationYear: string
+  taxYear: string
 ): number {
   const priceIndex = COMMODITY_PRICE_INDICES_USD[itemType] || COMMODITY_PRICE_INDICES_USD['Other'];
   
+  // For acquisition year, use the tax year the asset was acquired in
+  // If acquired in May 2018, that's tax year 2018/2019, so use 2018 rates
   const baseUSDIndex = priceIndex[acquisitionYear] || 100;
-  const currentUSDIndex = priceIndex[valuationYear] || priceIndex['2025'];
   
-  const baseExchangeRate = USD_TO_LKR_RATES[acquisitionYear] || 135;
-  const currentExchangeRate = USD_TO_LKR_RATES[valuationYear] || USD_TO_LKR_RATES['2025'];
+  // For valuation, tax year "2024" uses March 31, 2025 rates (already in index as 2024)
+  const currentUSDIndex = priceIndex[taxYear] || priceIndex['2025'];
+  
+  const baseExchangeRate = CURRENCY_TO_LKR_RATES['USD'][acquisitionYear] || 135;
+  const currentExchangeRate = CURRENCY_TO_LKR_RATES['USD'][taxYear] || CURRENCY_TO_LKR_RATES['USD']['2025'];
   
   if (baseUSDIndex === 0) return originalCost;
   
@@ -326,7 +469,7 @@ export function filterAssetsForTaxYear(assets: Asset[], taxYear: string): Asset[
 /**
  * Get the market value for a jewellery asset with automatic appreciation calculation
  * @param asset - The jewellery asset
- * @param taxYear - Tax year for valuation
+ * @param taxYear - Tax year for valuation (uses March 31 of taxYear+1)
  * @returns Market value for the given tax year
  */
 export function getJewelleryMarketValue(asset: Asset, taxYear: string): number {
@@ -336,14 +479,57 @@ export function getJewelleryMarketValue(asset: Asset, taxYear: string): number {
 
   const itemType = asset.meta.itemType || 'Other';
   const acquisitionYear = asset.meta.dateAcquired.substring(0, 4); // Get year from YYYY-MM-DD
-  const valuationYear = (parseInt(taxYear) + 1).toString(); // Tax year 2024 = valuation as of March 2025
-
+  
+  // Tax year "2024" already maps to March 31, 2025 in indices - no need to add 1
   return calculatePreciousItemMarketValue(
     asset.financials.cost,
     itemType,
     acquisitionYear,
-    valuationYear
+    taxYear  // Indices are pre-shifted to March 31
   );
+}
+
+/**
+ * Calculate market value for foreign currency deposits (Bii) in LKR
+ * Similar to jewellery appreciation, uses exchange rate from balance records
+ * @param asset The financial asset (must be cageCategory 'Bii')
+ * @param taxYear The tax year for valuation
+ * @returns Market value in LKR for the given tax year
+ */
+export function getForeignCurrencyMarketValue(asset: Asset, taxYear: string): number {
+  // Only applicable to bank balances/term deposits with foreign currency
+  if (asset.cageCategory !== 'Bii' || !asset.meta.currency || asset.meta.currency === 'LKR') {
+    return asset.financials.marketValue;
+  }
+
+  const currency = asset.meta.currency;
+  
+  // Find the balance record for this tax year
+  const yearBalance = asset.balances?.find((b) => {
+    return b.taxYear === taxYear || b.taxYear.startsWith(taxYear);
+  });
+
+  // If we have a balance, calculate market value using currency exchange rate index
+  if (yearBalance) {
+    // Get exchange rate for the tax year from indices
+    const exchangeRate = CURRENCY_TO_LKR_RATES[currency]?.[taxYear];
+    
+    if (exchangeRate) {
+      // Balance (foreign currency) × Exchange Rate = Value in LKR
+      return yearBalance.closingBalance * exchangeRate;
+    }
+  }
+
+  // Fallback: If no balance record, use stored market value (which is in foreign currency)
+  // Convert it to LKR using current year's exchange rate
+  const exchangeRate = CURRENCY_TO_LKR_RATES[currency]?.[taxYear];
+  if (exchangeRate) {
+    // Market value is stored in foreign currency, convert to LKR
+    return asset.financials.marketValue * exchangeRate;
+  }
+
+  // Last resort: return as-is (shouldn't happen if exchange rates are complete)
+  return asset.financials.marketValue;
 }
 
 /**
@@ -361,9 +547,18 @@ export function calculateDerivedInvestmentIncome(assets: Asset[], taxYear: strin
         return b.taxYear === taxYear || b.taxYear.startsWith(taxYear);
       });
       if (yearBalance && yearBalance.interestEarned > 0) {
+        // Convert to LKR if foreign currency using exchange rate indices
+        let interestInLKR = yearBalance.interestEarned;
+        if (asset.cageCategory === 'Bii' && asset.meta.currency && asset.meta.currency !== 'LKR') {
+          const exchangeRate = CURRENCY_TO_LKR_RATES[asset.meta.currency]?.[taxYear];
+          if (exchangeRate) {
+            interestInLKR = yearBalance.interestEarned * exchangeRate;
+          }
+        }
+        
         income.push({
           type: 'interest',
-          amount: yearBalance.interestEarned,
+          amount: interestInLKR,
           source: asset.meta.accountType ? `${asset.meta.bankName || 'Account'} - ${asset.meta.accountType}` : asset.meta.bankName || 'Interest Income',
           wht: 0, // WHT for interest is typically 0 for most deposits
           ownerId: asset.ownerId,

@@ -28,6 +28,8 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
 
   const taxYears = getTaxYearsFromStart(entities[0]?.taxYear || '2022');
 
+  const isForeignCurrency = asset.cageCategory === 'Bii' && asset.meta.currency && asset.meta.currency !== 'LKR';
+
   useEffect(() => {
     setCurrentAsset(asset);
   }, [asset]);
@@ -180,7 +182,7 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
 
               <div>
                 <Label>
-                  {asset.cageCategory === 'Bii' ? 'Closing Balance (as of March 31)' :
+                  {asset.cageCategory === 'Bii' ? `Closing Balance (as of March 31) ${isForeignCurrency ? `(${asset.meta.currency})` : ''}` :
                    asset.cageCategory === 'Biv' ? 'Cash Amount (as of March 31)' :
                    asset.cageCategory === 'Bv' ? 'Outstanding Loan Amount (as of March 31)' :
                    'Closing Balance (as of March 31)'} *
@@ -257,20 +259,23 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
                               </div>
                               <div>
                                 <p className="text-sm font-semibold">
-                                  {formatLKR(openingBal)}
+                                  {isForeignCurrency ? `${openingBal.toFixed(2)} ${asset.meta.currency}` : formatLKR(openingBal)}
                                 </p>
                                 <p className="text-xs text-muted-foreground">Opening</p>
                               </div>
                               <div>
                                 <p className="text-sm font-semibold text-green-600">
-                                  {formatLKR(balance.closingBalance)}
+                                  {isForeignCurrency ? `${balance.closingBalance.toFixed(2)} ${asset.meta.currency}` : formatLKR(balance.closingBalance)}
                                 </p>
                                 <p className="text-xs text-muted-foreground">Closing</p>
                               </div>
                               {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && (
                                 <div>
                                   <p className="text-sm font-semibold text-purple-600">
-                                    {formatLKR(balance.interestEarned)}
+                                    {isForeignCurrency 
+                                      ? `${balance.interestEarned.toFixed(2)} ${asset.meta.currency}`
+                                      : formatLKR(balance.interestEarned)
+                                    }
                                   </p>
                                   <p className="text-xs text-muted-foreground">
                                     {asset.cageCategory === 'Bii' && 'Interest'}

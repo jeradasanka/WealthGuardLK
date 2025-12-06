@@ -236,7 +236,8 @@ export interface AuditRisk {
     businessIncome: number;
     investmentIncome: number;
     newLoans: number;
-    assetSales: number;
+    assetSales: number; // Proceeds from asset disposals
+    balanceDecreases: number; // Withdrawals from savings/cash (source of funds)
   };
   outflowBreakdown: {
     assetPurchases: number;

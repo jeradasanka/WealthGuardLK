@@ -287,10 +287,12 @@ export interface AuditRisk {
     newLoans: number;
     assetSales: number; // Proceeds from asset disposals
     balanceDecreases: number; // Withdrawals from savings/cash (source of funds)
+    stockCashWithdrawals: number; // Cash withdrawn from broker accounts
   };
   outflowBreakdown: {
     assetPurchases: number;
     balanceIncreases: number; // Net deposits to savings/cash/loans given (excluding interest)
+    stockCashDeposits: number; // Cash deposited to broker accounts
     loanPrincipal: number;
     loanInterest: number;
     propertyExpenses: number;

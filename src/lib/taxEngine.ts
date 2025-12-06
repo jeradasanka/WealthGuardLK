@@ -790,9 +790,33 @@ export function calculateAuditRisk(
   // This tracks money deposited/withdrawn from savings accounts, cash, loans given
   let balanceIncreases = 0;
   let balanceDecreases = 0;
+  
+  // Track stock broker cash transfers separately
+  let stockCashDeposits = 0; // Positive cash transfers (outflow)
+  let stockCashWithdrawals = 0; // Negative cash transfers (inflow)
+  
   const previousYear = (parseInt(currentYear) - 1).toString();
   
   assets.forEach((asset) => {
+    // Process stock balances (Biii - Shares/Stocks)
+    if (asset.cageCategory === 'Biii' && asset.stockBalances) {
+      const currentYearStockBalance = asset.stockBalances.find(
+        b => b.taxYear === currentYear || b.taxYear.startsWith(currentYear)
+      );
+      
+      if (currentYearStockBalance) {
+        const cashTransfers = currentYearStockBalance.cashTransfers || 0;
+        
+        if (cashTransfers > 0) {
+          // Positive = deposit to broker (outflow from personal funds)
+          stockCashDeposits += cashTransfers;
+        } else if (cashTransfers < 0) {
+          // Negative = withdrawal from broker (inflow to personal funds)
+          stockCashWithdrawals += Math.abs(cashTransfers);
+        }
+      }
+    }
+    
     // Only process financial assets (Bank, Cash, Loans Given) that existed before current year
     if ((asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') 
         && !isDateInTaxYear(asset.meta.dateAcquired, currentYear) 
@@ -875,13 +899,13 @@ export function calculateAuditRisk(
   );
 
   // Calculate actual outflows (excluding living expenses)
-  // Includes: new asset purchases + balance increases in existing accounts + property expenses + loan payments
-  const actualOutflows = assetGrowth + balanceIncreases + propertyExpenses + loanPayments;
+  // Includes: new asset purchases + balance increases in existing accounts + property expenses + loan payments + stock cash deposits
+  const actualOutflows = assetGrowth + balanceIncreases + propertyExpenses + loanPayments + stockCashDeposits;
   
   // Calculate actual inflows
-  // Includes: net income + new loans + asset sales + savings withdrawals
+  // Includes: net income + new loans + asset sales + savings withdrawals + stock cash withdrawals
   const netIncome = incomeBreakdown.totalIncome - ((incomeBreakdown.totalAPIT || 0) + (incomeBreakdown.totalWHT || 0));
-  const actualInflows = netIncome + newLoans + assetSales + balanceDecreases;
+  const actualInflows = netIncome + newLoans + assetSales + balanceDecreases + stockCashWithdrawals;
   
   // DERIVE living expenses as the balancing figure
   // Living expenses = Inflows - Outflows (what's left after known expenses)
@@ -920,11 +944,13 @@ export function calculateAuditRisk(
       investmentIncome: incomeBreakdown.investmentIncome,
       newLoans,
       assetSales,
-      balanceDecreases, // NEW: Track savings withdrawals as inflow
+      balanceDecreases, // Savings withdrawals as inflow
+      stockCashWithdrawals, // Cash withdrawn from broker
     },
     outflowBreakdown: {
       assetPurchases: assetGrowth,
-      balanceIncreases, // Track savings deposits as outflow
+      balanceIncreases, // Savings deposits as outflow
+      stockCashDeposits, // Cash deposited to broker
       loanPrincipal,
       loanInterest,
       propertyExpenses,

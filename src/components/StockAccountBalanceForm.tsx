@@ -395,12 +395,11 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="cashTransfers">
-                            Cash Transferred to Broker *
+                            Net Cash Transfers *
                           </Label>
                           <Input
                             id="cashTransfers"
                             type="number"
-                            min="0"
                             step="0.01"
                             value={formData.cashTransfers}
                             onChange={handleChange('cashTransfers')}
@@ -408,7 +407,7 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
                             placeholder="0.00"
                           />
                           <p className="text-xs text-muted-foreground">
-                            Total amount you transferred to broker account this year (outflow)
+                            Positive: Cash deposited to broker | Negative: Cash withdrawn from broker
                           </p>
                         </div>
 
@@ -717,8 +716,11 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
                       <h4 className="font-semibold text-sm mb-2">Period Summary</h4>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                         <div>
-                          <p className="text-muted-foreground">Cash Transfers</p>
-                          <p className="font-bold text-orange-600">{formatLKR(formData.cashTransfers)}</p>
+                          <p className="text-muted-foreground">Net Cash Transfers</p>
+                          <p className={`font-bold ${formData.cashTransfers >= 0 ? 'text-orange-600' : 'text-blue-600'}`}>
+                            {formatLKR(formData.cashTransfers)}
+                            {formData.cashTransfers >= 0 ? ' (In)' : ' (Out)'}
+                          </p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Broker Cash Balance</p>
@@ -809,8 +811,11 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
 
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                             <div>
-                              <p className="text-xs text-muted-foreground">Cash Transfers</p>
-                              <p className="font-bold text-orange-600">{formatLKR(balance.cashTransfers)}</p>
+                              <p className="text-xs text-muted-foreground">Net Cash Transfers</p>
+                              <p className={`font-bold ${balance.cashTransfers >= 0 ? 'text-orange-600' : 'text-blue-600'}`}>
+                                {formatLKR(balance.cashTransfers)}
+                                {balance.cashTransfers >= 0 ? ' ↓' : ' ↑'}
+                              </p>
                             </div>
                             <div>
                               <p className="text-xs text-muted-foreground">Broker Cash</p>

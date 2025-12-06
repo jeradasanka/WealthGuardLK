@@ -48,6 +48,9 @@ export interface Asset {
     companyName?: string;
     numberOfShares?: number;
     certificateNo?: string;
+    cdsAccountNo?: string; // CDS Account Number for stock trading
+    brokerName?: string; // Stock broker name
+    brokerCode?: string; // Broker code/reference
     // Biv - Cash in hand (no specific fields needed)
     // Bv - Loans given & amount receivable
     borrowerName?: string;
@@ -68,6 +71,7 @@ export interface Asset {
   };
   fundingSources?: FundingSource[];
   balances?: FinancialAssetBalance[]; // Yearly balances for Bii (Bank/Term Deposits), Biv (Cash), Bv (Loans Given)
+  stockBalances?: StockBalance[]; // Yearly stock portfolio tracking for Biii (Shares/Stocks)
   propertyExpenses?: PropertyExpense[]; // Yearly expenses for A (Immovable Properties)
   closed?: { // For financial assets (Bii, Biv, Bv) - account closure
     date: string;
@@ -97,6 +101,35 @@ export interface FinancialAssetBalance {
   taxYear: string;
   closingBalance: number; // Balance as of March 31 of the tax year (in original currency for foreign deposits, LKR for local)
   interestEarned: number; // Interest income for the year (in original currency for foreign deposits, LKR for local)
+  notes?: string;
+}
+
+// Individual stock holding details
+export interface StockHolding {
+  id: string;
+  symbol: string; // e.g., "CFIN.N0000"
+  companyName: string; // e.g., "Commercial Bank of Ceylon"
+  quantity: number; // Number of shares held
+  averageCost: number; // Average cost per share
+  currentPrice: number; // Current market price per share
+  marketValue: number; // quantity * currentPrice
+  totalCost: number; // quantity * averageCost
+  unrealizedGain: number; // marketValue - totalCost
+  dividendIncome: number; // Dividend income received for this stock during the year (inflow)
+}
+
+// Stock balance record for stock portfolios (Biii - Shares/Stocks)
+export interface StockBalance {
+  id: string;
+  taxYear: string;
+  brokerCashBalance: number; // Cash balance in broker account as of March 31
+  cashTransfers: number; // Total cash transferred to broker account during the year (outflow)
+  portfolioValue: number; // Total market value of stocks as of March 31 (calculated from holdings)
+  holdings: StockHolding[]; // Detailed list of stock holdings as of March 31
+  purchases: number; // Total amount spent on stock purchases during the year (calculated from holdings)
+  dividends: number; // Total dividend income received during the year (inflow)
+  sales?: number; // Proceeds from stock sales (if any)
+  capitalGain?: number; // Realized capital gains (if any)
   notes?: string;
 }
 
@@ -255,10 +288,12 @@ export interface AuditRisk {
     newLoans: number;
     assetSales: number; // Proceeds from asset disposals
     balanceDecreases: number; // Withdrawals from savings/cash (source of funds)
+    stockCashWithdrawals: number; // Cash withdrawn from broker accounts
   };
   outflowBreakdown: {
     assetPurchases: number;
     balanceIncreases: number; // Net deposits to savings/cash/loans given (excluding interest)
+    stockCashDeposits: number; // Cash deposited to broker accounts
     loanPrincipal: number;
     loanInterest: number;
     propertyExpenses: number;

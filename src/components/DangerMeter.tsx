@@ -77,7 +77,7 @@ export function DangerMeter({ selectedEntityId = 'family' }: DangerMeterProps) {
 
   // Calculate total inflows and outflows (excluding living expenses from outflows)
   const totalInflows = auditRisk.totalIncome + auditRisk.newLoans + auditRisk.assetSales;
-  const totalOutflowsExcludingLiving = auditRisk.assetGrowth + auditRisk.propertyExpenses + auditRisk.loanPayments + auditRisk.taxDeducted;
+  const totalOutflowsExcludingLiving = auditRisk.assetGrowth + auditRisk.outflowBreakdown.balanceIncreases + auditRisk.propertyExpenses + auditRisk.loanPayments + auditRisk.taxDeducted;
   
   // Prepare pie chart data with breakdown including living expenses
   const pieChartData = [
@@ -87,9 +87,11 @@ export function DangerMeter({ selectedEntityId = 'family' }: DangerMeterProps) {
     { name: 'Investment Income', value: auditRisk.investmentIncome, category: 'inflow', fill: '#34d399' },
     { name: 'New Loans', value: auditRisk.newLoans, category: 'inflow', fill: '#6ee7b7' },
     { name: 'Asset Sales', value: auditRisk.assetSales, category: 'inflow', fill: '#a7f3d0' },
+    { name: 'Savings Withdrawals', value: auditRisk.inflowBreakdown.balanceDecreases, category: 'inflow', fill: '#bbf7d0' },
     // Outflows breakdown (including living expenses and tax)
     { name: 'Tax Deducted', value: auditRisk.taxDeducted, category: 'outflow', fill: '#f97316' },
     { name: 'Asset Purchases', value: auditRisk.assetGrowth, category: 'outflow', fill: '#ef4444' },
+    { name: 'Savings Deposits', value: auditRisk.outflowBreakdown.balanceIncreases, category: 'outflow', fill: '#8b5cf6' },
     { name: 'Property Expenses', value: auditRisk.propertyExpenses, category: 'outflow', fill: '#dc2626' },
     { name: 'Loan Principal', value: auditRisk.outflowBreakdown.loanPrincipal, category: 'outflow', fill: '#f87171' },
     { name: 'Loan Interest', value: auditRisk.outflowBreakdown.loanInterest, category: 'outflow', fill: '#fca5a5' },
@@ -281,6 +283,10 @@ export function DangerMeter({ selectedEntityId = 'family' }: DangerMeterProps) {
                   <p className="text-sm text-muted-foreground">Asset Sales</p>
                   <p className="font-semibold">{formatLKR(auditRisk.assetSales)}</p>
                 </div>
+                <div className="flex justify-between items-center">
+                  <p className="text-sm text-muted-foreground">Savings Withdrawals</p>
+                  <p className="font-semibold">{formatLKR(auditRisk.inflowBreakdown.balanceDecreases)}</p>
+                </div>
                 <div className="flex justify-between items-center pt-2 border-t font-bold">
                   <p className="text-sm">Total Inflows</p>
                   <p className="text-green-600">{formatLKR(totalInflows)}</p>
@@ -301,6 +307,10 @@ export function DangerMeter({ selectedEntityId = 'family' }: DangerMeterProps) {
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-muted-foreground">Asset Purchases</p>
                   <p className="font-semibold">{formatLKR(auditRisk.assetGrowth)}</p>
+                </div>
+                <div className="flex justify-between items-center">
+                  <p className="text-sm text-muted-foreground">Savings Deposits</p>
+                  <p className="font-semibold">{formatLKR(auditRisk.outflowBreakdown.balanceIncreases)}</p>
                 </div>
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-muted-foreground">Property Expenses</p>

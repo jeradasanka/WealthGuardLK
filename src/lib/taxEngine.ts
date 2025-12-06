@@ -752,6 +752,50 @@ export function calculateAuditRisk(
     .filter((a) => isDateInTaxYear(a.meta.dateAcquired, currentYear) && !a.disposed)
     .reduce((sum, a) => sum + a.financials.cost, 0);
 
+  // Calculate balance changes in existing financial assets (Bii, Biv, Bv)
+  // This tracks money deposited/withdrawn from savings accounts, cash, loans given
+  let balanceIncreases = 0;
+  let balanceDecreases = 0;
+  const previousYear = (parseInt(currentYear) - 1).toString();
+  
+  assets.forEach((asset) => {
+    // Only process financial assets (Bank, Cash, Loans Given) that existed before current year
+    if ((asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') 
+        && !isDateInTaxYear(asset.meta.dateAcquired, currentYear) 
+        && !asset.closed 
+        && !asset.disposed
+        && asset.balances) {
+      
+      const currentYearBalance = asset.balances.find(b => b.taxYear === currentYear || b.taxYear.startsWith(currentYear));
+      const previousYearBalance = asset.balances.find(b => b.taxYear === previousYear || b.taxYear.startsWith(previousYear));
+      
+      if (currentYearBalance) {
+        const prevBalance = previousYearBalance?.closingBalance || asset.financials.cost || 0;
+        const currBalance = currentYearBalance.closingBalance;
+        const interestEarned = currentYearBalance.interestEarned || 0;
+        
+        // Net change = (Current Balance - Previous Balance) - Interest Earned
+        // Positive = deposits (outflow), Negative = withdrawals (inflow)
+        const netChange = (currBalance - prevBalance) - interestEarned;
+        
+        // Convert to LKR if foreign currency
+        let netChangeInLKR = netChange;
+        if (asset.cageCategory === 'Bii' && asset.meta.currency && asset.meta.currency !== 'LKR') {
+          const exchangeRate = CURRENCY_TO_LKR_RATES[asset.meta.currency]?.[currentYear];
+          if (exchangeRate) {
+            netChangeInLKR = netChange * exchangeRate;
+          }
+        }
+        
+        if (netChangeInLKR > 0) {
+          balanceIncreases += netChangeInLKR;
+        } else if (netChangeInLKR < 0) {
+          balanceDecreases += Math.abs(netChangeInLKR);
+        }
+      }
+    }
+  });
+
   // Calculate asset sales (proceeds from disposed assets in current tax year)
   const assetSales = assets
     .filter((a) => a.disposed && isDateInTaxYear(a.disposed.date, currentYear))
@@ -797,11 +841,13 @@ export function calculateAuditRisk(
   );
 
   // Calculate actual outflows (excluding living expenses)
-  const actualOutflows = assetGrowth + propertyExpenses + loanPayments;
+  // Includes: new asset purchases + balance increases in existing accounts + property expenses + loan payments
+  const actualOutflows = assetGrowth + balanceIncreases + propertyExpenses + loanPayments;
   
   // Calculate actual inflows
+  // Includes: net income + new loans + asset sales + savings withdrawals
   const netIncome = incomeBreakdown.totalIncome - ((incomeBreakdown.totalAPIT || 0) + (incomeBreakdown.totalWHT || 0));
-  const actualInflows = netIncome + newLoans + assetSales;
+  const actualInflows = netIncome + newLoans + assetSales + balanceDecreases;
   
   // DERIVE living expenses as the balancing figure
   // Living expenses = Inflows - Outflows (what's left after known expenses)
@@ -840,9 +886,11 @@ export function calculateAuditRisk(
       investmentIncome: incomeBreakdown.investmentIncome,
       newLoans,
       assetSales,
+      balanceDecreases, // NEW: Track savings withdrawals as inflow
     },
     outflowBreakdown: {
       assetPurchases: assetGrowth,
+      balanceIncreases, // Track savings deposits as outflow
       loanPrincipal,
       loanInterest,
       propertyExpenses,

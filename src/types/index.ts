@@ -48,6 +48,9 @@ export interface Asset {
     companyName?: string;
     numberOfShares?: number;
     certificateNo?: string;
+    cdsAccountNo?: string; // CDS Account Number for stock trading
+    brokerName?: string; // Stock broker name
+    brokerCode?: string; // Broker code/reference
     // Biv - Cash in hand (no specific fields needed)
     // Bv - Loans given & amount receivable
     borrowerName?: string;
@@ -68,6 +71,7 @@ export interface Asset {
   };
   fundingSources?: FundingSource[];
   balances?: FinancialAssetBalance[]; // Yearly balances for Bii (Bank/Term Deposits), Biv (Cash), Bv (Loans Given)
+  stockBalances?: StockBalance[]; // Yearly stock portfolio tracking for Biii (Shares/Stocks)
   propertyExpenses?: PropertyExpense[]; // Yearly expenses for A (Immovable Properties)
   closed?: { // For financial assets (Bii, Biv, Bv) - account closure
     date: string;
@@ -97,6 +101,18 @@ export interface FinancialAssetBalance {
   taxYear: string;
   closingBalance: number; // Balance as of March 31 of the tax year (in original currency for foreign deposits, LKR for local)
   interestEarned: number; // Interest income for the year (in original currency for foreign deposits, LKR for local)
+  notes?: string;
+}
+
+// Stock balance record for stock portfolios (Biii - Shares/Stocks)
+export interface StockBalance {
+  id: string;
+  taxYear: string;
+  portfolioValue: number; // Total market value of stocks as of March 31
+  purchases: number; // Total amount invested in stocks during the year (outflow)
+  dividends: number; // Total dividend income received during the year (inflow)
+  sales?: number; // Proceeds from stock sales (if any)
+  capitalGain?: number; // Realized capital gains (if any)
   notes?: string;
 }
 

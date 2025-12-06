@@ -13,13 +13,14 @@ import { AssetForm } from '@/components/AssetForm';
 import { LiabilityForm } from '@/components/LiabilityForm';
 import { LiabilityPaymentForm } from '@/components/LiabilityPaymentForm';
 import { FinancialAssetBalanceForm } from '@/components/FinancialAssetBalanceForm';
+import { StockAccountBalanceForm } from '@/components/StockAccountBalanceForm';
 import { PropertyExpenseForm } from '@/components/PropertyExpenseForm';
 import { SourceOfFundsWizard } from '@/components/SourceOfFundsWizard';
 import { formatLKR, getJewelleryMarketValue, getForeignCurrencyMarketValue } from '@/lib/taxEngine';
 import { getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Asset, Liability, FundingSource } from '@/types';
 
-type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment' | 'manage-balances' | 'manage-property-expenses';
+type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment' | 'manage-balances' | 'manage-stock-balances' | 'manage-property-expenses';
 
 export function AssetsPage() {
   const navigate = useNavigate();
@@ -36,6 +37,7 @@ export function AssetsPage() {
   const [editingLiability, setEditingLiability] = useState<Liability | null>(null);
   const [paymentLiability, setPaymentLiability] = useState<Liability | null>(null);
   const [balanceAsset, setBalanceAsset] = useState<Asset | null>(null);
+  const [stockBalanceAsset, setStockBalanceAsset] = useState<Asset | null>(null);
   const [transactionAsset, setTransactionAsset] = useState<Asset | null>(null);
   const [expenseAsset, setExpenseAsset] = useState<Asset | null>(null);
   const [pendingAsset, setPendingAsset] = useState<Asset | null>(null);
@@ -54,6 +56,11 @@ export function AssetsPage() {
       if (latestExpense.marketValue && latestExpense.marketValue > 0) {
         return latestExpense.marketValue;
       }
+    }
+    // For stock portfolios, use latest portfolio value if available
+    if (asset.cageCategory === 'Biii' && asset.stockBalances && asset.stockBalances.length > 0) {
+      const sortedBalances = [...asset.stockBalances].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
+      return sortedBalances[0].portfolioValue;
     }
     // For jewellery, calculate market value based on price appreciation
     if (asset.cageCategory === 'Bvi') {
@@ -312,12 +319,18 @@ export function AssetsPage() {
     setEditingAsset(null);
     setEditingLiability(null);
     setBalanceAsset(null);
+    setStockBalanceAsset(null);
     setPendingAsset(null);
   };
 
   const handleManageBalances = (asset: Asset) => {
     setBalanceAsset(asset);
     setViewMode('manage-balances');
+  };
+
+  const handleManageStockBalances = (asset: Asset) => {
+    setStockBalanceAsset(asset);
+    setViewMode('manage-stock-balances');
   };
 
   const handleAssetSaveWithFunding = (asset: Asset) => {
@@ -355,6 +368,10 @@ export function AssetsPage() {
 
   if (viewMode === 'manage-balances' && balanceAsset) {
     return <FinancialAssetBalanceForm asset={balanceAsset} onClose={handleFormClose} />;
+  }
+
+  if (viewMode === 'manage-stock-balances' && stockBalanceAsset) {
+    return <StockAccountBalanceForm asset={stockBalanceAsset} onClose={handleFormClose} />;
   }
 
   if (viewMode === 'manage-property-expenses' && expenseAsset) {
@@ -636,6 +653,14 @@ export function AssetsPage() {
                               </span>
                             )}
                           </p>
+                          {asset.cageCategory === 'Biii' && asset.stockBalances && asset.stockBalances.length > 0 && (
+                            <p className="text-xs text-emerald-600 mt-1 font-medium">
+                              {asset.stockBalances.length} balance record{asset.stockBalances.length > 1 ? 's' : ''}
+                              <> •{' '}
+                                Total dividends: {formatLKR(asset.stockBalances.reduce((sum, b) => sum + b.dividends, 0))}
+                              </>
+                            </p>
+                          )}
                           {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && asset.balances && asset.balances.length > 0 && (
                             <p className="text-xs text-purple-600 mt-1 font-medium">
                               {asset.balances.length} balance record{asset.balances.length > 1 ? 's' : ''}
@@ -692,6 +717,51 @@ export function AssetsPage() {
                                 </>
                               );
                             }
+                          })() : asset.cageCategory === 'Biii' ? (() => {
+                            const hasBalances = asset.stockBalances && asset.stockBalances.length > 0;
+                            
+                            if (hasBalances) {
+                              const sortedBalances = [...asset.stockBalances!].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
+                              const latestBalance = sortedBalances[0];
+                              const totalPurchases = asset.stockBalances!.reduce((sum, b) => sum + b.purchases, 0);
+                              const totalDividends = asset.stockBalances!.reduce((sum, b) => sum + b.dividends, 0);
+                              const netInvestment = asset.financials.cost + totalPurchases;
+                              const unrealizedGain = latestBalance.portfolioValue - netInvestment;
+                              
+                              return (
+                                <>
+                                  <p className="text-sm text-muted-foreground">
+                                    Portfolio Value ({latestBalance.taxYear}/{Number(latestBalance.taxYear) + 1})
+                                  </p>
+                                  <p className="font-bold text-lg text-emerald-600">
+                                    {formatLKR(latestBalance.portfolioValue)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Initial Investment: {formatLKR(asset.financials.cost)}
+                                  </p>
+                                  <div className="flex gap-3 mt-1">
+                                    <p className={`text-xs font-medium ${unrealizedGain >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                      Gain: {formatLKR(unrealizedGain)}
+                                    </p>
+                                    <p className="text-xs text-purple-600 font-medium">
+                                      Dividends: {formatLKR(totalDividends)}
+                                    </p>
+                                  </div>
+                                </>
+                              );
+                            } else {
+                              return (
+                                <>
+                                  <p className="text-sm text-muted-foreground">Initial Investment</p>
+                                  <p className="font-bold text-lg text-emerald-600">
+                                    {formatLKR(asset.financials.cost)}
+                                  </p>
+                                  <p className="text-xs text-orange-600 mt-1">
+                                    📊 Add balance records to track portfolio
+                                  </p>
+                                </>
+                              );
+                            }
                           })() : (
                             <>
                               <p className="text-sm text-muted-foreground">
@@ -721,6 +791,17 @@ export function AssetsPage() {
                           )}
                         </div>
                         <div className="flex flex-col gap-2">
+                          {asset.cageCategory === 'Biii' && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleManageStockBalances(asset)}
+                              className="bg-emerald-600 hover:bg-emerald-700"
+                              title="Manage yearly stock portfolio balances, purchases, and dividends"
+                            >
+                              <TrendingUp className="w-4 h-4" />
+                            </Button>
+                          )}
                           {(asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') && (
                             <Button
                               variant="default"

@@ -53,6 +53,9 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
     companyName: asset?.meta.companyName || '',
     numberOfShares: asset?.meta.numberOfShares || 0,
     certificateNo: asset?.meta.certificateNo || '',
+    cdsAccountNo: asset?.meta.cdsAccountNo || '',
+    brokerName: asset?.meta.brokerName || '',
+    brokerCode: asset?.meta.brokerCode || '',
     // Bv - Loans given & amount receivable
     borrowerName: asset?.meta.borrowerName || '',
     agreementNo: asset?.meta.agreementNo || '',
@@ -114,6 +117,9 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
           companyName: formData.companyName,
           numberOfShares: formData.numberOfShares,
           certificateNo: formData.certificateNo,
+          cdsAccountNo: formData.cdsAccountNo,
+          brokerName: formData.brokerName,
+          brokerCode: formData.brokerCode,
         }),
         ...(formData.cageCategory === 'Bv' && {
           borrowerName: formData.borrowerName,
@@ -703,37 +709,59 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
 
           {formData.cageCategory === 'Biii' && (
             <>
+              <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 mb-4">
+                <p className="text-sm text-emerald-800">
+                  ℹ️ <strong>Stock Portfolio Account:</strong> Track your CDS account and stock broker details. Use the balance management feature to record yearly purchases, dividends, and portfolio value.
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="companyName">Company Name *</Label>
+                  <Label htmlFor="cdsAccountNo">CDS Account Number *</Label>
                   <Input
-                    id="companyName"
-                    value={formData.companyName}
-                    onChange={handleChange('companyName')}
+                    id="cdsAccountNo"
+                    value={formData.cdsAccountNo}
+                    onChange={handleChange('cdsAccountNo')}
                     required
-                    placeholder="Name of the company"
+                    placeholder="e.g., 12345678"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Your Central Depository System account number
+                  </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="numberOfShares">Number of Shares</Label>
+                  <Label htmlFor="brokerName">Stock Broker Name *</Label>
                   <Input
-                    id="numberOfShares"
-                    type="number"
-                    min="0"
-                    value={formData.numberOfShares}
-                    onChange={handleChange('numberOfShares')}
-                    placeholder="0"
+                    id="brokerName"
+                    value={formData.brokerName}
+                    onChange={handleChange('brokerName')}
+                    required
+                    placeholder="e.g., John Keells Stockbrokers"
                   />
                 </div>
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="certificateNo">Certificate Number</Label>
+                <Label htmlFor="brokerCode">Broker Code/Reference</Label>
                 <Input
-                  id="certificateNo"
-                  value={formData.certificateNo}
-                  onChange={handleChange('certificateNo')}
-                  placeholder="Share certificate number"
+                  id="brokerCode"
+                  value={formData.brokerCode}
+                  onChange={handleChange('brokerCode')}
+                  placeholder="Broker reference or code"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="companyName">Description</Label>
+                <Input
+                  id="companyName"
+                  value={formData.companyName}
+                  onChange={handleChange('companyName')}
+                  placeholder="e.g., Stock Portfolio - CSE"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optional: Brief description of your stock portfolio
+                </p>
               </div>
             </>
           )}
@@ -925,6 +953,7 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
               <Label htmlFor="cost">
                 {formData.cageCategory === 'Biv' ? 'Amount *' :
                  formData.cageCategory === 'Bii' ? 'Amount *' :
+                 formData.cageCategory === 'Biii' ? 'Initial Investment *' :
                  formData.cageCategory === 'Bv' ? 'Loan Amount *' :
                  'Cost/Acquisition Value *'}
               </Label>
@@ -941,13 +970,14 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
               <p className="text-xs text-muted-foreground">
                 {formData.cageCategory === 'Biv' ? 'Cash amount in hand' :
                  formData.cageCategory === 'Bii' ? 'Account balance or deposit amount' :
+                 formData.cageCategory === 'Biii' ? 'Initial amount invested in stock portfolio' :
                  formData.cageCategory === 'Bv' ? 'Amount loaned or receivable' :
                  'Amount paid to acquire this asset'}
               </p>
             </div>
 
             {/* Only show market value for categories that need it */}
-            {formData.cageCategory !== 'Biv' && formData.cageCategory !== 'Bii' && formData.cageCategory !== 'Bv' && formData.cageCategory !== 'Bvi' && (
+            {formData.cageCategory !== 'Biv' && formData.cageCategory !== 'Bii' && formData.cageCategory !== 'Biii' && formData.cageCategory !== 'Bv' && formData.cageCategory !== 'Bvi' && (
               <div className="space-y-2">
                 <Label htmlFor="marketValue">Current Market Value *</Label>
                 <Input
@@ -975,12 +1005,13 @@ export function AssetForm({ asset, onSave, onCancel }: AssetFormProps) {
                 <p className="text-muted-foreground">
                   {formData.cageCategory === 'Biv' ? 'Cash Amount:' :
                    formData.cageCategory === 'Bii' ? 'Balance:' :
+                   formData.cageCategory === 'Biii' ? 'Initial Investment:' :
                    formData.cageCategory === 'Bv' ? 'Loan Amount:' :
                    'Acquisition Cost:'}
                 </p>
                 <p className="font-bold">{formatLKR(Number(formData.cost))}</p>
               </div>
-              {formData.cageCategory !== 'Biv' && formData.cageCategory !== 'Bii' && formData.cageCategory !== 'Bv' && (
+              {formData.cageCategory !== 'Biv' && formData.cageCategory !== 'Bii' && formData.cageCategory !== 'Biii' && formData.cageCategory !== 'Bv' && (
                 <>
                   <div>
                     <p className="text-muted-foreground">Market Value:</p>

@@ -797,7 +797,7 @@ export function AssetsPage() {
                               size="sm"
                               onClick={() => handleManageStockBalances(asset)}
                               className="bg-emerald-600 hover:bg-emerald-700"
-                              title="Manage yearly stock portfolio balances, purchases, and dividends"
+                              title="Manage stock portfolio, holdings, and cash transfers"
                             >
                               <TrendingUp className="w-4 h-4" />
                             </Button>

@@ -568,20 +568,25 @@ export function calculateDerivedInvestmentIncome(assets: Asset[], taxYear: strin
       }
     }
     
-    // Extract dividends from shares
-    if (asset.cageCategory === 'Biii' && asset.balances) {
-      const yearBalance = asset.balances.find((b) => {
+    // Extract dividends from shares (stock portfolios)
+    if (asset.cageCategory === 'Biii' && asset.stockBalances) {
+      const yearBalance = asset.stockBalances.find((b) => {
         // Match both "2024" and "2024/2025" formats
         return b.taxYear === taxYear || b.taxYear.startsWith(taxYear);
       });
-      if (yearBalance && yearBalance.interestEarned > 0) {
-        income.push({
-          type: 'dividend',
-          amount: yearBalance.interestEarned,
-          source: asset.meta.companyName || 'Dividend Income',
-          wht: 0,
-          ownerId: asset.ownerId,
-        });
+      if (yearBalance && yearBalance.dividends > 0) {
+        // Get individual stock dividends for detailed breakdown
+        const stockDividends = yearBalance.holdings
+          .filter(h => (h.dividendIncome || 0) > 0)
+          .map(h => ({
+            type: 'dividend' as const,
+            amount: h.dividendIncome || 0,
+            source: `${h.companyName} (${h.symbol})`,
+            wht: 0,
+            ownerId: asset.ownerId,
+          }));
+        
+        income.push(...stockDividends);
       }
     }
   });

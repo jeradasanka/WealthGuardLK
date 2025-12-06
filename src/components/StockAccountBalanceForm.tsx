@@ -60,12 +60,14 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
     quantity: number;
     averageCost: number;
     currentPrice: number;
+    dividendIncome: number;
   }>({
     symbol: '',
     companyName: '',
     quantity: 0,
     averageCost: 0,
     currentPrice: 0,
+    dividendIncome: 0,
   });
 
   const taxYears = getTaxYearsFromStart(entities[0]?.taxYear || '2022');
@@ -118,6 +120,7 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
       quantity: 0,
       averageCost: 0,
       currentPrice: 0,
+      dividendIncome: 0,
     });
     setEditingHoldingId(null);
     setShowHoldingForm(true);
@@ -130,6 +133,7 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
       quantity: holding.quantity,
       averageCost: holding.averageCost,
       currentPrice: holding.currentPrice,
+      dividendIncome: holding.dividendIncome || 0,
     });
     setEditingHoldingId(holding.id);
     setShowHoldingForm(true);
@@ -150,6 +154,7 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
       totalCost,
       marketValue,
       unrealizedGain,
+      dividendIncome: holdingData.dividendIncome,
     };
 
     let updatedHoldings: StockHolding[];
@@ -179,6 +184,7 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
     // Calculate totals from holdings
     const portfolioValue = formData.holdings.reduce((sum, h) => sum + h.marketValue, 0);
     const purchases = formData.holdings.reduce((sum, h) => sum + h.totalCost, 0);
+    const dividends = formData.holdings.reduce((sum, h) => sum + (h.dividendIncome || 0), 0);
 
     const newBalance: StockBalance = {
       id: editingId || crypto.randomUUID(),
@@ -188,7 +194,7 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
       portfolioValue,
       holdings: formData.holdings,
       purchases,
-      dividends: formData.dividends,
+      dividends,
       sales: formData.sales > 0 ? formData.sales : undefined,
       capitalGain: formData.capitalGain !== 0 ? formData.capitalGain : undefined,
       notes: formData.notes || undefined,
@@ -258,6 +264,7 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
   const holdingsPortfolioValue = formData.holdings.reduce((sum, h) => sum + h.marketValue, 0);
   const holdingsTotalCost = formData.holdings.reduce((sum, h) => sum + h.totalCost, 0);
   const holdingsUnrealizedGain = holdingsPortfolioValue - holdingsTotalCost;
+  const holdingsTotalDividends = formData.holdings.reduce((sum, h) => sum + (h.dividendIncome || 0), 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
@@ -478,9 +485,9 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
                                 </div>
                               </div>
 
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                                 <div className="space-y-2">
-                                  <Label htmlFor="quantity">Quantity *</Label>
+                                  <Label htmlFor="quantity">Quantity</Label>
                                   <Input
                                     id="quantity"
                                     type="number"
@@ -488,12 +495,12 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
                                     step="1"
                                     value={holdingData.quantity}
                                     onChange={handleHoldingChange('quantity')}
-                                    required
                                     placeholder="50"
                                   />
+                                  <p className="text-xs text-muted-foreground">Can be 0 for dividend-only</p>
                                 </div>
                                 <div className="space-y-2">
-                                  <Label htmlFor="averageCost">Avg Cost/Share *</Label>
+                                  <Label htmlFor="averageCost">Avg Cost/Share</Label>
                                   <Input
                                     id="averageCost"
                                     type="number"
@@ -501,12 +508,11 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
                                     step="0.01"
                                     value={holdingData.averageCost}
                                     onChange={handleHoldingChange('averageCost')}
-                                    required
                                     placeholder="100.00"
                                   />
                                 </div>
                                 <div className="space-y-2">
-                                  <Label htmlFor="currentPrice">Current Price *</Label>
+                                  <Label htmlFor="currentPrice">Current Price</Label>
                                   <Input
                                     id="currentPrice"
                                     type="number"
@@ -514,9 +520,21 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
                                     step="0.01"
                                     value={holdingData.currentPrice}
                                     onChange={handleHoldingChange('currentPrice')}
-                                    required
                                     placeholder="120.00"
                                   />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="dividendIncome">Dividend Income</Label>
+                                  <Input
+                                    id="dividendIncome"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={holdingData.dividendIncome}
+                                    onChange={handleHoldingChange('dividendIncome')}
+                                    placeholder="1000.00"
+                                  />
+                                  <p className="text-xs text-muted-foreground">Total dividends received</p>
                                 </div>
                               </div>
 
@@ -588,6 +606,7 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
                                 <th className="text-right p-2 font-semibold">Total Cost</th>
                                 <th className="text-right p-2 font-semibold">Market Value</th>
                                 <th className="text-right p-2 font-semibold">Gain/Loss</th>
+                                <th className="text-right p-2 font-semibold">Dividends</th>
                                 <th className="text-center p-2 font-semibold">Actions</th>
                               </tr>
                             </thead>
@@ -604,6 +623,7 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
                                   <td className={`p-2 text-right font-semibold ${holding.unrealizedGain >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                     {formatLKR(holding.unrealizedGain)}
                                   </td>
+                                  <td className="p-2 text-right font-semibold text-blue-600">{formatLKR(holding.dividendIncome || 0)}</td>
                                   <td className="p-2 text-center">
                                     <div className="flex gap-1 justify-center">
                                       <Button
@@ -635,6 +655,7 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
                                 <td className={`p-2 text-right ${holdingsUnrealizedGain >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                   {formatLKR(holdingsUnrealizedGain)}
                                 </td>
+                                <td className="p-2 text-right text-blue-600">{formatLKR(holdingsTotalDividends)}</td>
                                 <td></td>
                               </tr>
                             </tbody>
@@ -647,20 +668,18 @@ export function StockAccountBalanceForm({ asset, onClose }: StockAccountBalanceF
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="dividends">
-                          Dividend Income *
+                          Dividend Income (Auto-Calculated)
                         </Label>
                         <Input
                           id="dividends"
                           type="number"
-                          min="0"
-                          step="0.01"
-                          value={formData.dividends}
-                          onChange={handleChange('dividends')}
-                          required
-                          placeholder="0.00"
+                          value={holdingsTotalDividends}
+                          readOnly
+                          disabled
+                          className="bg-blue-50 font-semibold text-blue-900"
                         />
                         <p className="text-xs text-muted-foreground">
-                          Total dividends received during the year (inflow)
+                          Total dividends from holdings table above (inflow)
                         </p>
                       </div>
 

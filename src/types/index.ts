@@ -115,6 +115,7 @@ export interface StockHolding {
   marketValue: number; // quantity * currentPrice
   totalCost: number; // quantity * averageCost
   unrealizedGain: number; // marketValue - totalCost
+  dividendIncome: number; // Dividend income received for this stock during the year (inflow)
 }
 
 // Stock balance record for stock portfolios (Biii - Shares/Stocks)

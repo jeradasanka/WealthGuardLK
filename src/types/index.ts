@@ -240,6 +240,7 @@ export interface AuditRisk {
   };
   outflowBreakdown: {
     assetPurchases: number;
+    balanceIncreases: number; // Net deposits to savings/cash/loans given (excluding interest)
     loanPrincipal: number;
     loanInterest: number;
     propertyExpenses: number;

@@ -752,6 +752,48 @@ export function calculateAuditRisk(
     .filter((a) => isDateInTaxYear(a.meta.dateAcquired, currentYear) && !a.disposed)
     .reduce((sum, a) => sum + a.financials.cost, 0);
 
+  // Calculate balance increases in existing financial assets (Bii, Biv, Bv)
+  // This tracks money deposited into savings accounts, cash accumulation, loans given
+  let balanceIncreases = 0;
+  const previousYear = (parseInt(currentYear) - 1).toString();
+  
+  assets.forEach((asset) => {
+    // Only process financial assets (Bank, Cash, Loans Given) that existed before current year
+    if ((asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') 
+        && !isDateInTaxYear(asset.meta.dateAcquired, currentYear) 
+        && !asset.closed 
+        && !asset.disposed
+        && asset.balances) {
+      
+      const currentYearBalance = asset.balances.find(b => b.taxYear === currentYear || b.taxYear.startsWith(currentYear));
+      const previousYearBalance = asset.balances.find(b => b.taxYear === previousYear || b.taxYear.startsWith(previousYear));
+      
+      if (currentYearBalance) {
+        const prevBalance = previousYearBalance?.closingBalance || asset.financials.cost || 0;
+        const currBalance = currentYearBalance.closingBalance;
+        const interestEarned = currentYearBalance.interestEarned || 0;
+        
+        // Net deposit = (Current Balance - Previous Balance) - Interest Earned
+        // This represents actual cash deposits/increases funded from income or other sources
+        const netDeposit = (currBalance - prevBalance) - interestEarned;
+        
+        if (netDeposit > 0) {
+          // Convert to LKR if foreign currency
+          if (asset.cageCategory === 'Bii' && asset.meta.currency && asset.meta.currency !== 'LKR') {
+            const exchangeRate = CURRENCY_TO_LKR_RATES[asset.meta.currency]?.[currentYear];
+            if (exchangeRate) {
+              balanceIncreases += netDeposit * exchangeRate;
+            } else {
+              balanceIncreases += netDeposit;
+            }
+          } else {
+            balanceIncreases += netDeposit;
+          }
+        }
+      }
+    }
+  });
+
   // Calculate asset sales (proceeds from disposed assets in current tax year)
   const assetSales = assets
     .filter((a) => a.disposed && isDateInTaxYear(a.disposed.date, currentYear))
@@ -797,7 +839,8 @@ export function calculateAuditRisk(
   );
 
   // Calculate actual outflows (excluding living expenses)
-  const actualOutflows = assetGrowth + propertyExpenses + loanPayments;
+  // Includes: new asset purchases + balance increases in existing accounts + property expenses + loan payments
+  const actualOutflows = assetGrowth + balanceIncreases + propertyExpenses + loanPayments;
   
   // Calculate actual inflows
   const netIncome = incomeBreakdown.totalIncome - ((incomeBreakdown.totalAPIT || 0) + (incomeBreakdown.totalWHT || 0));
@@ -843,6 +886,7 @@ export function calculateAuditRisk(
     },
     outflowBreakdown: {
       assetPurchases: assetGrowth,
+      balanceIncreases, // NEW: Track savings/cash increases
       loanPrincipal,
       loanInterest,
       propertyExpenses,

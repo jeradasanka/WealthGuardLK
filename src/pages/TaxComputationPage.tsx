@@ -11,24 +11,34 @@ import { useStore } from '@/stores/useStore';
 import { computeTax, getTaxBreakdown } from '@/lib/taxEngine';
 import { DangerMeter } from '@/components/DangerMeter';
 import { formatTaxYear } from '@/lib/taxYear';
+import { EmploymentIncome, BusinessIncome, InvestmentIncome } from '@/types';
 
 export function TaxComputationPage() {
   const navigate = useNavigate();
-  const { incomes, assets, currentTaxYear } = useStore();
+  const { incomes, assets, currentTaxYear, certificates } = useStore();
 
-  const taxComputation = computeTax(incomes, assets, currentTaxYear);
+  const taxComputation = computeTax(incomes, assets, currentTaxYear, 0, certificates);
   const taxBreakdown = getTaxBreakdown(taxComputation.taxableIncome, currentTaxYear);
   const totalReliefs = taxComputation.reliefs.personalRelief + taxComputation.reliefs.solarRelief;
   const totalTaxCredits = taxComputation.taxCredits.apit + taxComputation.taxCredits.wht;
 
-  // Group incomes by schedule
-  const employmentIncomes = incomes.filter((i) => i.type === 'employment');
-  const businessIncomes = incomes.filter((i) => i.type === 'business');
-  const investmentIncomes = incomes.filter((i) => i.type === 'investment');
+  // Group incomes by schedule and calculate totals
+  const employmentIncomes = incomes.filter((i) => i.schedule === '1');
+  const businessIncomes = incomes.filter((i) => i.schedule === '2');
+  const investmentIncomes = incomes.filter((i) => i.schedule === '3');
 
-  const employmentTotal = employmentIncomes.reduce((sum, i) => sum + i.details.grossAmount, 0);
-  const businessTotal = businessIncomes.reduce((sum, i) => sum + i.details.grossAmount, 0);
-  const investmentTotal = investmentIncomes.reduce((sum, i) => sum + i.details.grossAmount, 0);
+  const employmentTotal = employmentIncomes.reduce((sum, i) => {
+    const emp = i as EmploymentIncome;
+    return sum + (emp.details.grossRemuneration || 0) + (emp.details.nonCashBenefits || 0);
+  }, 0);
+  const businessTotal = businessIncomes.reduce((sum, i) => {
+    const bus = i as BusinessIncome;
+    return sum + (bus.details.netProfit || 0);
+  }, 0);
+  const investmentTotal = investmentIncomes.reduce((sum, i) => {
+    const inv = i as InvestmentIncome;
+    return sum + (inv.details.grossAmount || 0);
+  }, 0);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">

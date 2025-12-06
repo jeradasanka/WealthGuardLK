@@ -48,10 +48,10 @@ export function IncomePage() {
   // Calculate total income summary for the selected entity (or all)
   const filteredIncomes = currentYearIncomes.filter(i => !selectedEntityForTax || i.ownerId === selectedEntityForTax);
   const filteredAssets = assets.filter(a => !selectedEntityForTax || a.ownerId === selectedEntityForTax);
-  const incomeSummary = calculateTotalIncome(filteredIncomes, filteredAssets, currentTaxYear);
+  const incomeSummary = calculateTotalIncome(filteredIncomes, filteredAssets, currentTaxYear, certificates);
   
   // Calculate estimated tax
-  const taxComputation = computeTax(filteredIncomes, filteredAssets, currentTaxYear);
+  const taxComputation = computeTax(filteredIncomes, filteredAssets, currentTaxYear, 0, certificates);
 
   const getEntityName = (ownerId: string) => {
     return entities.find((e) => e.id === ownerId)?.name || 'Unknown';

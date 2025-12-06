@@ -593,7 +593,8 @@ export function calculateDerivedInvestmentIncome(assets: Asset[], taxYear: strin
 export function calculateTotalIncome(
   incomes: Income[], 
   assets: Asset[] = [], 
-  currentTaxYear: string = '2024'
+  currentTaxYear: string = '2024',
+  certificates: AITWHTCertificate[] = []
 ): {
   employmentIncome: number;
   businessIncome: number;
@@ -648,6 +649,21 @@ export function calculateTotalIncome(
     });
   }
 
+  // Process tax credits from certificates (FR-12)
+  const yearCertificates = certificates.filter(cert => cert.taxYear === currentTaxYear);
+  
+  // APIT from employment certificates
+  const apitFromCerts = yearCertificates
+    .filter(c => c.type === 'employment')
+    .reduce((sum, c) => sum + (c.details.taxDeducted || 0), 0);
+  totalAPIT += apitFromCerts;
+  
+  // WHT from investment certificates (interest, dividend, rent, other)
+  const whtFromCerts = yearCertificates
+    .filter(c => c.type !== 'employment')
+    .reduce((sum, c) => sum + (c.details.taxDeducted || 0), 0);
+  totalWHT += whtFromCerts;
+
   return {
     employmentIncome,
     businessIncome,
@@ -688,13 +704,14 @@ export function computeTax(
   incomes: Income[],
   assets: Asset[] = [],
   currentTaxYear: string = '2024',
-  solarInvestment: number = 0
+  solarInvestment: number = 0,
+  certificates: AITWHTCertificate[] = []
 ): TaxComputation {
   const {
     totalIncome,
     totalAPIT,
     totalWHT,
-  } = calculateTotalIncome(incomes, assets, currentTaxYear);
+  } = calculateTotalIncome(incomes, assets, currentTaxYear, certificates);
 
   // Get tax configuration for the year
   const config = getTaxConfig(currentTaxYear);
@@ -721,6 +738,7 @@ export function computeTax(
   );
 
   return {
+    totalIncome,
     assessableIncome,
     reliefs: {
       personalRelief: config.personalRelief,

@@ -175,13 +175,21 @@ Represents a physical or financial asset owned by an entity.
   - `A`: Immovable Properties
   - `Bi`: Motor Vehicles
   - `Bii`: Bank Balances / Term Deposits
-  - `Biii`: Shares/Stocks
+  - `Biii`: Shares/Stocks/Securities (with detailed portfolio tracking)
   - `Biv`: Cash in Hand
   - `Bv`: Loans Given
   - `Bvi`: Jewellery/Gold
   - `C`: Business Properties
 - **Valuation**: Tracks both `cost` (for acquisition proof) and `marketValue` (for net worth).
 - **Joint Ownership**: Supports `ownershipShares` to split value between family members.
+- **Stock Portfolios (Biii)**: Enhanced tracking with CDS account management
+  - CDS Account Number, Broker Name, Broker Code
+  - Yearly balance records with detailed holdings
+  - Per-stock tracking: Symbol, quantity, prices, cost basis, market value
+  - Dividend income tracking per stock (even for zero-quantity positions)
+  - Cash balance in broker account
+  - Net cash transfers (deposits to/withdrawals from broker)
+  - Auto-calculated portfolio valuation and unrealized gains
 
 #### Liability (`Liability`)
 Represents a debt obligation.
@@ -198,6 +206,33 @@ Represents annual balance records for financial assets (Bank/Term Deposits, Cash
 - **Usage**: Tracks year-end balances for Cage Bii, Biv, Bv assets
 - **Auto-calculation**: Interest earned flows to Investment Income (Schedule 3)
 - **Import Source**: Can be manually entered or imported from bank statement PDFs
+
+#### StockBalance
+Represents annual balance records for stock portfolios (Cage Biii - Shares/Stocks).
+- **Key Fields**: `taxYear`, `portfolioValue`, `brokerCashBalance`, `cashTransfers`, `holdings`
+- **Holdings Array**: Detailed list of individual stock positions (see StockHolding below)
+- **Auto-calculations**: 
+  - `portfolioValue`: Sum of all holdings' market values
+  - `purchases`: Sum of all holdings' total costs
+  - `dividends`: Sum of all holdings' dividend income
+- **Cash Tracking**:
+  - `cashTransfers`: Net cash deposited to (+) or withdrawn from (-) broker account
+  - Deposits flow to audit risk as outflows (investment)
+  - Withdrawals flow to audit risk as inflows (divestment)
+- **Usage**: Tracks year-end portfolio state for stock investments
+
+#### StockHolding
+Represents individual stock positions within a portfolio.
+- **Key Fields**: `symbol`, `companyName`, `quantity`, `averageCost`, `currentPrice`, `dividendIncome`
+- **Auto-calculations**:
+  - `totalCost`: quantity × averageCost (cost basis)
+  - `marketValue`: quantity × currentPrice (current valuation)
+  - `unrealizedGain`: marketValue - totalCost (paper gains/losses)
+- **Dividend Tracking**: `dividendIncome` tracks total dividends received during tax year
+  - Can be non-zero even when quantity is 0 (for sold stocks that paid dividends)
+  - Flows to Investment Income (Schedule 3) as dividend income
+  - Each stock's dividends shown separately in derived income breakdown
+- **Usage**: Enables detailed stock-by-stock portfolio analysis and tax reporting
 
 #### Income (`Income`)
 Represents an income source for a specific tax year.
@@ -260,16 +295,20 @@ Detects "Unexplained Wealth" by balancing Inflows vs. Outflows for the current t
 *   **Inflows**:
     *   (+) Employment Income (Schedule 1, after exempt income)
     *   (+) Business Income (Schedule 2)
-    *   (+) Investment Income (Schedule 3)
+    *   (+) Investment Income (Schedule 3, including stock dividends)
     *   (+) Other Income (Schedule 4, after exempt income)
     *   (+) New Loans taken in current year
     *   (+) Asset Sales (proceeds from disposed assets)
+    *   (+) Savings Withdrawals (from bank/cash accounts)
+    *   (+) Stock Cash Withdrawals (from broker accounts)
 *   **Outflows**:
     *   (+) Tax Deducted (APIT + WHT paid at source)
     *   (+) Asset Purchases (cost of assets acquired in current year)
     *   (+) Property Expenses (renovations/improvements)
     *   (+) Loan Principal Payments
     *   (+) Loan Interest Payments
+    *   (+) Savings Deposits (to bank/cash accounts)
+    *   (+) Stock Cash Deposits (to broker accounts)
     *   (+) **Derived Living Expenses** = max(0, Inflows - Other Outflows)
 
 **Living Expenses Calculation**:

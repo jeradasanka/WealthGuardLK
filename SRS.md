@@ -82,6 +82,31 @@ This module maps directly to the "Statement of Assets and Liabilities".
 - **Immovable Property (Cage 701):** Fields for Address, Deed No, Cost, Market Value.
 - **Motor Vehicles (Cage 711):** Fields for Reg No, Brand, Cost. Auto-depreciation logic for "Market Value" estimation.
 - **Bank/Financial (Cage 721):** Must link specific bank accounts to Schedule 3 Income entries (Interest check).
+- **Shares/Stocks (Cage Biii):** Complete stock portfolio management system:
+  - **CDS Account Details:** Account Number (required), Broker Name (required), Broker Code (optional)
+  - **Initial Investment:** Tracks upfront capital invested in stock portfolio
+  - **Yearly Balance Records:** Annual snapshots as of March 31 each tax year
+    - Portfolio valuation (auto-calculated from holdings)
+    - Broker cash balance (uninvested funds in account)
+    - Net cash transfers (deposits/withdrawals during year)
+    - Detailed holdings table (see below)
+    - Total dividends received (auto-calculated from holdings)
+    - Sales proceeds and realized capital gains (optional)
+  - **Stock Holdings Table:** Per-stock position tracking
+    - Stock Symbol (e.g., "CFIN.N0000") and Company Name
+    - Quantity held, Average Cost per share, Current Price per share
+    - Total Cost (quantity × avg cost), Market Value (quantity × current price)
+    - Unrealized Gain/Loss (market value - total cost)
+    - Dividend Income received during year (even if quantity = 0)
+  - **Cash Flow Tracking:**
+    - Positive cash transfers = deposits to broker (outflow from personal funds)
+    - Negative cash transfers = withdrawals from broker (inflow to personal funds)
+    - Both tracked in Audit Risk calculation
+  - **Auto-Integration:**
+    - Stock dividends automatically flow to Investment Income (Schedule 3)
+    - Per-stock dividend breakdown shown in derived income
+    - Portfolio value updates reflect in net worth
+    - Cash deposits/withdrawals tracked in audit risk inflows/outflows
 
 **FR-06: Liability Management (Cage 781)**
 - **Fields:** Lender Name, Original Amount, Current Balance, Security Given.

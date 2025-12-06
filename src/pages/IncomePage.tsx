@@ -12,10 +12,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useStore } from '@/stores/useStore';
 import { EmploymentIncomeForm } from '@/components/EmploymentIncomeForm';
 import { BusinessIncomeForm } from '@/components/BusinessIncomeForm';
+import { OtherIncomeForm } from '@/components/OtherIncomeForm';
 import { IncomeSchedulePDFImportWizard } from '@/components/IncomeSchedulePDFImportWizard';
 import { formatLKR, calculateTotalIncome, calculateDerivedInvestmentIncome, computeTax, getTaxConfig } from '@/lib/taxEngine';
 import { formatTaxYear, getTaxYearsFromStart } from '@/lib/taxYear';
-import type { Income, EmploymentIncome, BusinessIncome, InvestmentIncome } from '@/types';
+import type { Income, EmploymentIncome, BusinessIncome, InvestmentIncome, OtherIncome } from '@/types';
 
 export function IncomePage() {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ export function IncomePage() {
   const updateEntity = useStore((state) => state.updateEntity);
   const saveToStorage = useStore((state) => state.saveToStorage);
 
-  const [showForm, setShowForm] = useState<'1' | '2' | '3' | null>(null);
+  const [showForm, setShowForm] = useState<'1' | '2' | '3' | '4' | null>(null);
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
   const [showTaxCalculator, setShowTaxCalculator] = useState(false);
   const [showTaxBreakdownDialog, setShowTaxBreakdownDialog] = useState(false);
@@ -82,13 +83,17 @@ export function IncomePage() {
   const getIncomeAmount = (income: Income): number => {
     if (income.schedule === '1') {
       const emp = income as EmploymentIncome;
-      return emp.details.grossRemuneration + emp.details.nonCashBenefits;
+      const grossIncome = emp.details.grossRemuneration + emp.details.nonCashBenefits;
+      return grossIncome - (emp.details.exemptIncome || 0); // Taxable amount after exemptions
     } else if (income.schedule === '2') {
       const bus = income as BusinessIncome;
       return bus.details.netProfit;
     } else if (income.schedule === '3') {
       const inv = income as InvestmentIncome;
       return inv.details.grossAmount;
+    } else if (income.schedule === '4') {
+      const other = income as OtherIncome;
+      return other.details.grossAmount - other.details.exemptAmount; // Taxable amount
     }
     return 0;
   };
@@ -101,6 +106,8 @@ export function IncomePage() {
         return <Building2 className="w-5 h-5" />;
       case '3':
         return <TrendingUp className="w-5 h-5" />;
+      case '4':
+        return <FileText className="w-5 h-5" />;
       default:
         return null;
     }
@@ -112,6 +119,10 @@ export function IncomePage() {
     if (income.schedule === '3') {
       const inv = income as InvestmentIncome;
       return `Investment (${inv.type})`;
+    }
+    if (income.schedule === '4') {
+      const other = income as OtherIncome;
+      return `Other (${other.type})`;
     }
     return 'Unknown';
   };
@@ -233,6 +244,13 @@ export function IncomePage() {
               onCancel={handleFormClose}
             />
           )}
+          {showForm === '4' && (
+            <OtherIncomeForm
+              income={editingIncome as OtherIncome}
+              onSave={handleFormClose}
+              onCancel={handleFormClose}
+            />
+          )}
         </div>
       </div>
     );
@@ -303,7 +321,7 @@ export function IncomePage() {
         </Card>
 
         {/* Add Income Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <Card
             className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-blue-200"
             onClick={() => setShowForm('1')}
@@ -365,6 +383,25 @@ export function IncomePage() {
                   Manage in Assets
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="hover:shadow-lg transition-shadow cursor-pointer border-2 border-orange-200"
+            onClick={() => setShowForm('4')}
+          >
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-orange-600" />
+                Schedule 4
+              </CardTitle>
+              <CardDescription>Other Income</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Other Income
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -653,7 +690,7 @@ export function IncomePage() {
           </CardHeader>
           {showTaxCalculator && (
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {/* Employment Income */}
                 <div className="p-4 bg-white rounded-lg border border-blue-200">
                   <p className="text-sm text-muted-foreground mb-1">Employment Income (Schedule 1)</p>
@@ -681,6 +718,17 @@ export function IncomePage() {
                   </p>
                   <p className="text-xs text-muted-foreground mt-2">
                     From Assets • {derivedInvestmentIncome.filter((i) => !selectedEntityForTax || i.ownerId === selectedEntityForTax).length} source(s)
+                  </p>
+                </div>
+
+                {/* Other Income */}
+                <div className="p-4 bg-white rounded-lg border border-orange-200">
+                  <p className="text-sm text-muted-foreground mb-1">Other Income (Schedule 4)</p>
+                  <p className="text-2xl font-bold text-orange-600">
+                    {formatLKR(incomeSummary.otherIncome)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Taxable amount (after exemptions)
                   </p>
                 </div>
               </div>
@@ -836,7 +884,7 @@ export function IncomePage() {
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground">
-                No manual income entries for {formatTaxYear(currentTaxYear)}. Click one of the cards above to add employment or business income.
+                No manual income entries for {formatTaxYear(currentTaxYear)}. Click one of the cards above to add employment, business, or other income.
               </p>
             </CardContent>
           </Card>
@@ -864,6 +912,7 @@ export function IncomePage() {
                             {income.schedule === '1' && ` • ${(income as EmploymentIncome).details.employerName}`}
                             {income.schedule === '2' && ` • ${(income as BusinessIncome).details.businessName}`}
                             {income.schedule === '3' && ` • ${(income as InvestmentIncome).details.source}`}
+                            {income.schedule === '4' && ` • ${(income as OtherIncome).details.source}`}
                           </p>
                         </div>
                       </div>
@@ -876,6 +925,7 @@ export function IncomePage() {
                           <p className="text-xs text-orange-600 mt-1">
                             {income.schedule === '1' && `Tax: ${formatLKR((income as EmploymentIncome).details.apitDeducted)}`}
                             {income.schedule === '3' && `WHT: ${formatLKR((income as InvestmentIncome).details.whtDeducted)}`}
+                            {income.schedule === '4' && (income as OtherIncome).details.whtDeducted && `WHT: ${formatLKR((income as OtherIncome).details.whtDeducted)}`}
                           </p>
                         </div>
                         <div className="flex gap-2">

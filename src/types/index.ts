@@ -176,7 +176,23 @@ export interface InvestmentIncome {
   };
 }
 
-export type Income = EmploymentIncome | BusinessIncome | InvestmentIncome;
+// Schedule 4: Other Income
+export interface OtherIncome {
+  id: string;
+  ownerId: string;
+  schedule: '4';
+  taxYear: string;
+  type: 'royalty' | 'annuity' | 'prize' | 'lottery' | 'pension' | 'gratuity' | 'other';
+  details: {
+    source: string; // Source of income
+    grossAmount: number; // Cage 401 - Total Other Income
+    exemptAmount: number; // Cage 402 - Exempt portion (e.g., retirement gratuity, pension exemptions)
+    whtDeducted?: number; // WHT if applicable (links to Cage 908)
+    description?: string; // Additional details
+  };
+}
+
+export type Income = EmploymentIncome | BusinessIncome | InvestmentIncome | OtherIncome;
 
 // AIT/WHT Certificate Tracking
 export interface AITWHTCertificate {

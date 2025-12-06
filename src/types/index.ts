@@ -104,12 +104,28 @@ export interface FinancialAssetBalance {
   notes?: string;
 }
 
+// Individual stock holding details
+export interface StockHolding {
+  id: string;
+  symbol: string; // e.g., "CFIN.N0000"
+  companyName: string; // e.g., "Commercial Bank of Ceylon"
+  quantity: number; // Number of shares held
+  averageCost: number; // Average cost per share
+  currentPrice: number; // Current market price per share
+  marketValue: number; // quantity * currentPrice
+  totalCost: number; // quantity * averageCost
+  unrealizedGain: number; // marketValue - totalCost
+}
+
 // Stock balance record for stock portfolios (Biii - Shares/Stocks)
 export interface StockBalance {
   id: string;
   taxYear: string;
-  portfolioValue: number; // Total market value of stocks as of March 31
-  purchases: number; // Total amount invested in stocks during the year (outflow)
+  brokerCashBalance: number; // Cash balance in broker account as of March 31
+  cashTransfers: number; // Total cash transferred to broker account during the year (outflow)
+  portfolioValue: number; // Total market value of stocks as of March 31 (calculated from holdings)
+  holdings: StockHolding[]; // Detailed list of stock holdings as of March 31
+  purchases: number; // Total amount spent on stock purchases during the year (calculated from holdings)
   dividends: number; // Total dividend income received during the year (inflow)
   sales?: number; // Proceeds from stock sales (if any)
   capitalGain?: number; // Realized capital gains (if any)

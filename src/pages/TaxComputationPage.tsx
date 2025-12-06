@@ -8,10 +8,10 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
-import { computeTax, getTaxBreakdown } from '@/lib/taxEngine';
+import { computeTax, getTaxBreakdown, calculateDerivedInvestmentIncome } from '@/lib/taxEngine';
 import { DangerMeter } from '@/components/DangerMeter';
 import { formatTaxYear } from '@/lib/taxYear';
-import { EmploymentIncome, BusinessIncome, InvestmentIncome } from '@/types';
+import { EmploymentIncome, BusinessIncome, InvestmentIncome, OtherIncome } from '@/types';
 
 export function TaxComputationPage() {
   const navigate = useNavigate();
@@ -26,6 +26,13 @@ export function TaxComputationPage() {
   const employmentIncomes = incomes.filter((i) => i.schedule === '1');
   const businessIncomes = incomes.filter((i) => i.schedule === '2');
   const investmentIncomes = incomes.filter((i) => i.schedule === '3');
+  const otherIncomes = incomes.filter((i) => i.schedule === '4');
+
+  // Get derived income from assets (bank interest and stock dividends)
+  const derivedIncomes = calculateDerivedInvestmentIncome(assets, currentTaxYear);
+  const derivedInterest = derivedIncomes.filter(d => d.type === 'interest').reduce((sum, d) => sum + d.amount, 0);
+  const derivedDividends = derivedIncomes.filter(d => d.type === 'dividend').reduce((sum, d) => sum + d.amount, 0);
+  const derivedTotal = derivedInterest + derivedDividends;
 
   const employmentTotal = employmentIncomes.reduce((sum, i) => {
     const emp = i as EmploymentIncome;
@@ -38,6 +45,10 @@ export function TaxComputationPage() {
   const investmentTotal = investmentIncomes.reduce((sum, i) => {
     const inv = i as InvestmentIncome;
     return sum + (inv.details.grossAmount || 0);
+  }, 0);
+  const otherTotal = otherIncomes.reduce((sum, i) => {
+    const other = i as OtherIncome;
+    return sum + (other.details.grossAmount || 0);
   }, 0);
 
   return (
@@ -80,8 +91,31 @@ export function TaxComputationPage() {
                   <span className="font-mono">Rs. {businessTotal.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between py-2">
-                  <span className="text-gray-700">Schedule 3: Investment Income</span>
+                  <span className="text-gray-700">Schedule 3: Investment Income (Manual)</span>
                   <span className="font-mono">Rs. {investmentTotal.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
+                </div>
+                {derivedTotal > 0 && (
+                  <>
+                    <div className="pl-4 space-y-1 bg-blue-50 py-2 rounded">
+                      <p className="text-xs text-blue-700 font-semibold mb-1">+ Derived from Assets:</p>
+                      {derivedInterest > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-blue-600">Bank Interest (from balances)</span>
+                          <span className="font-mono text-blue-900">Rs. {derivedInterest.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
+                      {derivedDividends > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-blue-600">Stock Dividends (from holdings)</span>
+                          <span className="font-mono text-blue-900">Rs. {derivedDividends.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-700">Schedule 4: Other Income</span>
+                  <span className="font-mono">Rs. {otherTotal.toLocaleString('en-LK', { minimumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between py-3 border-t-2 border-gray-300 font-semibold text-lg">
                   <span>Total Gross Income</span>

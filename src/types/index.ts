@@ -202,6 +202,7 @@ export interface AITWHTCertificate {
 
 // Tax Calculation
 export interface TaxComputation {
+  totalIncome: number; // Total gross income from all sources
   assessableIncome: number;
   reliefs: {
     personalRelief: number; // Rs. 1,200,000

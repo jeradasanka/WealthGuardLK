@@ -9,6 +9,8 @@ import type {
   EmploymentIncome,
   BusinessIncome,
   InvestmentIncome,
+  OtherIncome,
+  AITWHTCertificate,
   TaxComputation,
   AuditRisk,
   Asset,
@@ -599,6 +601,7 @@ export function calculateTotalIncome(
   employmentIncome: number;
   businessIncome: number;
   investmentIncome: number;
+  otherIncome: number;
   totalIncome: number;
   totalAPIT: number;
   totalWHT: number;
@@ -606,6 +609,7 @@ export function calculateTotalIncome(
   let employmentIncome = 0;
   let businessIncome = 0;
   let investmentIncome = 0;
+  let otherIncome = 0;
   let totalAPIT = 0;
   let totalWHT = 0;
 
@@ -614,7 +618,10 @@ export function calculateTotalIncome(
     switch (income.schedule) {
       case '1': {
         const emp = income as EmploymentIncome;
-        employmentIncome += (emp.details.grossRemuneration || 0) + (emp.details.nonCashBenefits || 0);
+        // Gross income minus exempt income = taxable employment income
+        const grossIncome = (emp.details.grossRemuneration || 0) + (emp.details.nonCashBenefits || 0);
+        const taxableIncome = grossIncome - (emp.details.exemptIncome || 0);
+        employmentIncome += taxableIncome;
         totalAPIT += (emp.details.apitDeducted || 0);
         break;
       }
@@ -635,6 +642,14 @@ export function calculateTotalIncome(
         
         investmentIncome += incomeAmount;
         totalWHT += (inv.details.whtDeducted || 0);
+        break;
+      }
+      case '4': {
+        const other = income as OtherIncome;
+        // Cage 401 - Cage 402 = Taxable Other Income
+        const taxableAmount = (other.details.grossAmount || 0) - (other.details.exemptAmount || 0);
+        otherIncome += taxableAmount;
+        totalWHT += (other.details.whtDeducted || 0);
         break;
       }
     }
@@ -668,7 +683,8 @@ export function calculateTotalIncome(
     employmentIncome,
     businessIncome,
     investmentIncome,
-    totalIncome: employmentIncome + businessIncome + investmentIncome,
+    otherIncome,
+    totalIncome: employmentIncome + businessIncome + investmentIncome + otherIncome,
     totalAPIT,
     totalWHT,
   };

@@ -46,8 +46,9 @@ The primary purpose of this application is to allow Sri Lankan families to track
 The system must automatically route income entries to the correct IRD Schedule.
 
 **FR-02: Employment Income (Schedule 1)**
-- **Input:** Gross Remuneration, Non-Cash Benefits.
+- **Input:** Gross Remuneration (Cage 103), Non-Cash Benefits (Cage 104), Exempt Income (Cage 102).
 - **Deductions:** APIT (Advance Personal Income Tax).
+- **Calculation:** Taxable Income = Gross Remuneration + Non-Cash Benefits - Exempt Income
 - **Validation:** APIT is recorded as a Tax Credit (Schedule 9, Cage 903), not an expense.
 
 **FR-03: Business Income (Schedule 2)**
@@ -60,6 +61,19 @@ The system must automatically route income entries to the correct IRD Schedule.
   - System maps "Gross" to Income (Cage 303) and "WHT" to Tax Credits (Cage 908).
 - **Sub-Feature: Rent Logic**
   - If Type = "Rent", system automatically applies 25% Relief (Cage 316) before adding to Assessable Income.
+
+**FR-04a: Other Income (Schedule 4)**
+- **Input:** Gross Amount (Cage 401), Exempt Amount (Cage 402), WHT Deducted (if applicable).
+- **Income Types:** Royalty, Annuity, Prize/Award, Lottery, Pension, Gratuity, Other.
+- **Calculation:** Taxable Income = Gross Amount - Exempt Amount
+- **Validation:** WHT is recorded as a Tax Credit (Cage 908) when applicable.
+- **Use Cases:**
+  - Pension income with exempt portions
+  - Retirement gratuities with tax-free allowances
+  - Lottery winnings (exempt up to Rs. 500,000)
+  - Royalty income from intellectual property
+  - Annuity payments from life insurance
+  - Prizes and awards
 
 ### 3.3 Module: Asset & Liability Tracking (The Audit Shield)
 This module maps directly to the "Statement of Assets and Liabilities".
@@ -102,7 +116,7 @@ This module maps directly to the "Statement of Assets and Liabilities".
   - Formula: `Living_Expenses = max(0, Total_Inflows - Other_Outflows)`
   - Eliminates need for user estimation
 - **Formula:** `Risk_Score = Total_Outflows - Total_Inflows`
-  - **Inflows:** Employment Income + Business Income + Investment Income + New Loans + Asset Sales
+  - **Inflows:** Employment Income (after exempt) + Business Income + Investment Income + Other Income (after exempt) + New Loans + Asset Sales
   - **Outflows:** Tax Deducted + Asset Purchases + Property Expenses + Loan Principal + Loan Interest + Living Expenses (derived)
 - **Comprehensive Breakdown:**
   - Single pie chart with 10 categories (5 inflows, 6 outflows)

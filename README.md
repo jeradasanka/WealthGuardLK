@@ -71,9 +71,10 @@ The app will be available at `http://localhost:5173`
 - Configure joint asset split ratios
 
 ### 2. Income & Schedule Mapper (FR-02, FR-03, FR-04)
-- **Schedule 1**: Employment Income with APIT deductions
+- **Schedule 1**: Employment Income with APIT deductions and exempt income tracking
 - **Schedule 2**: Business Income with net profit calculations
 - **Schedule 3**: Investment Income with WHT handling and rent relief (25%)
+- **Schedule 4**: Other Income (royalties, prizes, pensions, gratuities, annuities, lottery) with exempt amount tracking
 
 ### 3. Asset & Liability Tracking (FR-05, FR-06)
 - **Assets**: Immovable Property (701), Vehicles (711), Bank/Financial (721)
@@ -201,10 +202,13 @@ Represents annual balance records for financial assets (Bank/Term Deposits, Cash
 #### Income (`Income`)
 Represents an income source for a specific tax year.
 - **Schedules**:
-  - Schedule 1: Employment Income (Cage 901 - Gross, 902 - Allowable Deductions, 903 - APIT)
+  - Schedule 1: Employment Income (Cage 101-199: Gross 103, Non-Cash Benefits 104, Exempt Income, APIT 903)
   - Schedule 2: Business Income (Cage 201 - Gross, 202 - Expenses, 203 - Net)
   - Schedule 3: Investment Income (Cage 301 - Interest, 302 - Dividends, 303 - Rent, 304 - Other, 308 - WHT)
+  - Schedule 4: Other Income (Cage 401 - Gross, 402 - Exempt, WHT if applicable)
+    - Types: Royalty, Annuity, Prize/Award, Lottery, Pension, Gratuity, Other
 - **Tax Deductions**: Captures APIT (Cage 903) and WHT (Cage 308/908) at source.
+- **Exempt Income**: Employment and Other Income support exempt amount tracking (automatically excluded from taxable income)
 
 #### AITWHTCertificate (`AITWHTCertificate`)
 Represents a tax certificate for APIT or WHT deductions.
@@ -226,9 +230,10 @@ Represents a tax certificate for APIT or WHT deductions.
 #### 🧮 Tax Computation (FR-08, FR-09)
 Implemented in `src/lib/taxEngine.ts`.
 
-1.  **Total Income**: Sum of Employment + Business + Investment Income.
+1.  **Total Income**: Sum of Employment + Business + Investment + Other Income.
     *   *Note*: Investment income includes manually entered records AND derived interest/dividends from Asset balances.
     *   *Rent Relief*: 25% deduction applied automatically to Rent income.
+    *   *Exempt Income*: Employment (Schedule 1) and Other Income (Schedule 4) exempt amounts automatically excluded from taxable income.
 2.  **Taxable Income**:
     `Total Income - Personal Relief - Solar Relief`
     *   *Personal Relief*: Rs. 1,200,000 (for 2024/2025).
@@ -253,9 +258,10 @@ Detects "Unexplained Wealth" by balancing Inflows vs. Outflows for the current t
 **Formula**: `Risk Score = Total Outflows - Total Inflows`
 
 *   **Inflows**:
-    *   (+) Employment Income (Schedule 1)
+    *   (+) Employment Income (Schedule 1, after exempt income)
     *   (+) Business Income (Schedule 2)
     *   (+) Investment Income (Schedule 3)
+    *   (+) Other Income (Schedule 4, after exempt income)
     *   (+) New Loans taken in current year
     *   (+) Asset Sales (proceeds from disposed assets)
 *   **Outflows**:

@@ -613,9 +613,33 @@ export function AssetsPage() {
                       <div className="flex items-center gap-4">
                         <div className="text-right">
                           {asset.cageCategory === 'A' ? (() => {
+                            // Check for valuations first (priority), then property expenses
+                            const hasValuations = asset.valuations && asset.valuations.length > 0;
                             const hasExpenses = asset.propertyExpenses && asset.propertyExpenses.length > 0;
                             
-                            if (hasExpenses) {
+                            if (hasValuations) {
+                              const sortedValuations = [...asset.valuations!].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
+                              const latestValuation = sortedValuations[0];
+                              
+                              return (
+                                <>
+                                  <p className="text-sm text-muted-foreground">
+                                    Latest Market Value ({latestValuation.taxYear}/{parseInt(latestValuation.taxYear) + 1})
+                                  </p>
+                                  <p className="font-bold text-lg text-green-600">
+                                    {formatLKR(latestValuation.marketValue)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Initial Cost: {formatLKR(asset.financials.cost)}
+                                  </p>
+                                  {hasExpenses && (
+                                    <p className="text-xs text-orange-600 font-medium mt-1">
+                                      Total Expenses: {formatLKR(asset.propertyExpenses!.reduce((sum, e) => sum + e.amount, 0))}
+                                    </p>
+                                  )}
+                                </>
+                              );
+                            } else if (hasExpenses) {
                               const sortedExpenses = [...asset.propertyExpenses!].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
                               const latestExpense = sortedExpenses[0];
                               const hasLatestValuation = latestExpense.marketValue && latestExpense.marketValue > 0;
@@ -637,7 +661,7 @@ export function AssetsPage() {
                                 </>
                               );
                             } else {
-                              // No expense records - show as Latest Market Value from edit page
+                              // No valuations or expense records - show as Latest Market Value from edit page
                               return (
                                 <>
                                   <p className="text-sm text-muted-foreground">Latest Market Value</p>
@@ -646,6 +670,41 @@ export function AssetsPage() {
                                   </p>
                                   <p className="text-xs text-muted-foreground">
                                     Initial Cost: {formatLKR(asset.financials.cost)}
+                                  </p>
+                                </>
+                              );
+                            }
+                          })() : asset.cageCategory === 'Bi' ? (() => {
+                            // Motor Vehicles - check for valuations
+                            const hasValuations = asset.valuations && asset.valuations.length > 0;
+                            
+                            if (hasValuations) {
+                              const sortedValuations = [...asset.valuations!].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
+                              const latestValuation = sortedValuations[0];
+                              
+                              return (
+                                <>
+                                  <p className="text-sm text-muted-foreground">
+                                    Latest Market Value ({latestValuation.taxYear}/{parseInt(latestValuation.taxYear) + 1})
+                                  </p>
+                                  <p className="font-bold text-lg text-green-600">
+                                    {formatLKR(latestValuation.marketValue)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Initial Cost: {formatLKR(asset.financials.cost)}
+                                  </p>
+                                </>
+                              );
+                            } else {
+                              // No valuations - show market value from edit page
+                              return (
+                                <>
+                                  <p className="text-sm text-muted-foreground">Market Value</p>
+                                  <p className="font-bold text-lg text-green-600">
+                                    {formatLKR(asset.financials.marketValue)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Cost: {formatLKR(asset.financials.cost)}
                                   </p>
                                 </>
                               );

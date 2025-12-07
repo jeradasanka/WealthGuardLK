@@ -17,7 +17,7 @@ import { StockAccountBalanceForm } from '@/components/StockAccountBalanceForm';
 import { PropertyExpenseForm } from '@/components/PropertyExpenseForm';
 import { ValuationForm } from '@/components/ValuationForm';
 import { SourceOfFundsWizard } from '@/components/SourceOfFundsWizard';
-import { formatLKR, getJewelleryMarketValue, getForeignCurrencyMarketValue } from '@/lib/taxEngine';
+import { formatLKR, getAssetMarketValue } from '@/lib/taxEngine';
 import { getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Asset, Liability, FundingSource } from '@/types';
 
@@ -51,37 +51,8 @@ export function AssetsPage() {
   
   // Helper function to get display value for an asset
   const getAssetDisplayValue = (asset: Asset): number => {
-    // For assets with valuations (A & Bi), use latest valuation if available
-    if ((asset.cageCategory === 'A' || asset.cageCategory === 'Bi') && asset.valuations && asset.valuations.length > 0) {
-      const sortedValuations = [...asset.valuations].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
-      const latestValuation = sortedValuations[0];
-      if (latestValuation.marketValue > 0) {
-        return latestValuation.marketValue;
-      }
-    }
-    // For immovable properties with expenses, use latest market value if available
-    if (asset.cageCategory === 'A' && asset.propertyExpenses && asset.propertyExpenses.length > 0) {
-      const sortedExpenses = [...asset.propertyExpenses].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
-      const latestExpense = sortedExpenses[0];
-      if (latestExpense.marketValue && latestExpense.marketValue > 0) {
-        return latestExpense.marketValue;
-      }
-    }
-    // For stock portfolios, use latest portfolio value if available
-    if (asset.cageCategory === 'Biii' && asset.stockBalances && asset.stockBalances.length > 0) {
-      const sortedBalances = [...asset.stockBalances].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
-      return sortedBalances[0].portfolioValue;
-    }
-    // For jewellery, calculate market value based on price appreciation
-    if (asset.cageCategory === 'Bvi') {
-      return getJewelleryMarketValue(asset, currentTaxYear);
-    }
-    // For foreign currency deposits, calculate LKR value using exchange rate
-    if (asset.cageCategory === 'Bii' && asset.meta.currency && asset.meta.currency !== 'LKR') {
-      return getForeignCurrencyMarketValue(asset, currentTaxYear);
-    }
-    // Otherwise use the asset's market value
-    return asset.financials.marketValue;
+    // Use the centralized market value function that handles valuations, jewellery, and foreign currency
+    return getAssetMarketValue(asset, currentTaxYear);
   };
   
   // Calculate total value only from open assets, using latest valuations

@@ -469,6 +469,71 @@ export function filterAssetsForTaxYear(assets: Asset[], taxYear: string): Asset[
 }
 
 /**
+ * Get asset market value for a specific tax year, prioritizing valuations for A & Bi
+ * IRD Cage A (Immovable Properties) and Bi (Motor Vehicles) support direct valuation entries
+ * @param asset The asset to value
+ * @param taxYear The tax year for valuation
+ * @returns Market value for the given tax year
+ */
+export function getAssetMarketValue(asset: Asset, taxYear: string): number {
+  // For Immovable Properties (A) and Motor Vehicles (Bi), check for valuations first
+  if ((asset.cageCategory === 'A' || asset.cageCategory === 'Bi') && asset.valuations && asset.valuations.length > 0) {
+    // Find valuation for the exact tax year
+    const yearValuation = asset.valuations.find(v => v.taxYear === taxYear);
+    if (yearValuation && yearValuation.marketValue > 0) {
+      return yearValuation.marketValue;
+    }
+    
+    // If no exact match, use the most recent valuation up to this year
+    const sortedValuations = [...asset.valuations]
+      .filter(v => v.taxYear <= taxYear)
+      .sort((a, b) => b.taxYear.localeCompare(a.taxYear));
+    
+    if (sortedValuations.length > 0 && sortedValuations[0].marketValue > 0) {
+      return sortedValuations[0].marketValue;
+    }
+  }
+  
+  // For immovable properties with expenses, use latest market value if available
+  if (asset.cageCategory === 'A' && asset.propertyExpenses && asset.propertyExpenses.length > 0) {
+    const sortedExpenses = [...asset.propertyExpenses]
+      .filter(e => e.taxYear <= taxYear)
+      .sort((a, b) => b.taxYear.localeCompare(a.taxYear));
+    
+    if (sortedExpenses.length > 0) {
+      const latestExpense = sortedExpenses[0];
+      if (latestExpense.marketValue && latestExpense.marketValue > 0) {
+        return latestExpense.marketValue;
+      }
+    }
+  }
+  
+  // For stock portfolios, use latest portfolio value if available
+  if (asset.cageCategory === 'Biii' && asset.stockBalances && asset.stockBalances.length > 0) {
+    const sortedBalances = [...asset.stockBalances]
+      .filter(b => b.taxYear <= taxYear)
+      .sort((a, b) => b.taxYear.localeCompare(a.taxYear));
+    
+    if (sortedBalances.length > 0) {
+      return sortedBalances[0].portfolioValue;
+    }
+  }
+  
+  // For jewellery, calculate market value based on price appreciation
+  if (asset.cageCategory === 'Bvi') {
+    return getJewelleryMarketValue(asset, taxYear);
+  }
+  
+  // For foreign currency deposits, calculate LKR value using exchange rate
+  if (asset.cageCategory === 'Bii' && asset.meta.currency && asset.meta.currency !== 'LKR') {
+    return getForeignCurrencyMarketValue(asset, taxYear);
+  }
+  
+  // Default: return the stored market value
+  return asset.financials.marketValue;
+}
+
+/**
  * Get the market value for a jewellery asset with automatic appreciation calculation
  * @param asset - The jewellery asset
  * @param taxYear - Tax year for valuation (uses March 31 of taxYear+1)

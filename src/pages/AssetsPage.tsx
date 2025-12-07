@@ -15,12 +15,13 @@ import { LiabilityPaymentForm } from '@/components/LiabilityPaymentForm';
 import { FinancialAssetBalanceForm } from '@/components/FinancialAssetBalanceForm';
 import { StockAccountBalanceForm } from '@/components/StockAccountBalanceForm';
 import { PropertyExpenseForm } from '@/components/PropertyExpenseForm';
+import { ValuationForm } from '@/components/ValuationForm';
 import { SourceOfFundsWizard } from '@/components/SourceOfFundsWizard';
 import { formatLKR, getJewelleryMarketValue, getForeignCurrencyMarketValue } from '@/lib/taxEngine';
 import { getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Asset, Liability, FundingSource } from '@/types';
 
-type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment' | 'manage-balances' | 'manage-stock-balances' | 'manage-property-expenses';
+type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment' | 'manage-balances' | 'manage-stock-balances' | 'manage-property-expenses' | 'manage-valuations';
 
 export function AssetsPage() {
   const navigate = useNavigate();
@@ -40,6 +41,7 @@ export function AssetsPage() {
   const [stockBalanceAsset, setStockBalanceAsset] = useState<Asset | null>(null);
   const [transactionAsset, setTransactionAsset] = useState<Asset | null>(null);
   const [expenseAsset, setExpenseAsset] = useState<Asset | null>(null);
+  const [valuationAsset, setValuationAsset] = useState<Asset | null>(null);
   const [pendingAsset, setPendingAsset] = useState<Asset | null>(null);
 
   // Show all assets in the list (including sold/closed)
@@ -49,6 +51,14 @@ export function AssetsPage() {
   
   // Helper function to get display value for an asset
   const getAssetDisplayValue = (asset: Asset): number => {
+    // For assets with valuations (A & Bi), use latest valuation if available
+    if ((asset.cageCategory === 'A' || asset.cageCategory === 'Bi') && asset.valuations && asset.valuations.length > 0) {
+      const sortedValuations = [...asset.valuations].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
+      const latestValuation = sortedValuations[0];
+      if (latestValuation.marketValue > 0) {
+        return latestValuation.marketValue;
+      }
+    }
     // For immovable properties with expenses, use latest market value if available
     if (asset.cageCategory === 'A' && asset.propertyExpenses && asset.propertyExpenses.length > 0) {
       const sortedExpenses = [...asset.propertyExpenses].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
@@ -376,6 +386,10 @@ export function AssetsPage() {
 
   if (viewMode === 'manage-property-expenses' && expenseAsset) {
     return <PropertyExpenseForm asset={expenseAsset} onClose={handleFormClose} />;
+  }
+
+  if (viewMode === 'manage-valuations' && valuationAsset) {
+    return <ValuationForm asset={valuationAsset} onClose={handleFormClose} />;
   }
 
   if (viewMode === 'add-asset' || viewMode === 'edit-asset') {
@@ -831,6 +845,20 @@ export function AssetsPage() {
                               title="Manage yearly property expenses (repairs, construction)"
                             >
                               <Building2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {(asset.cageCategory === 'A' || asset.cageCategory === 'Bi') && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => {
+                                setValuationAsset(asset);
+                                setViewMode('manage-valuations');
+                              }}
+                              className="bg-purple-600 hover:bg-purple-700"
+                              title="Manage yearly valuations (IRD Cage compliance)"
+                            >
+                              <TrendingUp className="w-4 h-4" />
                             </Button>
                           )}
                           <Button

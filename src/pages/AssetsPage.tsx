@@ -15,12 +15,13 @@ import { LiabilityPaymentForm } from '@/components/LiabilityPaymentForm';
 import { FinancialAssetBalanceForm } from '@/components/FinancialAssetBalanceForm';
 import { StockAccountBalanceForm } from '@/components/StockAccountBalanceForm';
 import { PropertyExpenseForm } from '@/components/PropertyExpenseForm';
+import { ValuationForm } from '@/components/ValuationForm';
 import { SourceOfFundsWizard } from '@/components/SourceOfFundsWizard';
-import { formatLKR, getJewelleryMarketValue, getForeignCurrencyMarketValue } from '@/lib/taxEngine';
+import { formatLKR, getAssetMarketValue } from '@/lib/taxEngine';
 import { getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Asset, Liability, FundingSource } from '@/types';
 
-type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment' | 'manage-balances' | 'manage-stock-balances' | 'manage-property-expenses';
+type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment' | 'manage-balances' | 'manage-stock-balances' | 'manage-property-expenses' | 'manage-valuations';
 
 export function AssetsPage() {
   const navigate = useNavigate();
@@ -40,6 +41,7 @@ export function AssetsPage() {
   const [stockBalanceAsset, setStockBalanceAsset] = useState<Asset | null>(null);
   const [transactionAsset, setTransactionAsset] = useState<Asset | null>(null);
   const [expenseAsset, setExpenseAsset] = useState<Asset | null>(null);
+  const [valuationAsset, setValuationAsset] = useState<Asset | null>(null);
   const [pendingAsset, setPendingAsset] = useState<Asset | null>(null);
 
   // Show all assets in the list (including sold/closed)
@@ -49,29 +51,8 @@ export function AssetsPage() {
   
   // Helper function to get display value for an asset
   const getAssetDisplayValue = (asset: Asset): number => {
-    // For immovable properties with expenses, use latest market value if available
-    if (asset.cageCategory === 'A' && asset.propertyExpenses && asset.propertyExpenses.length > 0) {
-      const sortedExpenses = [...asset.propertyExpenses].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
-      const latestExpense = sortedExpenses[0];
-      if (latestExpense.marketValue && latestExpense.marketValue > 0) {
-        return latestExpense.marketValue;
-      }
-    }
-    // For stock portfolios, use latest portfolio value if available
-    if (asset.cageCategory === 'Biii' && asset.stockBalances && asset.stockBalances.length > 0) {
-      const sortedBalances = [...asset.stockBalances].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
-      return sortedBalances[0].portfolioValue;
-    }
-    // For jewellery, calculate market value based on price appreciation
-    if (asset.cageCategory === 'Bvi') {
-      return getJewelleryMarketValue(asset, currentTaxYear);
-    }
-    // For foreign currency deposits, calculate LKR value using exchange rate
-    if (asset.cageCategory === 'Bii' && asset.meta.currency && asset.meta.currency !== 'LKR') {
-      return getForeignCurrencyMarketValue(asset, currentTaxYear);
-    }
-    // Otherwise use the asset's market value
-    return asset.financials.marketValue;
+    // Use the centralized market value function that handles valuations, jewellery, and foreign currency
+    return getAssetMarketValue(asset, currentTaxYear);
   };
   
   // Calculate total value only from open assets, using latest valuations
@@ -120,60 +101,8 @@ export function AssetsPage() {
             return sum + getAssetDisplayValue(a);
           }
           
-          // For historical years, calculate year-end values
-          // For bank balances (Bii), use balance from records if available
-          if (a.cageCategory === 'Bii' && a.balances && a.balances.length > 0) {
-            const yearBalance = a.balances.find((b) => b.taxYear === year);
-            if (yearBalance) {
-              // Convert foreign currency to LKR using exchange rate index
-              if (a.meta.currency && a.meta.currency !== 'LKR') {
-                return sum + getForeignCurrencyMarketValue(a, year);
-              }
-              return sum + yearBalance.closingBalance;
-            }
-            // If no exact year match, use previous year's closing balance
-            const previousBalances = a.balances.filter((b) => b.taxYear < year);
-            if (previousBalances.length > 0) {
-              const prevBalance = previousBalances[previousBalances.length - 1];
-              // Convert foreign currency to LKR using exchange rate index
-              if (a.meta.currency && a.meta.currency !== 'LKR') {
-                return sum + getForeignCurrencyMarketValue(a, prevBalance.taxYear);
-              }
-              return sum + prevBalance.closingBalance;
-            }
-          }
-          
-          // For cash in hand (Biv) and loans given (Bv), use balance from records if available (always in LKR)
-          if ((a.cageCategory === 'Biv' || a.cageCategory === 'Bv') && a.balances && a.balances.length > 0) {
-            const yearBalance = a.balances.find((b) => b.taxYear === year);
-            if (yearBalance) {
-              return sum + yearBalance.closingBalance;
-            }
-            // If no exact year match, use previous year's closing balance
-            const previousBalances = a.balances.filter((b) => b.taxYear < year);
-            if (previousBalances.length > 0) {
-              return sum + previousBalances[previousBalances.length - 1].closingBalance;
-            }
-          }
-          
-          // For immovable properties, use market value from expense records if available
-          if (a.cageCategory === 'A' && a.propertyExpenses && a.propertyExpenses.length > 0) {
-            // Get expenses up to this year
-            const expensesUpToYear = a.propertyExpenses
-              .filter((e) => e.taxYear <= year)
-              .sort((x, y) => y.taxYear.localeCompare(x.taxYear));
-            
-            if (expensesUpToYear.length > 0 && expensesUpToYear[0].marketValue && expensesUpToYear[0].marketValue > 0) {
-              return sum + expensesUpToYear[0].marketValue;
-            }
-          }
-          
-          // For jewellery (Bvi), calculate market value using appreciation
-          if (a.cageCategory === 'Bvi') {
-            return sum + getJewelleryMarketValue(a, year);
-          }
-          
-          return sum + a.financials.marketValue;
+          // For historical years, use centralized getAssetMarketValue which handles all categories
+          return sum + getAssetMarketValue(a, year);
         }, 0);
       
       // Calculate liabilities balance at year end
@@ -376,6 +305,10 @@ export function AssetsPage() {
 
   if (viewMode === 'manage-property-expenses' && expenseAsset) {
     return <PropertyExpenseForm asset={expenseAsset} onClose={handleFormClose} />;
+  }
+
+  if (viewMode === 'manage-valuations' && valuationAsset) {
+    return <ValuationForm asset={valuationAsset} onClose={handleFormClose} />;
   }
 
   if (viewMode === 'add-asset' || viewMode === 'edit-asset') {
@@ -680,9 +613,33 @@ export function AssetsPage() {
                       <div className="flex items-center gap-4">
                         <div className="text-right">
                           {asset.cageCategory === 'A' ? (() => {
+                            // Check for valuations first (priority), then property expenses
+                            const hasValuations = asset.valuations && asset.valuations.length > 0;
                             const hasExpenses = asset.propertyExpenses && asset.propertyExpenses.length > 0;
                             
-                            if (hasExpenses) {
+                            if (hasValuations) {
+                              const sortedValuations = [...asset.valuations!].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
+                              const latestValuation = sortedValuations[0];
+                              
+                              return (
+                                <>
+                                  <p className="text-sm text-muted-foreground">
+                                    Latest Market Value ({latestValuation.taxYear}/{parseInt(latestValuation.taxYear) + 1})
+                                  </p>
+                                  <p className="font-bold text-lg text-green-600">
+                                    {formatLKR(latestValuation.marketValue)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Initial Cost: {formatLKR(asset.financials.cost)}
+                                  </p>
+                                  {hasExpenses && (
+                                    <p className="text-xs text-orange-600 font-medium mt-1">
+                                      Total Expenses: {formatLKR(asset.propertyExpenses!.reduce((sum, e) => sum + e.amount, 0))}
+                                    </p>
+                                  )}
+                                </>
+                              );
+                            } else if (hasExpenses) {
                               const sortedExpenses = [...asset.propertyExpenses!].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
                               const latestExpense = sortedExpenses[0];
                               const hasLatestValuation = latestExpense.marketValue && latestExpense.marketValue > 0;
@@ -704,7 +661,7 @@ export function AssetsPage() {
                                 </>
                               );
                             } else {
-                              // No expense records - show as Latest Market Value from edit page
+                              // No valuations or expense records - show as Latest Market Value from edit page
                               return (
                                 <>
                                   <p className="text-sm text-muted-foreground">Latest Market Value</p>
@@ -713,6 +670,41 @@ export function AssetsPage() {
                                   </p>
                                   <p className="text-xs text-muted-foreground">
                                     Initial Cost: {formatLKR(asset.financials.cost)}
+                                  </p>
+                                </>
+                              );
+                            }
+                          })() : asset.cageCategory === 'Bi' ? (() => {
+                            // Motor Vehicles - check for valuations
+                            const hasValuations = asset.valuations && asset.valuations.length > 0;
+                            
+                            if (hasValuations) {
+                              const sortedValuations = [...asset.valuations!].sort((a, b) => b.taxYear.localeCompare(a.taxYear));
+                              const latestValuation = sortedValuations[0];
+                              
+                              return (
+                                <>
+                                  <p className="text-sm text-muted-foreground">
+                                    Latest Market Value ({latestValuation.taxYear}/{parseInt(latestValuation.taxYear) + 1})
+                                  </p>
+                                  <p className="font-bold text-lg text-green-600">
+                                    {formatLKR(latestValuation.marketValue)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Initial Cost: {formatLKR(asset.financials.cost)}
+                                  </p>
+                                </>
+                              );
+                            } else {
+                              // No valuations - show market value from edit page
+                              return (
+                                <>
+                                  <p className="text-sm text-muted-foreground">Market Value</p>
+                                  <p className="font-bold text-lg text-green-600">
+                                    {formatLKR(asset.financials.marketValue)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Cost: {formatLKR(asset.financials.cost)}
                                   </p>
                                 </>
                               );
@@ -831,6 +823,20 @@ export function AssetsPage() {
                               title="Manage yearly property expenses (repairs, construction)"
                             >
                               <Building2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {(asset.cageCategory === 'A' || asset.cageCategory === 'Bi') && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => {
+                                setValuationAsset(asset);
+                                setViewMode('manage-valuations');
+                              }}
+                              className="bg-purple-600 hover:bg-purple-700"
+                              title="Manage yearly valuations (IRD Cage compliance)"
+                            >
+                              <TrendingUp className="w-4 h-4" />
                             </Button>
                           )}
                           <Button

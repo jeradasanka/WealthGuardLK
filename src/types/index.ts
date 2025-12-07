@@ -73,6 +73,7 @@ export interface Asset {
   balances?: FinancialAssetBalance[]; // Yearly balances for Bii (Bank/Term Deposits), Biv (Cash), Bv (Loans Given)
   stockBalances?: StockBalance[]; // Yearly stock portfolio tracking for Biii (Shares/Stocks)
   propertyExpenses?: PropertyExpense[]; // Yearly expenses for A (Immovable Properties)
+  valuations?: ValuationEntry[]; // Yearly valuations for A (Immovable Properties) and Bi (Motor Vehicles) - IRD Cage A & Bi
   closed?: { // For financial assets (Bii, Biv, Bv) - account closure
     date: string;
     finalBalance: number;
@@ -131,6 +132,16 @@ export interface StockBalance {
   sales?: number; // Proceeds from stock sales (if any)
   capitalGain?: number; // Realized capital gains (if any)
   notes?: string;
+}
+
+// Yearly valuation entry for assets (A - Immovable Properties, Bi - Vehicles)
+// IRD Cage A & Bi: Direct valuation tracking per financial year
+export interface ValuationEntry {
+  id: string;
+  taxYear: string; // Financial year (e.g., "2024" for FY 2024/2025)
+  marketValue: number; // Asset market value for this specific year (LKR)
+  notes?: string; // Optional notes about valuation source or method
+  date: string; // Date of valuation (ISO format)
 }
 
 // Yearly expense record for immovable properties (A) - repairs, construction, etc.

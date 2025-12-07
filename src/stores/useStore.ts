@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import type { AppState, TaxEntity, Asset, Liability, Income, AITWHTCertificate, FinancialAssetBalance, LiabilityPayment } from '@/types';
+import type { AppState, TaxEntity, Asset, Liability, Income, AITWHTCertificate, FinancialAssetBalance, LiabilityPayment, ValuationEntry } from '@/types';
 import { saveState, loadState } from '@/utils/storage';
 import { getCurrentTaxYear } from '@/lib/taxYear';
 
@@ -33,6 +33,9 @@ interface StoreState extends AppState {
   closeFinancialAsset: (id: string, date: string, finalBalance: number) => void;
   addBalanceToAsset: (assetId: string, balance: FinancialAssetBalance) => void;
   removeBalanceFromAsset: (assetId: string, balanceId: string) => void;
+  addValuationToAsset: (assetId: string, valuation: ValuationEntry) => void;
+  removeValuationFromAsset: (assetId: string, valuationId: string) => void;
+  updateValuationInAsset: (assetId: string, valuationId: string, updates: Partial<ValuationEntry>) => void;
   
   // Liability actions
   addLiability: (liability: Liability) => void;
@@ -162,6 +165,38 @@ export const useStore = create<StoreState>((set, get) => ({
       assets: state.assets.map((a) =>
         a.id === assetId 
           ? { ...a, balances: (a.balances || []).filter(b => b.id !== balanceId) }
+          : a
+      ),
+    })),
+  
+  addValuationToAsset: (assetId, valuation) =>
+    set((state) => ({
+      assets: state.assets.map((a) =>
+        a.id === assetId 
+          ? { ...a, valuations: [...(a.valuations || []), valuation] }
+          : a
+      ),
+    })),
+  
+  removeValuationFromAsset: (assetId, valuationId) =>
+    set((state) => ({
+      assets: state.assets.map((a) =>
+        a.id === assetId 
+          ? { ...a, valuations: (a.valuations || []).filter(v => v.id !== valuationId) }
+          : a
+      ),
+    })),
+  
+  updateValuationInAsset: (assetId, valuationId, updates) =>
+    set((state) => ({
+      assets: state.assets.map((a) =>
+        a.id === assetId 
+          ? { 
+              ...a, 
+              valuations: (a.valuations || []).map(v => 
+                v.id === valuationId ? { ...v, ...updates } : v
+              ) 
+            }
           : a
       ),
     })),

@@ -21,9 +21,7 @@ interface ValuationFormProps {
 }
 
 export function ValuationForm({ asset, onClose }: ValuationFormProps) {
-  const addValuationToAsset = useStore((state) => state.addValuationToAsset);
-  const removeValuationFromAsset = useStore((state) => state.removeValuationFromAsset);
-  const updateValuationInAsset = useStore((state) => state.updateValuationInAsset);
+  const updateAsset = useStore((state) => state.updateAsset);
   const saveToStorage = useStore((state) => state.saveToStorage);
   const entities = useStore((state) => state.entities);
 
@@ -54,7 +52,7 @@ export function ValuationForm({ asset, onClose }: ValuationFormProps) {
 
   const taxYears = getAvailableTaxYears();
 
-  const handleAddValuation = async () => {
+  const handleAddValuation = () => {
     const valuation: ValuationEntry = {
       id: crypto.randomUUID(),
       taxYear: formData.taxYear,
@@ -63,42 +61,37 @@ export function ValuationForm({ asset, onClose }: ValuationFormProps) {
       notes: formData.notes,
     };
 
-    addValuationToAsset(asset.id, valuation);
     const updatedValuations = [...valuations, valuation].sort(
       (a, b) => b.taxYear.localeCompare(a.taxYear)
     );
     setValuations(updatedValuations);
-    
-    await saveToStorage();
     resetForm();
   };
 
-  const handleUpdateValuation = async () => {
+  const handleUpdateValuation = () => {
     if (!editingId) return;
 
-    const updates: Partial<ValuationEntry> = {
-      taxYear: formData.taxYear,
-      marketValue: formData.marketValue,
-      date: formData.date,
-      notes: formData.notes,
-    };
-
-    updateValuationInAsset(asset.id, editingId, updates);
     const updatedValuations = valuations.map(v =>
-      v.id === editingId ? { ...v, ...updates } : v
+      v.id === editingId ? { ...v, ...formData } : v
     ).sort((a, b) => b.taxYear.localeCompare(a.taxYear));
-    setValuations(updatedValuations);
     
-    await saveToStorage();
+    setValuations(updatedValuations);
     resetForm();
   };
 
-  const handleDeleteValuation = async (id: string) => {
+  const handleDeleteValuation = (id: string) => {
     if (window.confirm('Are you sure you want to delete this valuation?')) {
-      removeValuationFromAsset(asset.id, id);
       setValuations(valuations.filter((v) => v.id !== id));
-      await saveToStorage();
     }
+  };
+
+  const handleSave = async () => {
+    updateAsset(asset.id, {
+      ...asset,
+      valuations: valuations,
+    });
+    await saveToStorage();
+    onClose();
   };
 
   const handleEditValuation = (valuation: ValuationEntry) => {
@@ -319,8 +312,11 @@ export function ValuationForm({ asset, onClose }: ValuationFormProps) {
 
         {/* Action Buttons */}
         <div className="flex gap-2 pt-4">
-          <Button onClick={onClose} className="flex-1">
-            Close
+          <Button onClick={handleSave} className="flex-1">
+            Save Changes
+          </Button>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
           </Button>
         </div>
       </CardContent>

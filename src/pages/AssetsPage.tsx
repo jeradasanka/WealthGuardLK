@@ -101,60 +101,8 @@ export function AssetsPage() {
             return sum + getAssetDisplayValue(a);
           }
           
-          // For historical years, calculate year-end values
-          // For bank balances (Bii), use balance from records if available
-          if (a.cageCategory === 'Bii' && a.balances && a.balances.length > 0) {
-            const yearBalance = a.balances.find((b) => b.taxYear === year);
-            if (yearBalance) {
-              // Convert foreign currency to LKR using exchange rate index
-              if (a.meta.currency && a.meta.currency !== 'LKR') {
-                return sum + getForeignCurrencyMarketValue(a, year);
-              }
-              return sum + yearBalance.closingBalance;
-            }
-            // If no exact year match, use previous year's closing balance
-            const previousBalances = a.balances.filter((b) => b.taxYear < year);
-            if (previousBalances.length > 0) {
-              const prevBalance = previousBalances[previousBalances.length - 1];
-              // Convert foreign currency to LKR using exchange rate index
-              if (a.meta.currency && a.meta.currency !== 'LKR') {
-                return sum + getForeignCurrencyMarketValue(a, prevBalance.taxYear);
-              }
-              return sum + prevBalance.closingBalance;
-            }
-          }
-          
-          // For cash in hand (Biv) and loans given (Bv), use balance from records if available (always in LKR)
-          if ((a.cageCategory === 'Biv' || a.cageCategory === 'Bv') && a.balances && a.balances.length > 0) {
-            const yearBalance = a.balances.find((b) => b.taxYear === year);
-            if (yearBalance) {
-              return sum + yearBalance.closingBalance;
-            }
-            // If no exact year match, use previous year's closing balance
-            const previousBalances = a.balances.filter((b) => b.taxYear < year);
-            if (previousBalances.length > 0) {
-              return sum + previousBalances[previousBalances.length - 1].closingBalance;
-            }
-          }
-          
-          // For immovable properties, use market value from expense records if available
-          if (a.cageCategory === 'A' && a.propertyExpenses && a.propertyExpenses.length > 0) {
-            // Get expenses up to this year
-            const expensesUpToYear = a.propertyExpenses
-              .filter((e) => e.taxYear <= year)
-              .sort((x, y) => y.taxYear.localeCompare(x.taxYear));
-            
-            if (expensesUpToYear.length > 0 && expensesUpToYear[0].marketValue && expensesUpToYear[0].marketValue > 0) {
-              return sum + expensesUpToYear[0].marketValue;
-            }
-          }
-          
-          // For jewellery (Bvi), calculate market value using appreciation
-          if (a.cageCategory === 'Bvi') {
-            return sum + getJewelleryMarketValue(a, year);
-          }
-          
-          return sum + a.financials.marketValue;
+          // For historical years, use centralized getAssetMarketValue which handles all categories
+          return sum + getAssetMarketValue(a, year);
         }, 0);
       
       // Calculate liabilities balance at year end

@@ -630,6 +630,7 @@ Inflows:
   Employment Income:                  ${formatLKR(auditRisk.employmentIncome)}
   Business Income:                    ${formatLKR(auditRisk.businessIncome)}
   Investment Income:                  ${formatLKR(auditRisk.investmentIncome)}
+  Other Income:                       ${formatLKR(auditRisk.otherIncome)}
   Less: Tax Deducted:                 - ${formatLKR(auditRisk.taxDeducted)}
   New Loans:                          ${formatLKR(auditRisk.newLoans)}
   Asset Sales:                        ${formatLKR(auditRisk.assetSales)}
@@ -1350,6 +1351,9 @@ export function downloadDetailedTaxReportPDF(
   yPos += lineHeight;
   doc.text(`Investment Income:`, margin + 10, yPos);
   doc.text(formatLKR(auditRisk.investmentIncome), margin + 90, yPos);
+  yPos += lineHeight;
+  doc.text(`Other Income:`, margin + 10, yPos);
+  doc.text(formatLKR(auditRisk.otherIncome), margin + 90, yPos);
   yPos += lineHeight;
   doc.text(`Less: Tax Deducted:`, margin + 10, yPos);
   doc.text(`- ${formatLKR(auditRisk.taxDeducted)}`, margin + 90, yPos);

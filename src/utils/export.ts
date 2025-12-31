@@ -9,6 +9,31 @@ import { computeTax, formatLKR, calculateTotalIncome, calculateAuditRisk, getTax
 import { jsPDF } from 'jspdf';
 
 /**
+ * Helper to get asset value for a specific tax year
+ * Checks historical balances first, falls back to current market value
+ */
+function getAssetValueForYear(asset: Asset, taxYear: string): number {
+  // Check for historical balance records (Bii, Biv, Bv)
+  if (asset.balances && asset.balances.length > 0) {
+    const balanceRecord = asset.balances.find(b => b.taxYear === taxYear || b.taxYear.startsWith(taxYear));
+    if (balanceRecord) {
+      return balanceRecord.closingBalance;
+    }
+  }
+
+  // Check for stock balance records (Biii)
+  if (asset.stockBalances && asset.stockBalances.length > 0) {
+    const stockRecord = asset.stockBalances.find(b => b.taxYear === taxYear || b.taxYear.startsWith(taxYear));
+    if (stockRecord) {
+      return stockRecord.marketValue;
+    }
+  }
+
+  // Fallback to current market value if no history found
+  return asset.financials.marketValue;
+}
+
+/**
  * Downloads encrypted JSON backup
  */
 export async function downloadBackup(passphrase: string, fileName?: string): Promise<void> {
@@ -57,10 +82,10 @@ export function generateSchedule7CSV(
 
   // Generate CSV rows
   const rows = whtIncomes.map((income, index) => {
-    const incomeType = income.type === 'interest' ? 'Interest Income' : 
-                      income.type === 'dividend' ? 'Dividend Income' : 
-                      'Rental Income';
-    
+    const incomeType = income.type === 'interest' ? 'Interest Income' :
+      income.type === 'dividend' ? 'Dividend Income' :
+        'Rental Income';
+
     return [
       String(index + 1),
       income.details.source,
@@ -91,11 +116,11 @@ export function downloadSchedule7CSV(
 ): void {
   try {
     const csv = generateSchedule7CSV(investmentIncomes, taxYear, taxpayerTIN);
-    
+
     // Format year for filename (e.g., 2024/2025 -> 2425)
     const yearCode = taxYear.slice(2, 4) + (parseInt(taxYear.slice(2, 4)) + 1);
     const filename = `${taxpayerTIN}_IIT_WHTSCHEDULE_${yearCode}_ORIGINAL_V1.csv`;
-    
+
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -184,48 +209,48 @@ export function generateDetailedTaxReport(
   selectedEntityId?: string
 ): string {
   const entity = isFamily ? entities[0] : entities.find(e => e.id === selectedEntityId) || entities[0];
-  const reportDate = new Date().toLocaleDateString('en-LK', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+  const reportDate = new Date().toLocaleDateString('en-LK', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
   });
-  
+
   // Filter data based on selection
-  const filteredIncomes = isFamily 
+  const filteredIncomes = isFamily
     ? incomes.filter(i => i.taxYear === taxYear)
     : incomes.filter(i => i.ownerId === selectedEntityId && i.taxYear === taxYear);
-  
-  const filteredAssets = isFamily 
+
+  const filteredAssets = isFamily
     ? assets.filter(a => !a.disposed)
     : assets.filter(a => {
-        if (a.disposed) return false;
-        if (a.ownerId === selectedEntityId) return true;
-        if (a.ownershipShares && a.ownershipShares.some(s => s.entityId === selectedEntityId)) return true;
-        return false;
-      });
-  
-  const filteredLiabilities = isFamily 
+      if (a.disposed) return false;
+      if (a.ownerId === selectedEntityId) return true;
+      if (a.ownershipShares && a.ownershipShares.some(s => s.entityId === selectedEntityId)) return true;
+      return false;
+    });
+
+  const filteredLiabilities = isFamily
     ? liabilities
     : liabilities.filter(l => {
-        if (l.ownerId === selectedEntityId) return true;
-        if (l.ownershipShares && l.ownershipShares.some(s => s.entityId === selectedEntityId)) return true;
-        return false;
-      });
-  
-  const filteredCertificates = isFamily 
+      if (l.ownerId === selectedEntityId) return true;
+      if (l.ownershipShares && l.ownershipShares.some(s => s.entityId === selectedEntityId)) return true;
+      return false;
+    });
+
+  const filteredCertificates = isFamily
     ? certificates.filter(c => c.taxYear === taxYear)
     : certificates.filter(c => c.ownerId === selectedEntityId && c.taxYear === taxYear);
 
   // Calculate totals
-  const totalAssets = filteredAssets.reduce((sum, a) => sum + a.financials.marketValue, 0);
+  const totalAssets = filteredAssets.reduce((sum, a) => sum + getAssetValueForYear(a, taxYear), 0);
   const totalLiabilities = filteredLiabilities.reduce((sum, l) => sum + l.currentBalance, 0);
-  
+
   // Calculate income breakdown
   const incomeBreakdown = calculateTotalIncome(filteredIncomes);
-  
+
   // Calculate tax (solar investment assumed as 0 for now, could be passed as parameter)
   const taxComputation = computeTax(filteredIncomes, 0);
-  
+
   // Calculate audit risk
   const auditRisk = calculateAuditRisk(
     filteredAssets,
@@ -314,10 +339,10 @@ INCOME SUMMARY (IRD Schedules 1-3)
     investmentIncomes.forEach((income, idx) => {
       const inv = income.details as any;
       const invIncome = income as InvestmentIncome;
-      const incomeType = invIncome.type ? 
-        (invIncome.type === 'interest' ? 'Interest' : 
-         invIncome.type === 'dividend' ? 'Dividend' : 
-         invIncome.type === 'rent' ? 'Rent' : 'Mixed') : 
+      const incomeType = invIncome.type ?
+        (invIncome.type === 'interest' ? 'Interest' :
+          invIncome.type === 'dividend' ? 'Dividend' :
+            invIncome.type === 'rent' ? 'Rent' : 'Mixed') :
         'Investment';
       report += `
 │ ${idx + 1}. Source: ${inv.source || 'Not Specified'}
@@ -376,7 +401,7 @@ TAX CREDITS (IRD Cages 903 & 908)
   report += `┌─ WHT CERTIFICATES (CAGE 908) ────────────────────────────────────────────┐
 `;
   const whtCertificates = filteredCertificates.filter(c => c.type !== 'employment');
-  
+
   if (whtCertificates.length > 0) {
     // Group by type
     const interestWHT = whtCertificates.filter(c => c.type === 'interest');
@@ -463,7 +488,7 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
       report += `│ ${idx + 1}. ${asset.meta.description || 'Property'}\n`;
       report += `│    Acquired:             ${asset.meta.dateAcquired || 'N/A'}\n`;
       report += `│    Cost:                 ${formatLKR(asset.financials.cost)}\n`;
-      report += `│    Market Value:         ${formatLKR(asset.financials.marketValue)}\n`;
+      report += `│    Market Value:         ${formatLKR(getAssetValueForYear(asset, taxYear))}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
   }
@@ -474,7 +499,7 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
       report += `│ ${idx + 1}. ${asset.meta.description || 'Vehicle'}\n`;
       report += `│    Acquired:             ${asset.meta.dateAcquired || 'N/A'}\n`;
       report += `│    Cost:                 ${formatLKR(asset.financials.cost)}\n`;
-      report += `│    Market Value:         ${formatLKR(asset.financials.marketValue)}\n`;
+      report += `│    Market Value:         ${formatLKR(getAssetValueForYear(asset, taxYear))}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
   }
@@ -484,7 +509,8 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
     bankDeposits.forEach((asset, idx) => {
       report += `│ ${idx + 1}. ${asset.meta.description || 'Bank Account'}\n`;
       report += `│    As at:                ${asset.meta.dateAcquired || 'N/A'}\n`;
-      report += `│    Balance/Value:        ${formatLKR(asset.financials.marketValue)}\n`;
+      report += `│    Original Cost:        ${formatLKR(asset.financials.cost)}\n`;
+      report += `│    Balance/Value:        ${formatLKR(getAssetValueForYear(asset, taxYear))}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
   }
@@ -495,7 +521,7 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
       report += `│ ${idx + 1}. ${asset.meta.description || 'Shares'}\n`;
       report += `│    Acquired:             ${asset.meta.dateAcquired || 'N/A'}\n`;
       report += `│    Cost:                 ${formatLKR(asset.financials.cost)}\n`;
-      report += `│    Market Value:         ${formatLKR(asset.financials.marketValue)}\n`;
+      report += `│    Market Value:         ${formatLKR(getAssetValueForYear(asset, taxYear))}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
   }
@@ -505,7 +531,8 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
     cash.forEach((asset, idx) => {
       report += `│ ${idx + 1}. ${asset.meta.description || 'Cash'}\n`;
       report += `│    As at:                ${asset.meta.dateAcquired || 'N/A'}\n`;
-      report += `│    Amount:               ${formatLKR(asset.financials.marketValue)}\n`;
+      report += `│    Original Cost:        ${formatLKR(asset.financials.cost)}\n`;
+      report += `│    Amount:               ${formatLKR(getAssetValueForYear(asset, taxYear))}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
   }
@@ -516,7 +543,7 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
       report += `│ ${idx + 1}. ${asset.meta.description || 'Loan Given'}\n`;
       report += `│    Date:                 ${asset.meta.dateAcquired || 'N/A'}\n`;
       report += `│    Amount:               ${formatLKR(asset.financials.cost)}\n`;
-      report += `│    Current Value:        ${formatLKR(asset.financials.marketValue)}\n`;
+      report += `│    Current Value:        ${formatLKR(getAssetValueForYear(asset, taxYear))}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
   }
@@ -541,7 +568,7 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
       report += `│ ${idx + 1}. ${asset.meta.description || 'Business Property'}\n`;
       report += `│    Acquired:             ${asset.meta.dateAcquired || 'N/A'}\n`;
       report += `│    Cost:                 ${formatLKR(asset.financials.cost)}\n`;
-      report += `│    Market Value:         ${formatLKR(asset.financials.marketValue)}\n`;
+      report += `│    Market Value:         ${formatLKR(getAssetValueForYear(asset, taxYear))}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
   }
@@ -609,9 +636,9 @@ Inflows:
                                       ────────────────────
   Total Inflows:                      ${formatLKR(auditRisk.totalIncome - auditRisk.taxDeducted + auditRisk.newLoans + auditRisk.assetSales)}
 
-Recommendation:                       ${auditRisk.riskLevel === 'safe' ? 'Low Risk - Good Standing' : 
-                                       auditRisk.riskLevel === 'warning' ? 'Medium Risk - Review Recommended' : 
-                                       'High Risk - Immediate Attention Required'}
+Recommendation:                       ${auditRisk.riskLevel === 'safe' ? 'Low Risk - Good Standing' :
+      auditRisk.riskLevel === 'warning' ? 'Medium Risk - Review Recommended' :
+        'High Risk - Immediate Attention Required'}
 
 
 ════════════════════════════════════════════════════════════════════════════
@@ -653,11 +680,11 @@ export function downloadDetailedTaxReport(
     isFamily,
     selectedEntityId
   );
-  
+
   const entity = isFamily ? entities[0] : entities.find(e => e.id === selectedEntityId) || entities[0];
   const reportType = isFamily ? 'FAMILY' : 'INDIVIDUAL';
   const filename = `IRD_TAX_REPORT_${reportType}_${entity.tin || 'NOTAX'}_${taxYear}.txt`;
-  
+
   const blob = new Blob([report], { type: 'text/plain;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -683,49 +710,49 @@ export function downloadDetailedTaxReportPDF(
   selectedEntityId?: string
 ): void {
   const entity = isFamily ? entities[0] : entities.find(e => e.id === selectedEntityId) || entities[0];
-  const reportDate = new Date().toLocaleDateString('en-LK', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+  const reportDate = new Date().toLocaleDateString('en-LK', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
   });
-  
+
   // Filter data based on selection
-  const filteredIncomes = isFamily 
+  const filteredIncomes = isFamily
     ? incomes.filter(i => i.taxYear === taxYear)
     : incomes.filter(i => i.ownerId === selectedEntityId && i.taxYear === taxYear);
-  
-  const filteredAssets = isFamily 
+
+  const filteredAssets = isFamily
     ? assets.filter(a => !a.disposed)
     : assets.filter(a => {
-        if (a.disposed) return false;
-        if (a.ownerId === selectedEntityId) return true;
-        if (a.ownershipShares && a.ownershipShares.some((s: any) => s.entityId === selectedEntityId)) return true;
-        return false;
-      });
-  
-  const filteredLiabilities = isFamily 
+      if (a.disposed) return false;
+      if (a.ownerId === selectedEntityId) return true;
+      if (a.ownershipShares && a.ownershipShares.some((s: any) => s.entityId === selectedEntityId)) return true;
+      return false;
+    });
+
+  const filteredLiabilities = isFamily
     ? liabilities
     : liabilities.filter(l => {
-        if (l.ownerId === selectedEntityId) return true;
-        if (l.ownershipShares && l.ownershipShares.some((s: any) => s.entityId === selectedEntityId)) return true;
-        return false;
-      });
+      if (l.ownerId === selectedEntityId) return true;
+      if (l.ownershipShares && l.ownershipShares.some((s: any) => s.entityId === selectedEntityId)) return true;
+      return false;
+    });
 
-  const filteredCertificates = isFamily 
+  const filteredCertificates = isFamily
     ? certificates.filter(c => c.taxYear === taxYear)
     : certificates.filter(c => c.ownerId === selectedEntityId && c.taxYear === taxYear);
 
   // Calculate totals
   const totalAssets = filteredAssets.reduce((sum, a) => sum + a.financials.marketValue, 0);
   const totalLiabilities = filteredLiabilities.reduce((sum, l) => sum + l.currentBalance, 0);
-  
+
   // Calculate income breakdown
   const incomeBreakdown = calculateTotalIncome(filteredIncomes);
-  
+
   // Calculate tax
   const taxComputation = computeTax(filteredIncomes, 0);
   const taxBreakdown = getTaxBreakdown(taxComputation.taxableIncome, taxYear);
-  
+
   // Calculate audit risk
   const auditRisk = calculateAuditRisk(
     filteredAssets,
@@ -777,7 +804,7 @@ export function downloadDetailedTaxReportPDF(
   doc.setFontSize(12);
   doc.text('Sri Lankan Inland Revenue Department (IRD)', pageWidth / 2, 23, { align: 'center' });
   doc.text(`Tax Year ${taxYear}/${Number.parseInt(taxYear) + 1}`, pageWidth / 2, 31, { align: 'center' });
-  
+
   yPos = 50;
   doc.setTextColor(0, 0, 0);
 
@@ -786,7 +813,7 @@ export function downloadDetailedTaxReportPDF(
   doc.setFont('helvetica', 'bold');
   doc.text('TAXPAYER INFORMATION', margin, yPos);
   yPos += lineHeight + 3;
-  
+
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text(`Report Type: ${isFamily ? 'Combined Family Return' : 'Individual Return'}`, margin, yPos);
@@ -814,7 +841,7 @@ export function downloadDetailedTaxReportPDF(
   doc.setFont('helvetica', 'bold');
   doc.text('SCHEDULE 1: EMPLOYMENT INCOME', margin + 5, yPos);
   yPos += lineHeight;
-  
+
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   if (employmentIncomes.length > 0) {
@@ -842,7 +869,7 @@ export function downloadDetailedTaxReportPDF(
   doc.setFont('helvetica', 'bold');
   doc.text('SCHEDULE 2: BUSINESS INCOME', margin + 5, yPos);
   yPos += lineHeight;
-  
+
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   if (businessIncomes.length > 0) {
@@ -868,7 +895,7 @@ export function downloadDetailedTaxReportPDF(
   doc.setFont('helvetica', 'bold');
   doc.text('SCHEDULE 3: INVESTMENT INCOME', margin + 5, yPos);
   yPos += lineHeight;
-  
+
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   if (investmentIncomes.length > 0) {
@@ -876,9 +903,9 @@ export function downloadDetailedTaxReportPDF(
       checkPageBreak(20);
       const inv = income.details as any;
       const invIncome = income as InvestmentIncome;
-      const incomeType = invIncome.type === 'interest' ? 'Interest' : 
-                        invIncome.type === 'dividend' ? 'Dividend' : 
-                        invIncome.type === 'rent' ? 'Rent' : 'Mixed';
+      const incomeType = invIncome.type === 'interest' ? 'Interest' :
+        invIncome.type === 'dividend' ? 'Dividend' :
+          invIncome.type === 'rent' ? 'Rent' : 'Mixed';
       doc.text(`${idx + 1}. Source: ${inv.source || 'Not Specified'}`, margin + 10, yPos);
       yPos += lineHeight;
       doc.text(`   Type: ${incomeType}`, margin + 10, yPos);
@@ -907,7 +934,7 @@ export function downloadDetailedTaxReportPDF(
   doc.setFontSize(12);
   doc.text('APIT CERTIFICATES (Cage 903)', margin + 5, yPos);
   yPos += lineHeight;
-  
+
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   const apitCertificates = filteredCertificates.filter(c => c.type === 'employment');
@@ -940,11 +967,11 @@ export function downloadDetailedTaxReportPDF(
   doc.setFont('helvetica', 'bold');
   doc.text('WHT CERTIFICATES (Cage 908)', margin + 5, yPos);
   yPos += lineHeight;
-  
+
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   const whtCertificates = filteredCertificates.filter(c => c.type !== 'employment');
-  
+
   if (whtCertificates.length > 0) {
     const interestWHT = whtCertificates.filter(c => c.type === 'interest');
     const dividendWHT = whtCertificates.filter(c => c.type === 'dividend');
@@ -1045,7 +1072,9 @@ export function downloadDetailedTaxReportPDF(
       checkPageBreak(15);
       doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
       yPos += lineHeight;
-      doc.text(`   Market Value: ${formatLKR(asset.financials.marketValue)}`, margin + 10, yPos);
+      doc.text(`   Original Cost: ${formatLKR(asset.financials.cost)}`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   Market Value: ${formatLKR(getAssetValueForYear(asset, taxYear))}`, margin + 10, yPos);
       yPos += lineHeight + 2;
     });
   }
@@ -1062,7 +1091,9 @@ export function downloadDetailedTaxReportPDF(
       checkPageBreak(15);
       doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
       yPos += lineHeight;
-      doc.text(`   Market Value: ${formatLKR(asset.financials.marketValue)}`, margin + 10, yPos);
+      doc.text(`   Original Cost: ${formatLKR(asset.financials.cost)}`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   Market Value: ${formatLKR(getAssetValueForYear(asset, taxYear))}`, margin + 10, yPos);
       yPos += lineHeight + 2;
     });
   }
@@ -1079,7 +1110,9 @@ export function downloadDetailedTaxReportPDF(
       checkPageBreak(15);
       doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
       yPos += lineHeight;
-      doc.text(`   Market Value: ${formatLKR(asset.financials.marketValue)}`, margin + 10, yPos);
+      doc.text(`   Original Cost: ${formatLKR(asset.financials.cost)}`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   Balance/Value: ${formatLKR(getAssetValueForYear(asset, taxYear))}`, margin + 10, yPos);
       yPos += lineHeight + 2;
     });
   }
@@ -1096,7 +1129,9 @@ export function downloadDetailedTaxReportPDF(
       checkPageBreak(15);
       doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
       yPos += lineHeight;
-      doc.text(`   Market Value: ${formatLKR(asset.financials.marketValue)}`, margin + 10, yPos);
+      doc.text(`   Original Cost: ${formatLKR(asset.financials.cost)}`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   Market Value: ${formatLKR(getAssetValueForYear(asset, taxYear))}`, margin + 10, yPos);
       yPos += lineHeight + 2;
     });
   }
@@ -1113,7 +1148,9 @@ export function downloadDetailedTaxReportPDF(
       checkPageBreak(15);
       doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
       yPos += lineHeight;
-      doc.text(`   Amount: ${formatLKR(asset.financials.marketValue)}`, margin + 10, yPos);
+      doc.text(`   Original Cost: ${formatLKR(asset.financials.cost)}`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   Amount: ${formatLKR(getAssetValueForYear(asset, taxYear))}`, margin + 10, yPos);
       yPos += lineHeight + 2;
     });
   }
@@ -1130,7 +1167,9 @@ export function downloadDetailedTaxReportPDF(
       checkPageBreak(15);
       doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
       yPos += lineHeight;
-      doc.text(`   Amount: ${formatLKR(asset.financials.marketValue)}`, margin + 10, yPos);
+      doc.text(`   Original Cost: ${formatLKR(asset.financials.cost)}`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   Amount: ${formatLKR(getAssetValueForYear(asset, taxYear))}`, margin + 10, yPos);
       yPos += lineHeight + 2;
     });
   }
@@ -1168,7 +1207,9 @@ export function downloadDetailedTaxReportPDF(
       checkPageBreak(15);
       doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
       yPos += lineHeight;
-      doc.text(`   Market Value: ${formatLKR(asset.financials.marketValue)}`, margin + 10, yPos);
+      doc.text(`   Original Cost: ${formatLKR(asset.financials.cost)}`, margin + 10, yPos);
+      yPos += lineHeight;
+      doc.text(`   Market Value: ${formatLKR(getAssetValueForYear(asset, taxYear))}`, margin + 10, yPos);
       yPos += lineHeight + 2;
     });
   }
@@ -1214,32 +1255,32 @@ export function downloadDetailedTaxReportPDF(
   doc.setFont('helvetica', 'normal');
   doc.text(`Total Assessable Income: ${formatLKR(taxComputation.assessableIncome)}`, margin + 5, yPos);
   yPos += lineHeight + 2;
-  
+
   doc.text('Less: Reliefs', margin + 5, yPos);
   yPos += lineHeight;
   doc.text(`  Personal Relief: ${formatLKR(taxComputation.reliefs.personalRelief)}`, margin + 10, yPos);
   yPos += lineHeight;
   doc.text(`  Solar Relief: ${formatLKR(taxComputation.reliefs.solarRelief)}`, margin + 10, yPos);
   yPos += lineHeight + 2;
-  
+
   doc.setFont('helvetica', 'bold');
   doc.text(`Taxable Income: ${formatLKR(taxComputation.taxableIncome)}`, margin + 5, yPos);
   yPos += lineHeight + 2;
-  
+
   doc.setFont('helvetica', 'normal');
   doc.text('Income Tax Calculation:', margin + 5, yPos);
   yPos += lineHeight;
-  
+
   taxBreakdown.forEach((bracket: { range: string; rate: string; amount: number; tax: number }) => {
     checkPageBreak(10);
     doc.text(`  ${bracket.range} @ ${bracket.rate}: ${formatLKR(bracket.tax)}`, margin + 10, yPos);
     yPos += lineHeight;
   });
-  
+
   doc.setFont('helvetica', 'bold');
   doc.text(`  Total Tax on Income: ${formatLKR(taxComputation.taxOnIncome)}`, margin + 10, yPos);
   yPos += lineHeight + 2;
-  
+
   doc.setFont('helvetica', 'normal');
   doc.text('Less: Tax Credits', margin + 5, yPos);
   yPos += lineHeight;
@@ -1247,7 +1288,7 @@ export function downloadDetailedTaxReportPDF(
   yPos += lineHeight;
   doc.text(`  WHT Deducted: ${formatLKR(taxComputation.taxCredits.wht)}`, margin + 10, yPos);
   yPos += lineHeight + 2;
-  
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
   doc.text(`NET TAX PAYABLE: ${formatLKR(taxComputation.taxPayable)}`, margin + 5, yPos);
@@ -1261,14 +1302,14 @@ export function downloadDetailedTaxReportPDF(
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  
-  const riskColor = auditRisk.riskLevel === 'safe' ? [34, 197, 94] : 
-                    auditRisk.riskLevel === 'warning' ? [234, 179, 8] : [239, 68, 68];
+
+  const riskColor = auditRisk.riskLevel === 'safe' ? [34, 197, 94] :
+    auditRisk.riskLevel === 'warning' ? [234, 179, 8] : [239, 68, 68];
   doc.setTextColor(riskColor[0], riskColor[1], riskColor[2]);
   doc.setFont('helvetica', 'bold');
   doc.text(`Risk Level: ${auditRisk.riskLevel.toUpperCase()}`, margin + 5, yPos);
   yPos += lineHeight;
-  
+
   doc.setTextColor(0, 0, 0);
   doc.setFont('helvetica', 'normal');
   doc.text(`Risk Score: ${formatLKR(Math.abs(auditRisk.riskScore))}`, margin + 5, yPos);
@@ -1323,11 +1364,11 @@ export function downloadDetailedTaxReportPDF(
   doc.text(`Total Inflows:`, margin + 10, yPos);
   doc.text(formatLKR(auditRisk.totalIncome - auditRisk.taxDeducted + auditRisk.newLoans), margin + 90, yPos);
   yPos += lineHeight + 3;
-  
+
   doc.setFont('helvetica', 'normal');
-  const recommendation = auditRisk.riskLevel === 'safe' ? 'Low Risk - Good Standing' : 
-                        auditRisk.riskLevel === 'warning' ? 'Medium Risk - Review Recommended' : 
-                        'High Risk - Immediate Attention Required';
+  const recommendation = auditRisk.riskLevel === 'safe' ? 'Low Risk - Good Standing' :
+    auditRisk.riskLevel === 'warning' ? 'Medium Risk - Review Recommended' :
+      'High Risk - Immediate Attention Required';
   doc.text(`Recommendation: ${recommendation}`, margin + 5, yPos);
   yPos += lineHeight + 5;
 
@@ -1336,12 +1377,12 @@ export function downloadDetailedTaxReportPDF(
   doc.setFillColor(245, 245, 245);
   doc.rect(margin, yPos, pageWidth - 2 * margin, 30, 'F');
   yPos += 5;
-  
+
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.text('DISCLAIMER', margin + 5, yPos);
   yPos += lineHeight - 1;
-  
+
   doc.setFont('helvetica', 'normal');
   const disclaimerLines = doc.splitTextToSize(
     'This report is generated for personal tax planning purposes only and does not constitute official tax advice. Please consult with a qualified tax professional before filing your income tax return with the Inland Revenue Department of Sri Lanka.',
@@ -1351,7 +1392,7 @@ export function downloadDetailedTaxReportPDF(
     doc.text(line, margin + 5, yPos);
     yPos += 5;
   });
-  
+
   yPos += 5;
   doc.setFontSize(8);
   doc.text(`Generated by WealthGuard LK - Report Date: ${reportDate}`, margin + 5, yPos);

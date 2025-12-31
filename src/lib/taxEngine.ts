@@ -101,7 +101,7 @@ const MAX_SOLAR_RELIEF = 600000; // Rs. 600,000
  * Based on Central Bank of Sri Lanka historical data
  * Index represents the exchange rate (1 foreign currency = X LKR) as of March 31
  */
-const CURRENCY_TO_LKR_RATES: { [currency: string]: { [year: string]: number } } = {
+export const CURRENCY_TO_LKR_RATES: { [currency: string]: { [year: string]: number } } = {
   USD: {
     '2014': 135,   // As of March 31, 2015
     '2015': 149,   // As of March 31, 2016
@@ -243,6 +243,17 @@ const CURRENCY_TO_LKR_RATES: { [currency: string]: { [year: string]: number } } 
     '2025': 1,
   },
 };
+
+/**
+ * Get exchange rate for a specific currency and tax year
+ * @param currency Currency code (e.g., 'USD', 'EUR')
+ * @param taxYear Tax year (e.g., '2024')
+ * @returns Exchange rate (1 Foreign Currency = X LKR) or 1 if LKR/Unknown
+ */
+export function getExchangeRate(currency: string, taxYear: string): number {
+  if (!currency || currency === 'LKR') return 1;
+  return CURRENCY_TO_LKR_RATES[currency]?.[taxYear] || 1;
+}
 
 /**
  * Precious metals and gems price indices in USD (as of March 31 each year)
@@ -1014,6 +1025,7 @@ export function calculateAuditRisk(
     employmentIncome: incomeBreakdown.employmentIncome,
     businessIncome: incomeBreakdown.businessIncome,
     investmentIncome: incomeBreakdown.investmentIncome,
+    otherIncome: incomeBreakdown.otherIncome,
     totalIncome: incomeBreakdown.totalIncome,
     taxDeducted: (incomeBreakdown.totalAPIT || 0) + (incomeBreakdown.totalWHT || 0),
     newLoans,
@@ -1024,6 +1036,7 @@ export function calculateAuditRisk(
       employmentIncome: incomeBreakdown.employmentIncome,
       businessIncome: incomeBreakdown.businessIncome,
       investmentIncome: incomeBreakdown.investmentIncome,
+      otherIncome: incomeBreakdown.otherIncome,
       newLoans,
       assetSales,
       balanceDecreases, // Savings withdrawals as inflow

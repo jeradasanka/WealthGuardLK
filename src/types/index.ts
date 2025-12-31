@@ -233,6 +233,8 @@ export interface OtherIncome {
     exemptAmount: number; // Cage 402 - Exempt portion (e.g., retirement gratuity, pension exemptions)
     whtDeducted?: number; // WHT if applicable (links to Cage 908)
     description?: string; // Additional details
+    currency?: string; // Foreign currency (e.g., USD, EUR)
+    originalAmount?: number; // Amount in original currency
   };
 }
 
@@ -286,6 +288,7 @@ export interface AuditRisk {
   employmentIncome: number;
   businessIncome: number;
   investmentIncome: number;
+  otherIncome: number;
   totalIncome: number;
   taxDeducted: number; // APIT + WHT
   newLoans: number;
@@ -296,6 +299,7 @@ export interface AuditRisk {
     employmentIncome: number;
     businessIncome: number;
     investmentIncome: number;
+    otherIncome: number;
     newLoans: number;
     assetSales: number; // Proceeds from asset disposals
     balanceDecreases: number; // Withdrawals from savings/cash (source of funds)

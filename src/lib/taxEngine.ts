@@ -395,26 +395,26 @@ export function calculatePreciousItemMarketValue(
   taxYear: string
 ): number {
   const priceIndex = COMMODITY_PRICE_INDICES_USD[itemType] || COMMODITY_PRICE_INDICES_USD['Other'];
-  
+
   // For acquisition year, use the tax year the asset was acquired in
   // If acquired in May 2018, that's tax year 2018/2019, so use 2018 rates
   const baseUSDIndex = priceIndex[acquisitionYear] || 100;
-  
+
   // For valuation, tax year "2024" uses March 31, 2025 rates (already in index as 2024)
   const currentUSDIndex = priceIndex[taxYear] || priceIndex['2025'];
-  
+
   const baseExchangeRate = CURRENCY_TO_LKR_RATES['USD'][acquisitionYear] || 135;
   const currentExchangeRate = CURRENCY_TO_LKR_RATES['USD'][taxYear] || CURRENCY_TO_LKR_RATES['USD']['2025'];
-  
+
   if (baseUSDIndex === 0) return originalCost;
-  
+
   // Calculate appreciation factor considering both USD price change and exchange rate change
   const usdPriceAppreciation = currentUSDIndex / baseUSDIndex;
   const exchangeRateChange = currentExchangeRate / baseExchangeRate;
-  
+
   // Combined factor = USD price appreciation × exchange rate change
   const totalAppreciationFactor = usdPriceAppreciation * exchangeRateChange;
-  
+
   return originalCost * totalAppreciationFactor;
 }
 
@@ -423,17 +423,17 @@ export function calculatePreciousItemMarketValue(
  */
 export function getTaxConfig(taxYear: string): TaxYearConfig {
   const year = parseInt(taxYear);
-  
+
   // Return config for the year, defaulting to 2024 if not found
   if (TAX_YEAR_CONFIGS[year.toString()]) {
     return TAX_YEAR_CONFIGS[year.toString()];
   }
-  
+
   // For future years beyond 2025, use 2025 config
   if (year >= 2025) {
     return TAX_YEAR_CONFIGS['2025'];
   }
-  
+
   // For years before 2020, use 2020 config
   return TAX_YEAR_CONFIGS['2020'];
 }
@@ -447,23 +447,23 @@ export function filterAssetsForTaxYear(assets: Asset[], taxYear: string): Asset[
 
   return assets.filter((asset) => {
     const acquiredDate = new Date(asset.meta.dateAcquired);
-    
+
     if (acquiredDate > taxYearEnd) return false;
-    
+
     if (asset.disposed && asset.disposed.date) {
       const disposedDate = new Date(asset.disposed.date);
       if (disposedDate < taxYearStart) return false;
     } else if (asset.disposed) {
       return false; // Disposed but no date, exclude
     }
-    
+
     if (asset.closed && asset.closed.date) {
       const closedDate = new Date(asset.closed.date);
       if (closedDate < taxYearStart) return false;
     } else if (asset.closed) {
       return false; // Closed but no date, exclude
     }
-    
+
     return true;
   });
 }
@@ -483,23 +483,23 @@ export function getAssetMarketValue(asset: Asset, taxYear: string): number {
     if (yearValuation && yearValuation.marketValue > 0) {
       return yearValuation.marketValue;
     }
-    
+
     // If no exact match, use the most recent valuation up to this year
     const sortedValuations = [...asset.valuations]
       .filter(v => v.taxYear <= taxYear)
       .sort((a, b) => b.taxYear.localeCompare(a.taxYear));
-    
+
     if (sortedValuations.length > 0 && sortedValuations[0].marketValue > 0) {
       return sortedValuations[0].marketValue;
     }
   }
-  
+
   // For immovable properties with expenses, use latest market value if available
   if (asset.cageCategory === 'A' && asset.propertyExpenses && asset.propertyExpenses.length > 0) {
     const sortedExpenses = [...asset.propertyExpenses]
       .filter(e => e.taxYear <= taxYear)
       .sort((a, b) => b.taxYear.localeCompare(a.taxYear));
-    
+
     if (sortedExpenses.length > 0) {
       const latestExpense = sortedExpenses[0];
       if (latestExpense.marketValue && latestExpense.marketValue > 0) {
@@ -507,28 +507,28 @@ export function getAssetMarketValue(asset: Asset, taxYear: string): number {
       }
     }
   }
-  
+
   // For stock portfolios, use latest portfolio value if available
   if (asset.cageCategory === 'Biii' && asset.stockBalances && asset.stockBalances.length > 0) {
     const sortedBalances = [...asset.stockBalances]
       .filter(b => b.taxYear <= taxYear)
       .sort((a, b) => b.taxYear.localeCompare(a.taxYear));
-    
+
     if (sortedBalances.length > 0) {
       return sortedBalances[0].portfolioValue;
     }
   }
-  
+
   // For jewellery, calculate market value based on price appreciation
   if (asset.cageCategory === 'Bvi') {
     return getJewelleryMarketValue(asset, taxYear);
   }
-  
+
   // For foreign currency deposits, calculate LKR value using exchange rate
   if (asset.cageCategory === 'Bii' && asset.meta.currency && asset.meta.currency !== 'LKR') {
     return getForeignCurrencyMarketValue(asset, taxYear);
   }
-  
+
   // Default: return the stored market value
   return asset.financials.marketValue;
 }
@@ -546,7 +546,7 @@ export function getJewelleryMarketValue(asset: Asset, taxYear: string): number {
 
   const itemType = asset.meta.itemType || 'Other';
   const acquisitionYear = asset.meta.dateAcquired.substring(0, 4); // Get year from YYYY-MM-DD
-  
+
   // Tax year "2024" already maps to March 31, 2025 in indices - no need to add 1
   return calculatePreciousItemMarketValue(
     asset.financials.cost,
@@ -570,7 +570,7 @@ export function getForeignCurrencyMarketValue(asset: Asset, taxYear: string): nu
   }
 
   const currency = asset.meta.currency;
-  
+
   // Find the balance record for this tax year
   const yearBalance = asset.balances?.find((b) => {
     return b.taxYear === taxYear || b.taxYear.startsWith(taxYear);
@@ -580,7 +580,7 @@ export function getForeignCurrencyMarketValue(asset: Asset, taxYear: string): nu
   if (yearBalance) {
     // Get exchange rate for the tax year from indices
     const exchangeRate = CURRENCY_TO_LKR_RATES[currency]?.[taxYear];
-    
+
     if (exchangeRate) {
       // Balance (foreign currency) × Exchange Rate = Value in LKR
       return yearBalance.closingBalance * exchangeRate;
@@ -604,7 +604,7 @@ export function getForeignCurrencyMarketValue(asset: Asset, taxYear: string): nu
  */
 export function calculateDerivedInvestmentIncome(assets: Asset[], taxYear: string): { type: 'interest' | 'dividend' | 'rent'; amount: number; source: string; wht: number; ownerId: string }[] {
   const income: { type: 'interest' | 'dividend' | 'rent'; amount: number; source: string; wht: number; ownerId: string }[] = [];
-  
+
   // We process all assets and check their balances for the specific tax year
   assets.forEach((asset) => {
     // Extract interest from bank accounts, cash, and loans given
@@ -622,7 +622,7 @@ export function calculateDerivedInvestmentIncome(assets: Asset[], taxYear: strin
             interestInLKR = yearBalance.interestEarned * exchangeRate;
           }
         }
-        
+
         income.push({
           type: 'interest',
           amount: interestInLKR,
@@ -632,7 +632,7 @@ export function calculateDerivedInvestmentIncome(assets: Asset[], taxYear: strin
         });
       }
     }
-    
+
     // Extract dividends from shares (stock portfolios)
     if (asset.cageCategory === 'Biii' && asset.stockBalances) {
       const yearBalance = asset.stockBalances.find((b) => {
@@ -650,12 +650,12 @@ export function calculateDerivedInvestmentIncome(assets: Asset[], taxYear: strin
             wht: 0,
             ownerId: asset.ownerId,
           }));
-        
+
         income.push(...stockDividends);
       }
     }
   });
-  
+
   return income;
 }
 
@@ -663,8 +663,8 @@ export function calculateDerivedInvestmentIncome(assets: Asset[], taxYear: strin
  * Calculates total income from all schedules, including derived income from assets
  */
 export function calculateTotalIncome(
-  incomes: Income[], 
-  assets: Asset[] = [], 
+  incomes: Income[],
+  assets: Asset[] = [],
   currentTaxYear: string = '2024',
   certificates: AITWHTCertificate[] = []
 ): {
@@ -703,13 +703,13 @@ export function calculateTotalIncome(
       case '3': {
         const inv = income as InvestmentIncome;
         let incomeAmount = (inv.details.grossAmount || 0);
-        
+
         // Apply 25% relief for rent income (FR-04)
         if (inv.type === 'rent') {
           const relief = incomeAmount * 0.25;
           incomeAmount -= relief;
         }
-        
+
         investmentIncome += incomeAmount;
         totalWHT += (inv.details.whtDeducted || 0);
         break;
@@ -736,13 +736,13 @@ export function calculateTotalIncome(
 
   // Process tax credits from certificates (FR-12)
   const yearCertificates = certificates.filter(cert => cert.taxYear === currentTaxYear);
-  
+
   // APIT from employment certificates
   const apitFromCerts = yearCertificates
     .filter(c => c.type === 'employment')
     .reduce((sum, c) => sum + (c.details.taxDeducted || 0), 0);
   totalAPIT += apitFromCerts;
-  
+
   // WHT from investment certificates (interest, dividend, rent, other)
   const whtFromCerts = yearCertificates
     .filter(c => c.type !== 'employment')
@@ -804,19 +804,19 @@ export function computeTax(
 
   // Calculate reliefs
   const solarRelief = Math.min(solarInvestment, MAX_SOLAR_RELIEF);
-  
+
   // Assessable Income = Total Income
   const assessableIncome = totalIncome;
-  
+
   // Taxable Income = Assessable Income - Personal Relief - Solar Relief
   const taxableIncome = Math.max(
     0,
     assessableIncome - config.personalRelief - solarRelief
   );
-  
+
   // Calculate tax on taxable income
   const taxOnIncome = calculateProgressiveTax(taxableIncome, currentTaxYear);
-  
+
   // Tax Payable = Tax on Income - Tax Credits (APIT + WHT)
   const taxPayable = Math.max(
     0,
@@ -854,29 +854,41 @@ export function calculateAuditRisk(
   // Calculate asset growth (assets acquired in current tax year, excluding disposed)
   const assetGrowth = assets
     .filter((a) => isDateInTaxYear(a.meta.dateAcquired, currentYear) && !a.disposed)
-    .reduce((sum, a) => sum + a.financials.cost, 0);
+    .reduce((sum, a) => {
+      let costInLKR = a.financials.cost;
+
+      // If asset is in foreign currency, convert cost to LKR using acquisition year rate
+      if (a.meta.currency && a.meta.currency !== 'LKR') {
+        const exchangeRate = CURRENCY_TO_LKR_RATES[a.meta.currency]?.[currentYear];
+        if (exchangeRate) {
+          costInLKR = a.financials.cost * exchangeRate;
+        }
+      }
+
+      return sum + costInLKR;
+    }, 0);
 
   // Calculate balance changes in existing financial assets (Bii, Biv, Bv)
   // This tracks money deposited/withdrawn from savings accounts, cash, loans given
   let balanceIncreases = 0;
   let balanceDecreases = 0;
-  
+
   // Track stock broker cash transfers separately
   let stockCashDeposits = 0; // Positive cash transfers (outflow)
   let stockCashWithdrawals = 0; // Negative cash transfers (inflow)
-  
+
   const previousYear = (parseInt(currentYear) - 1).toString();
-  
+
   assets.forEach((asset) => {
     // Process stock balances (Biii - Shares/Stocks)
     if (asset.cageCategory === 'Biii' && asset.stockBalances) {
       const currentYearStockBalance = asset.stockBalances.find(
         b => b.taxYear === currentYear || b.taxYear.startsWith(currentYear)
       );
-      
+
       if (currentYearStockBalance) {
         const cashTransfers = currentYearStockBalance.cashTransfers || 0;
-        
+
         if (cashTransfers > 0) {
           // Positive = deposit to broker (outflow from personal funds)
           stockCashDeposits += cashTransfers;
@@ -886,26 +898,26 @@ export function calculateAuditRisk(
         }
       }
     }
-    
+
     // Only process financial assets (Bank, Cash, Loans Given) that existed before current year
-    if ((asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv') 
-        && !isDateInTaxYear(asset.meta.dateAcquired, currentYear) 
-        && !asset.closed 
-        && !asset.disposed
-        && asset.balances) {
-      
+    if ((asset.cageCategory === 'Bii' || asset.cageCategory === 'Biv' || asset.cageCategory === 'Bv')
+      && !isDateInTaxYear(asset.meta.dateAcquired, currentYear)
+      && !asset.closed
+      && !asset.disposed
+      && asset.balances) {
+
       const currentYearBalance = asset.balances.find(b => b.taxYear === currentYear || b.taxYear.startsWith(currentYear));
       const previousYearBalance = asset.balances.find(b => b.taxYear === previousYear || b.taxYear.startsWith(previousYear));
-      
+
       if (currentYearBalance) {
         const prevBalance = previousYearBalance?.closingBalance || asset.financials.cost || 0;
         const currBalance = currentYearBalance.closingBalance;
         const interestEarned = currentYearBalance.interestEarned || 0;
-        
+
         // Net change = (Current Balance - Previous Balance) - Interest Earned
         // Positive = deposits (outflow), Negative = withdrawals (inflow)
         const netChange = (currBalance - prevBalance) - interestEarned;
-        
+
         // Convert to LKR if foreign currency
         let netChangeInLKR = netChange;
         if (asset.cageCategory === 'Bii' && asset.meta.currency && asset.meta.currency !== 'LKR') {
@@ -914,7 +926,7 @@ export function calculateAuditRisk(
             netChangeInLKR = netChange * exchangeRate;
           }
         }
-        
+
         if (netChangeInLKR > 0) {
           balanceIncreases += netChangeInLKR;
         } else if (netChangeInLKR < 0) {
@@ -947,12 +959,12 @@ export function calculateAuditRisk(
   // Calculate loan payments made in current tax year (split by principal and interest)
   let loanPrincipal = 0;
   let loanInterest = 0;
-  
+
   liabilities.forEach((l) => {
     if (!l.payments || l.payments.length === 0) return;
-    
+
     const yearPayments = l.payments.filter(p => p.taxYear.toString() === currentYear);
-    
+
     yearPayments.forEach(p => {
       loanPrincipal += p.principalPaid;
       loanInterest += p.interestPaid;
@@ -971,12 +983,12 @@ export function calculateAuditRisk(
   // Calculate actual outflows (excluding living expenses)
   // Includes: new asset purchases + balance increases in existing accounts + property expenses + loan payments + stock cash deposits
   const actualOutflows = assetGrowth + balanceIncreases + propertyExpenses + loanPayments + stockCashDeposits;
-  
+
   // Calculate actual inflows
   // Includes: net income + new loans + asset sales + savings withdrawals + stock cash withdrawals
   const netIncome = incomeBreakdown.totalIncome - ((incomeBreakdown.totalAPIT || 0) + (incomeBreakdown.totalWHT || 0));
   const actualInflows = netIncome + newLoans + assetSales + balanceDecreases + stockCashWithdrawals;
-  
+
   // DERIVE living expenses as the balancing figure
   // Living expenses = Inflows - Outflows (what's left after known expenses)
   // If negative (outflows > inflows), it means unexplained funding
@@ -1093,7 +1105,7 @@ export function getTaxBreakdown(taxableIncome: number, taxYear: string = '2024')
     );
 
     const taxAmount = applicableIncome * bracket.rate;
-    
+
     breakdown.push({
       range: bracket.limit === Infinity ? 'Balance' : `Next ${range.toLocaleString()}`,
       rate: `${(bracket.rate * 100).toFixed(0)}%`,

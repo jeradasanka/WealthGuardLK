@@ -991,13 +991,27 @@ export function calculateAuditRisk(
     currentYear
   );
 
+  // Recalculate Other Income using GROSS amount for Audit Risk (Inflow)
+  // Taxable income (used in calculateTotalIncome) deducts exempt amounts, but for audit risk (cashflow), we need the full gross amount
+  const grossOtherIncome = incomes
+    .filter((i) => i.taxYear === currentYear && i.schedule === '4')
+    .reduce((sum, i) => sum + (i as OtherIncome).details.grossAmount, 0);
+
   // Calculate actual outflows (excluding living expenses)
   // Includes: new asset purchases + balance increases in existing accounts + property expenses + loan payments + stock cash deposits
   const actualOutflows = assetGrowth + balanceIncreases + propertyExpenses + loanPayments + stockCashDeposits;
 
   // Calculate actual inflows
   // Includes: net income + new loans + asset sales + savings withdrawals + stock cash withdrawals
-  const netIncome = incomeBreakdown.totalIncome - ((incomeBreakdown.totalAPIT || 0) + (incomeBreakdown.totalWHT || 0));
+  // Note: We use the adjusted total income (with Gross Other Income) for this calculation
+  // Total Income = Employment + Business + Investment + Other
+  // We need to replace the Taxable Other Income from incomeBreakdown with Gross Other Income
+  const adjustedTotalIncome = incomeBreakdown.employmentIncome +
+    incomeBreakdown.businessIncome +
+    incomeBreakdown.investmentIncome +
+    grossOtherIncome;
+
+  const netIncome = adjustedTotalIncome - ((incomeBreakdown.totalAPIT || 0) + (incomeBreakdown.totalWHT || 0));
   const actualInflows = netIncome + newLoans + assetSales + balanceDecreases + stockCashWithdrawals;
 
   // DERIVE living expenses as the balancing figure
@@ -1025,8 +1039,8 @@ export function calculateAuditRisk(
     employmentIncome: incomeBreakdown.employmentIncome,
     businessIncome: incomeBreakdown.businessIncome,
     investmentIncome: incomeBreakdown.investmentIncome,
-    otherIncome: incomeBreakdown.otherIncome,
-    totalIncome: incomeBreakdown.totalIncome,
+    otherIncome: grossOtherIncome, // Use Gross Amount
+    totalIncome: adjustedTotalIncome, // Use Adjusted Total
     taxDeducted: (incomeBreakdown.totalAPIT || 0) + (incomeBreakdown.totalWHT || 0),
     newLoans,
     assetSales,
@@ -1036,7 +1050,7 @@ export function calculateAuditRisk(
       employmentIncome: incomeBreakdown.employmentIncome,
       businessIncome: incomeBreakdown.businessIncome,
       investmentIncome: incomeBreakdown.investmentIncome,
-      otherIncome: incomeBreakdown.otherIncome,
+      otherIncome: grossOtherIncome, // Use Gross Amount
       newLoans,
       assetSales,
       balanceDecreases, // Savings withdrawals as inflow

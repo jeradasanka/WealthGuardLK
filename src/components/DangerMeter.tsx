@@ -85,6 +85,7 @@ export function DangerMeter({ selectedEntityId = 'family' }: DangerMeterProps) {
     { name: 'Employment Income', value: auditRisk.employmentIncome, category: 'inflow', fill: '#10b981' },
     { name: 'Business Income', value: auditRisk.businessIncome, category: 'inflow', fill: '#059669' },
     { name: 'Investment Income', value: auditRisk.investmentIncome, category: 'inflow', fill: '#34d399' },
+    { name: 'Other Income', value: auditRisk.otherIncome, category: 'inflow', fill: '#14b8a6' },
     { name: 'New Loans', value: auditRisk.newLoans, category: 'inflow', fill: '#6ee7b7' },
     { name: 'Asset Sales', value: auditRisk.assetSales, category: 'inflow', fill: '#a7f3d0' },
     { name: 'Savings Withdrawals', value: auditRisk.inflowBreakdown.balanceDecreases, category: 'inflow', fill: '#bbf7d0' },
@@ -283,6 +284,10 @@ export function DangerMeter({ selectedEntityId = 'family' }: DangerMeterProps) {
                   <div className="flex justify-between items-center">
                     <p className="text-sm text-muted-foreground">Investment Income</p>
                     <p className="font-semibold">{formatLKR(auditRisk.investmentIncome)}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Other Income</p>
+                    <p className="font-semibold">{formatLKR(auditRisk.otherIncome)}</p>
                   </div>
                   <div className="flex justify-between items-center">
                     <p className="text-sm text-muted-foreground">New Loans</p>

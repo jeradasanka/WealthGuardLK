@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
 import type { OtherIncome } from '@/types';
-import { formatLKR } from '@/lib/taxEngine';
+import { formatLKR, getExchangeRate } from '@/lib/taxEngine';
 import { formatTaxYear } from '@/lib/taxYear';
 
 interface OtherIncomeFormProps {
@@ -34,7 +34,35 @@ export function OtherIncomeForm({ income, onSave, onCancel }: OtherIncomeFormPro
     exemptAmount: income?.details.exemptAmount || 0,
     whtDeducted: income?.details.whtDeducted || 0,
     description: income?.details.description || '',
+    currency: income?.details.currency || 'LKR',
+    originalAmount: income?.details.originalAmount || 0,
   });
+
+  // Calculate exchange rate for display
+  const exchangeRate = getExchangeRate(formData.currency, currentTaxYear);
+
+  const handleCurrencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCurrency = e.target.value;
+    const rate = getExchangeRate(newCurrency, currentTaxYear);
+
+    setFormData(prev => ({
+      ...prev,
+      currency: newCurrency,
+      // specific logic: if switching back to LKR, use the original amount as gross
+      grossAmount: newCurrency === 'LKR' ? prev.originalAmount : (prev.originalAmount * rate)
+    }));
+  };
+
+  const handleOriginalAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const amount = Number(e.target.value);
+    const rate = getExchangeRate(formData.currency, currentTaxYear);
+
+    setFormData(prev => ({
+      ...prev,
+      originalAmount: amount,
+      grossAmount: amount * rate
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +79,8 @@ export function OtherIncomeForm({ income, onSave, onCancel }: OtherIncomeFormPro
         exemptAmount: Number(formData.exemptAmount),
         whtDeducted: Number(formData.whtDeducted),
         description: formData.description,
+        currency: formData.currency,
+        originalAmount: Number(formData.originalAmount),
       },
     };
 
@@ -106,6 +136,35 @@ export function OtherIncomeForm({ income, onSave, onCancel }: OtherIncomeFormPro
             </select>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="currency">Currency</Label>
+            <div className="flex gap-4 items-center">
+              <select
+                id="currency"
+                value={formData.currency}
+                onChange={handleCurrencyChange}
+                className="flex h-9 w-32 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="LKR">LKR (Rs)</option>
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+                <option value="AUD">AUD (A$)</option>
+                <option value="CAD">CAD (C$)</option>
+                <option value="JPY">JPY (¥)</option>
+                <option value="CNY">CNY (¥)</option>
+                <option value="INR">INR (₹)</option>
+                <option value="SGD">SGD (S$)</option>
+              </select>
+
+              {formData.currency !== 'LKR' && (
+                <div className="text-sm text-muted-foreground">
+                  Exchange Rate ({currentTaxYear}): 1 {formData.currency} = {exchangeRate} LKR
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="type">Income Type *</Label>
@@ -144,10 +203,33 @@ export function OtherIncomeForm({ income, onSave, onCancel }: OtherIncomeFormPro
             </div>
           </div>
 
+
+
+          {formData.currency !== 'LKR' && (
+            <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-dashed">
+              <Label htmlFor="originalAmount">
+                Amount in {formData.currency}
+              </Label>
+              <Input
+                id="originalAmount"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.originalAmount || ''}
+                onChange={handleOriginalAmountChange}
+                placeholder={`0.00`}
+                className="bg-white"
+              />
+              <p className="text-xs text-muted-foreground">
+                Original amount in foreign currency
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="grossAmount">
-                Gross Amount (Cage 401) *
+                Gross Amount (LKR Equivalent) *
               </Label>
               <Input
                 id="grossAmount"
@@ -158,9 +240,11 @@ export function OtherIncomeForm({ income, onSave, onCancel }: OtherIncomeFormPro
                 onChange={handleChange('grossAmount')}
                 required
                 placeholder="0.00"
+                readOnly={formData.currency !== 'LKR'}
+                className={formData.currency !== 'LKR' ? 'bg-muted' : ''}
               />
               <p className="text-xs text-muted-foreground">
-                Total income before exemptions
+                Total income {formData.currency !== 'LKR' ? 'converted to LKR' : 'before exemptions'} (Cage 401)
               </p>
             </div>
 
@@ -252,7 +336,7 @@ export function OtherIncomeForm({ income, onSave, onCancel }: OtherIncomeFormPro
             </Button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </CardContent >
+    </Card >
   );
 }

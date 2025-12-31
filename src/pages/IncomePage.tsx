@@ -50,7 +50,7 @@ export function IncomePage() {
   const filteredIncomes = currentYearIncomes.filter(i => !selectedEntityForTax || i.ownerId === selectedEntityForTax);
   const filteredAssets = assets.filter(a => !selectedEntityForTax || a.ownerId === selectedEntityForTax);
   const incomeSummary = calculateTotalIncome(filteredIncomes, filteredAssets, currentTaxYear, certificates);
-  
+
   // Calculate estimated tax
   const taxComputation = computeTax(filteredIncomes, filteredAssets, currentTaxYear, 0, certificates);
 
@@ -80,22 +80,46 @@ export function IncomePage() {
     setEditingIncome(null);
   };
 
-  const getIncomeAmount = (income: Income): number => {
-    if (income.schedule === '1') {
-      const emp = income as EmploymentIncome;
-      const grossIncome = emp.details.grossRemuneration + emp.details.nonCashBenefits;
-      return grossIncome - (emp.details.exemptIncome || 0); // Taxable amount after exemptions
-    } else if (income.schedule === '2') {
-      const bus = income as BusinessIncome;
-      return bus.details.netProfit;
-    } else if (income.schedule === '3') {
-      const inv = income as InvestmentIncome;
-      return inv.details.grossAmount;
-    } else if (income.schedule === '4') {
-      const other = income as OtherIncome;
-      return other.details.grossAmount - other.details.exemptAmount; // Taxable amount
+  const getIncomeDetails = (income: Income) => {
+    let gross = 0;
+    let taxable = 0;
+    let tax = 0;
+    let taxLabel = 'Tax';
+
+    switch (income.schedule) {
+      case '1': {
+        const emp = income as EmploymentIncome;
+        gross = emp.details.grossRemuneration + emp.details.nonCashBenefits;
+        taxable = gross - (emp.details.exemptIncome || 0);
+        tax = emp.details.apitDeducted;
+        taxLabel = 'APIT';
+        break;
+      }
+      case '2': {
+        const bus = income as BusinessIncome;
+        gross = bus.details.grossRevenue;
+        taxable = bus.details.netProfit;
+        tax = 0;
+        break;
+      }
+      case '3': {
+        const inv = income as InvestmentIncome;
+        gross = inv.details.grossAmount;
+        taxable = inv.details.grossAmount;
+        tax = inv.details.whtDeducted;
+        taxLabel = 'WHT';
+        break;
+      }
+      case '4': {
+        const other = income as OtherIncome;
+        gross = other.details.grossAmount;
+        taxable = other.details.grossAmount - (other.details.exemptAmount || 0);
+        tax = other.details.whtDeducted || 0;
+        taxLabel = 'WHT';
+        break;
+      }
     }
-    return 0;
+    return { gross, taxable, tax, taxLabel };
   };
 
   const getIncomeIcon = (schedule: string) => {
@@ -153,7 +177,7 @@ export function IncomePage() {
 
   const handleManualTaxChange = async (amount: number) => {
     setManualTaxPayable(amount);
-    
+
     if (selectedEntityForTax) {
       const entity = entities.find(e => e.id === selectedEntityForTax);
       if (entity) {
@@ -169,7 +193,7 @@ export function IncomePage() {
 
   const handleTotalTaxChange = async (amount: number) => {
     setManualTotalTax(amount);
-    
+
     if (selectedEntityForTax) {
       const entity = entities.find(e => e.id === selectedEntityForTax);
       if (entity) {
@@ -375,7 +399,7 @@ export function IncomePage() {
                 <p className="text-sm text-muted-foreground">
                   Investment income is automatically derived from your assets.
                 </p>
-                <Button 
+                <Button
                   className="w-full"
                   variant="outline"
                   onClick={() => navigate('/assets')}
@@ -462,8 +486,8 @@ export function IncomePage() {
                 />
                 <div className="flex justify-between items-center mt-2">
                   <p className="text-xs text-muted-foreground">
-                    {!selectedEntityForTax 
-                      ? "Select entity to edit" 
+                    {!selectedEntityForTax
+                      ? "Select entity to edit"
                       : `Calculator estimate: ${(taxComputation?.taxOnIncome || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                   </p>
                 </div>
@@ -501,38 +525,35 @@ export function IncomePage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:bg-gray-100"
                 />
                 <p className="text-xs text-muted-foreground mt-2">
-                  {!selectedEntityForTax 
-                    ? "Select a specific tax profile above to enter payment information." 
+                  {!selectedEntityForTax
+                    ? "Select a specific tax profile above to enter payment information."
                     : "Enter the tax amount you have already paid for this year."}
                 </p>
               </div>
 
               {/* Final Balance */}
-              <div className={`flex justify-between items-center py-4 px-4 rounded-lg border-2 ${
-                Math.max(0, (manualTotalTax || 0) - ((taxComputation?.taxCredits?.apit || 0) + (taxComputation?.taxCredits?.wht || 0))) - manualTaxPayable > 0 
-                  ? 'bg-red-50 border-red-300' 
-                  : Math.max(0, (manualTotalTax || 0) - ((taxComputation?.taxCredits?.apit || 0) + (taxComputation?.taxCredits?.wht || 0))) - manualTaxPayable < 0
+              <div className={`flex justify-between items-center py-4 px-4 rounded-lg border-2 ${Math.max(0, (manualTotalTax || 0) - ((taxComputation?.taxCredits?.apit || 0) + (taxComputation?.taxCredits?.wht || 0))) - manualTaxPayable > 0
+                ? 'bg-red-50 border-red-300'
+                : Math.max(0, (manualTotalTax || 0) - ((taxComputation?.taxCredits?.apit || 0) + (taxComputation?.taxCredits?.wht || 0))) - manualTaxPayable < 0
                   ? 'bg-green-50 border-green-300'
                   : 'bg-slate-50 border-slate-300'
-              }`}>
-                <span className={`font-bold text-lg ${
-                  Math.max(0, (manualTotalTax || 0) - ((taxComputation?.taxCredits?.apit || 0) + (taxComputation?.taxCredits?.wht || 0))) - manualTaxPayable > 0 
-                    ? 'text-red-900' 
-                    : Math.max(0, (manualTotalTax || 0) - ((taxComputation?.taxCredits?.apit || 0) + (taxComputation?.taxCredits?.wht || 0))) - manualTaxPayable < 0
+                }`}>
+                <span className={`font-bold text-lg ${Math.max(0, (manualTotalTax || 0) - ((taxComputation?.taxCredits?.apit || 0) + (taxComputation?.taxCredits?.wht || 0))) - manualTaxPayable > 0
+                  ? 'text-red-900'
+                  : Math.max(0, (manualTotalTax || 0) - ((taxComputation?.taxCredits?.apit || 0) + (taxComputation?.taxCredits?.wht || 0))) - manualTaxPayable < 0
                     ? 'text-green-900'
                     : 'text-slate-900'
-                }`}>
-                  {Math.max(0, (manualTotalTax || 0) - ((taxComputation?.taxCredits?.apit || 0) + (taxComputation?.taxCredits?.wht || 0))) - manualTaxPayable < 0 
-                    ? 'Refund claimed (Rs.)' 
+                  }`}>
+                  {Math.max(0, (manualTotalTax || 0) - ((taxComputation?.taxCredits?.apit || 0) + (taxComputation?.taxCredits?.wht || 0))) - manualTaxPayable < 0
+                    ? 'Refund claimed (Rs.)'
                     : 'Still to pay (Rs.)'}
                 </span>
-                <span className={`text-2xl font-bold ${
-                  Math.max(0, (manualTotalTax || 0) - ((taxComputation?.taxCredits?.apit || 0) + (taxComputation?.taxCredits?.wht || 0))) - manualTaxPayable > 0 
-                    ? 'text-red-600' 
-                    : Math.max(0, (manualTotalTax || 0) - ((taxComputation?.taxCredits?.apit || 0) + (taxComputation?.taxCredits?.wht || 0))) - manualTaxPayable < 0
+                <span className={`text-2xl font-bold ${Math.max(0, (manualTotalTax || 0) - ((taxComputation?.taxCredits?.apit || 0) + (taxComputation?.taxCredits?.wht || 0))) - manualTaxPayable > 0
+                  ? 'text-red-600'
+                  : Math.max(0, (manualTotalTax || 0) - ((taxComputation?.taxCredits?.apit || 0) + (taxComputation?.taxCredits?.wht || 0))) - manualTaxPayable < 0
                     ? 'text-green-600'
                     : 'text-slate-600'
-                }`}>
+                  }`}>
                   {Math.abs(Math.max(0, (manualTotalTax || 0) - ((taxComputation?.taxCredits?.apit || 0) + (taxComputation?.taxCredits?.wht || 0))) - manualTaxPayable).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
@@ -580,21 +601,21 @@ export function IncomePage() {
 
                 config.brackets.forEach((bracket, index) => {
                   if (remainingIncome <= 0) return;
-                  
+
                   const slabIncome = Math.min(
                     remainingIncome,
                     bracket.limit - previousLimit
                   );
-                  
+
                   const slabTax = slabIncome * bracket.rate;
-                  
+
                   if (slabIncome > 0) {
-                    const slabLabel = index === 0 
-                      ? `First Rs. ${bracket.limit.toLocaleString('en-LK')}` 
+                    const slabLabel = index === 0
+                      ? `First Rs. ${bracket.limit.toLocaleString('en-LK')}`
                       : bracket.limit === Infinity
-                      ? `Balance over Rs. ${previousLimit.toLocaleString('en-LK')}`
-                      : `Next Rs. ${(bracket.limit - previousLimit).toLocaleString('en-LK')}`;
-                    
+                        ? `Balance over Rs. ${previousLimit.toLocaleString('en-LK')}`
+                        : `Next Rs. ${(bracket.limit - previousLimit).toLocaleString('en-LK')}`;
+
                     breakdown.push({
                       slab: slabLabel,
                       income: slabIncome,
@@ -602,7 +623,7 @@ export function IncomePage() {
                       tax: slabTax
                     });
                   }
-                  
+
                   remainingIncome -= slabIncome;
                   previousLimit = bracket.limit;
                 });
@@ -623,7 +644,7 @@ export function IncomePage() {
                           </div>
                         </div>
                       ))}
-                      
+
                       <div className="flex justify-between pt-3 border-t-2 border-amber-300">
                         <span className="font-bold text-amber-900">Total Tax on Income:</span>
                         <span className="text-xl font-bold text-amber-700">
@@ -732,28 +753,28 @@ export function IncomePage() {
                   </p>
                 </div>
               </div>
-              
+
               {/* Tax Credits Breakdown */}
               {(() => {
-                const yearCertificates = certificates.filter(cert => 
-                  cert.taxYear === currentTaxYear && 
+                const yearCertificates = certificates.filter(cert =>
+                  cert.taxYear === currentTaxYear &&
                   (!selectedEntityForTax || cert.ownerId === selectedEntityForTax)
                 );
-                
+
                 const apitFromCerts = yearCertificates
                   .filter(c => c.type === 'employment')
                   .reduce((sum, c) => sum + c.details.taxDeducted, 0);
-                
+
                 const whtByType = {
                   interest: yearCertificates.filter(c => c.type === 'interest').reduce((sum, c) => sum + c.details.taxDeducted, 0),
                   dividend: yearCertificates.filter(c => c.type === 'dividend').reduce((sum, c) => sum + c.details.taxDeducted, 0),
                   rent: yearCertificates.filter(c => c.type === 'rent').reduce((sum, c) => sum + c.details.taxDeducted, 0),
                   other: yearCertificates.filter(c => c.type === 'other').reduce((sum, c) => sum + c.details.taxDeducted, 0),
                 };
-                
+
                 const totalWHT = Object.values(whtByType).reduce((sum, val) => sum + val, 0);
                 const totalTaxCredits = incomeSummary.totalAPIT + apitFromCerts + totalWHT;
-                
+
                 if (totalTaxCredits > 0) {
                   return (
                     <div className="mt-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
@@ -778,7 +799,7 @@ export function IncomePage() {
                             )}
                           </div>
                         </div>
-                        
+
                         {/* WHT Section */}
                         <div className="bg-white p-3 rounded border border-amber-100">
                           <p className="text-xs text-muted-foreground mb-1">WHT (Cage 908)</p>
@@ -819,9 +840,9 @@ export function IncomePage() {
                 }
                 return null;
               })()}
-              
+
               <div className="text-center text-sm text-muted-foreground pt-4 border-t">
-                 Total Income: {formatLKR(incomeSummary.totalIncome)}
+                Total Income: {formatLKR(incomeSummary.totalIncome)}
               </div>
             </CardContent>
           )}
@@ -839,42 +860,42 @@ export function IncomePage() {
               {derivedInvestmentIncome
                 .filter((income) => !selectedEntityForTax || income.ownerId === selectedEntityForTax)
                 .map((income, idx) => (
-                <Card key={`derived-${idx}`} className="border-l-4 border-l-purple-500 opacity-75 bg-purple-50">
-                  <CardContent className="py-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 bg-purple-50 rounded-lg">
-                          <TrendingUp className="w-5 h-5 text-purple-600" />
+                  <Card key={`derived-${idx}`} className="border-l-4 border-l-purple-500 opacity-75 bg-purple-50">
+                    <CardContent className="py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="p-3 bg-purple-50 rounded-lg">
+                            <TrendingUp className="w-5 h-5 text-purple-600" />
+                          </div>
+                          <div>
+                            <p className="font-semibold">
+                              {income.type === 'interest' && 'Interest Income'}
+                              {income.type === 'dividend' && 'Dividend Income'}
+                              {income.type === 'rent' && 'Rental Income'}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {getEntityName(income.ownerId)} • {income.source}
+                            </p>
+                            <p className="text-xs text-purple-600 mt-1">
+                              Derived from Assets & Liabilities page
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold">
-                            {income.type === 'interest' && 'Interest Income'}
-                            {income.type === 'dividend' && 'Dividend Income'}
-                            {income.type === 'rent' && 'Rental Income'}
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">Amount</p>
+                          <p className="font-bold text-lg text-purple-600">
+                            {formatLKR(income.amount)}
                           </p>
-                          <p className="text-sm text-muted-foreground">
-                            {getEntityName(income.ownerId)} • {income.source}
-                          </p>
-                          <p className="text-xs text-purple-600 mt-1">
-                            Derived from Assets & Liabilities page
-                          </p>
+                          {income.wht > 0 && (
+                            <p className="text-xs text-orange-600 mt-1">
+                              WHT: {formatLKR(income.wht)}
+                            </p>
+                          )}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Amount</p>
-                        <p className="font-bold text-lg text-purple-600">
-                          {formatLKR(income.amount)}
-                        </p>
-                        {income.wht > 0 && (
-                          <p className="text-xs text-orange-600 mt-1">
-                            WHT: {formatLKR(income.wht)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))}
             </div>
           </div>
         )}
@@ -895,104 +916,116 @@ export function IncomePage() {
               {currentYearIncomes
                 .filter((i) => i.schedule !== '3' && (!selectedEntityForTax || i.ownerId === selectedEntityForTax))
                 .map((income) => (
-              <Card key={income.id}>
-                <CardContent className="py-4">
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 bg-blue-50 rounded-lg">
-                          {getIncomeIcon(income.schedule)}
-                        </div>
-                        <div>
-                          <p className="font-semibold">
-                            {getIncomeTypeLabel(income)}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {getEntityName(income.ownerId)}
-                            {income.schedule === '1' && ` • ${(income as EmploymentIncome).details.employerName}`}
-                            {income.schedule === '2' && ` • ${(income as BusinessIncome).details.businessName}`}
-                            {income.schedule === '3' && ` • ${(income as InvestmentIncome).details.source}`}
-                            {income.schedule === '4' && ` • ${(income as OtherIncome).details.source}`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="text-sm text-muted-foreground">Amount</p>
-                          <p className="font-bold text-lg text-green-600">
-                            {formatLKR(getIncomeAmount(income))}
-                          </p>
-                          <p className="text-xs text-orange-600 mt-1">
-                            {income.schedule === '1' && `Tax: ${formatLKR((income as EmploymentIncome).details.apitDeducted)}`}
-                            {income.schedule === '3' && `WHT: ${formatLKR((income as InvestmentIncome).details.whtDeducted)}`}
-                            {income.schedule === '4' && (income as OtherIncome).details.whtDeducted && `WHT: ${formatLKR((income as OtherIncome).details.whtDeducted)}`}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(income)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(income.id)}
-                          >
-                            <Trash2 className="w-4 h-4 text-red-600" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                    {(() => {
-                      const linkedCerts = certificates.filter(cert => cert.relatedIncomeId === income.id && cert.taxYear === currentTaxYear);
-                      if (linkedCerts.length > 0) {
-                        return (
-                          <div className="mt-3 pt-3 border-t border-slate-200">
-                            <div className="flex items-center gap-2 mb-2">
-                              <FileText className="w-4 h-4 text-slate-500" />
-                              <span className="text-xs font-medium text-slate-600">Linked Certificates ({linkedCerts.length})</span>
+                  <Card key={income.id}>
+                    <CardContent className="py-4">
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="p-3 bg-blue-50 rounded-lg">
+                              {getIncomeIcon(income.schedule)}
                             </div>
-                            <div className="space-y-1.5">
-                              {linkedCerts.map(cert => (
-                                <div key={cert.id} className="flex items-center justify-between bg-yellow-50 border border-yellow-200 rounded px-3 py-2">
-                                  <div className="flex items-center gap-2">
-                                    {cert.verified && <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />}
-                                    <span className="text-xs font-medium text-slate-700">{cert.certificateNo}</span>
-                                    <span className="text-xs text-slate-500">•</span>
-                                    <span className="text-xs text-slate-600">{cert.details.payerName}</span>
-                                  </div>
-                                  <div className="flex items-center gap-3 text-xs">
-                                    <span className="text-slate-600">Gross: {formatLKR(cert.details.grossAmount)}</span>
-                                    <span className="text-red-600 font-medium">Tax: {formatLKR(cert.details.taxDeducted)}</span>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 px-2 text-xs"
-                                      onClick={() => navigate(`/certificates/edit/${cert.id}`)}
-                                    >
-                                      View
-                                    </Button>
-                                  </div>
-                                </div>
-                              ))}
+                            <div>
+                              <p className="font-semibold">
+                                {getIncomeTypeLabel(income)}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {getEntityName(income.ownerId)}
+                                {income.schedule === '1' && ` • ${(income as EmploymentIncome).details.employerName}`}
+                                {income.schedule === '2' && ` • ${(income as BusinessIncome).details.businessName}`}
+                                {income.schedule === '3' && ` • ${(income as InvestmentIncome).details.source}`}
+                                {income.schedule === '4' && ` • ${(income as OtherIncome).details.source}`}
+                              </p>
                             </div>
                           </div>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                          <div className="flex items-center gap-4">
+                            <div className="text-right flex flex-col items-end gap-1 min-w-[120px]">
+                              {(() => {
+                                const details = getIncomeDetails(income);
+                                return (
+                                  <>
+                                    <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
+                                      <span>Gross:</span>
+                                      <span className="font-medium text-slate-700">{formatLKR(details.gross)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-end gap-2 text-sm">
+                                      <span>Taxable:</span>
+                                      <span className="font-bold text-green-600">{formatLKR(details.taxable)}</span>
+                                    </div>
+                                    {details.tax > 0 && (
+                                      <div className="flex items-center justify-end gap-2 text-xs text-orange-600">
+                                        <span>{details.taxLabel}:</span>
+                                        <span className="font-medium">{formatLKR(details.tax)}</span>
+                                      </div>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEdit(income)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDelete(income.id)}
+                              >
+                                <Trash2 className="w-4 h-4 text-red-600" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                        {(() => {
+                          const linkedCerts = certificates.filter(cert => cert.relatedIncomeId === income.id && cert.taxYear === currentTaxYear);
+                          if (linkedCerts.length > 0) {
+                            return (
+                              <div className="mt-3 pt-3 border-t border-slate-200">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <FileText className="w-4 h-4 text-slate-500" />
+                                  <span className="text-xs font-medium text-slate-600">Linked Certificates ({linkedCerts.length})</span>
+                                </div>
+                                <div className="space-y-1.5">
+                                  {linkedCerts.map(cert => (
+                                    <div key={cert.id} className="flex items-center justify-between bg-yellow-50 border border-yellow-200 rounded px-3 py-2">
+                                      <div className="flex items-center gap-2">
+                                        {cert.verified && <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />}
+                                        <span className="text-xs font-medium text-slate-700">{cert.certificateNo}</span>
+                                        <span className="text-xs text-slate-500">•</span>
+                                        <span className="text-xs text-slate-600">{cert.details.payerName}</span>
+                                      </div>
+                                      <div className="flex items-center gap-3 text-xs">
+                                        <span className="text-slate-600">Gross: {formatLKR(cert.details.grossAmount)}</span>
+                                        <span className="text-red-600 font-medium">Tax: {formatLKR(cert.details.taxDeducted)}</span>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 px-2 text-xs"
+                                          onClick={() => navigate(`/certificates/edit/${cert.id}`)}
+                                        >
+                                          View
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
             </div>
           </div>
         )}
       </div>
-      
+
       {/* Income Schedule PDF Import Wizard */}
       <IncomeSchedulePDFImportWizard
         open={showPdfImportWizard}

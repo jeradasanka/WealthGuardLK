@@ -38,8 +38,8 @@ export function DangerMeter({ selectedEntityId = 'family' }: DangerMeterProps) {
     if (selectedEntityId === 'family') {
       return allAssets;
     }
-    return allAssets.filter((a) => 
-      a.ownerId === selectedEntityId || 
+    return allAssets.filter((a) =>
+      a.ownerId === selectedEntityId ||
       (a.ownershipShares && a.ownershipShares.some((s) => s.entityId === selectedEntityId))
     );
   }, [allAssets, selectedEntityId]);
@@ -78,7 +78,7 @@ export function DangerMeter({ selectedEntityId = 'family' }: DangerMeterProps) {
   // Calculate total inflows and outflows (excluding living expenses from outflows)
   const totalInflows = auditRisk.totalIncome + auditRisk.newLoans + auditRisk.assetSales + auditRisk.inflowBreakdown.balanceDecreases + auditRisk.inflowBreakdown.stockCashWithdrawals;
   const totalOutflowsExcludingLiving = auditRisk.assetGrowth + auditRisk.outflowBreakdown.balanceIncreases + auditRisk.propertyExpenses + auditRisk.loanPayments + auditRisk.taxDeducted + auditRisk.outflowBreakdown.stockCashDeposits;
-  
+
   // Prepare pie chart data with breakdown including living expenses
   const pieChartData = [
     // Inflows breakdown
@@ -168,7 +168,7 @@ export function DangerMeter({ selectedEntityId = 'family' }: DangerMeterProps) {
                 </div>
               </div>
             </div>
-            <Button 
+            <Button
               onClick={() => setShowChatbot(true)}
               className="gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
               size="default"
@@ -180,243 +180,250 @@ export function DangerMeter({ selectedEntityId = 'family' }: DangerMeterProps) {
           </div>
           <CardDescription>{getRiskMessage()}</CardDescription>
         </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Main Layout: Pie Chart on Left, Breakdown Tables on Right */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* LEFT: Single Pie Chart (Inflow vs Outflow) */}
-          <div className="space-y-3">
-            <h3 className="font-semibold text-center text-sm uppercase tracking-wide">
-              Inflow vs Outflow Breakdown
-            </h3>
-            {pieChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={450}>
-                <PieChart>
-                  <Pie
-                    data={pieChartData}
-                    cx="50%"
-                    cy="45%"
-                    labelLine={true}
-                    label={({ cx, cy, midAngle, outerRadius, percent, name }) => {
-                      // Add type guards for optional parameters
-                      if (!percent || percent < 0.02) return null; // Hide labels for slices less than 2%
-                      if (typeof midAngle !== 'number' || typeof outerRadius !== 'number') return null;
-                      if (!cx || !cy) return null;
-                      
-                      const RADIAN = Math.PI / 180;
-                      const radius = outerRadius + 30;
-                      const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                      const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                      return (
-                        <text 
-                          x={x} 
-                          y={y} 
-                          fill="#374151" 
-                          textAnchor={x > cx ? 'start' : 'end'} 
-                          dominantBaseline="central"
-                          fontSize="12"
-                          fontWeight="500"
-                        >
-                          {`${name} ${(percent * 100).toFixed(1)}%`}
-                        </text>
-                      );
-                    }}
-                    outerRadius={110}
-                    innerRadius={0}
-                    dataKey="value"
-                    startAngle={90}
-                    endAngle={450}
-                    paddingAngle={1}
-                  >
-                    {pieChartData.map((entry) => (
-                      <Cell key={`cell-${entry.name}`} fill={entry.fill} stroke="#fff" strokeWidth={2} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[450px] flex items-center justify-center text-gray-400">
-                No data for this period
-              </div>
-            )}
-            
-            {/* Legend for categories */}
-            <div className="flex justify-center gap-6 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-green-500 rounded"></div>
-                <span className="font-medium">Inflows</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-red-500 rounded"></div>
-                <span className="font-medium">Outflows</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-yellow-400 rounded"></div>
-                <span className="font-medium">Living Expenses</span>
-              </div>
-            </div>
-          </div>
-
-          {/* RIGHT: Breakdown Tables */}
-          <div className="space-y-4">
-            {/* INFLOWS */}
+        <CardContent className="space-y-6">
+          {/* Main Layout: Pie Chart on Left, Breakdown Tables on Right */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* LEFT: Single Pie Chart (Inflow vs Outflow) */}
             <div className="space-y-3">
-              <h3 className="font-semibold text-sm uppercase tracking-wide text-green-700 border-b pb-2">
-                Inflows (Sources)
+              <h3 className="font-semibold text-center text-sm uppercase tracking-wide">
+                Inflow vs Outflow Breakdown
               </h3>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">Employment Income</p>
-                  <p className="font-semibold">{formatLKR(auditRisk.employmentIncome)}</p>
+              {pieChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={450}>
+                  <PieChart>
+                    <Pie
+                      data={pieChartData}
+                      cx="50%"
+                      cy="45%"
+                      labelLine={true}
+                      label={({ cx, cy, midAngle, outerRadius, name, value, category }) => {
+                        // Add type guards for optional parameters
+                        if (typeof midAngle !== 'number' || typeof outerRadius !== 'number') return null;
+                        if (!cx || !cy) return null;
+
+                        // Calculate percentage relative to its category (Inflow or Outflow)
+                        const categoryTotal = category === 'inflow'
+                          ? totalInflows
+                          : (totalOutflowsExcludingLiving + auditRisk.derivedLivingExpenses);
+
+                        const categoryPercent = categoryTotal > 0 ? (value / categoryTotal) : 0;
+                        if (categoryPercent < 0.02) return null; // Hide labels for slices less than 2%
+
+                        const RADIAN = Math.PI / 180;
+                        const radius = outerRadius + 30;
+                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                        return (
+                          <text
+                            x={x}
+                            y={y}
+                            fill="#374151"
+                            textAnchor={x > cx ? 'start' : 'end'}
+                            dominantBaseline="central"
+                            fontSize="12"
+                            fontWeight="500"
+                          >
+                            {`${name} ${(categoryPercent * 100).toFixed(1)}%`}
+                          </text>
+                        );
+                      }}
+                      outerRadius={110}
+                      innerRadius={0}
+                      dataKey="value"
+                      startAngle={90}
+                      endAngle={450}
+                      paddingAngle={1}
+                    >
+                      {pieChartData.map((entry) => (
+                        <Cell key={`cell-${entry.name}`} fill={entry.fill} stroke="#fff" strokeWidth={2} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[450px] flex items-center justify-center text-gray-400">
+                  No data for this period
                 </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">Business Income</p>
-                  <p className="font-semibold">{formatLKR(auditRisk.businessIncome)}</p>
+              )}
+
+              {/* Legend for categories */}
+              <div className="flex justify-center gap-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-green-500 rounded"></div>
+                  <span className="font-medium">Inflows</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">Investment Income</p>
-                  <p className="font-semibold">{formatLKR(auditRisk.investmentIncome)}</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-red-500 rounded"></div>
+                  <span className="font-medium">Outflows</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">New Loans</p>
-                  <p className="font-semibold">{formatLKR(auditRisk.newLoans)}</p>
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">Asset Sales</p>
-                  <p className="font-semibold">{formatLKR(auditRisk.assetSales)}</p>
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">Savings Withdrawals</p>
-                  <p className="font-semibold">{formatLKR(auditRisk.inflowBreakdown.balanceDecreases)}</p>
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">Stock Cash Withdrawals</p>
-                  <p className="font-semibold">{formatLKR(auditRisk.inflowBreakdown.stockCashWithdrawals)}</p>
-                </div>
-                <div className="flex justify-between items-center pt-2 border-t font-bold">
-                  <p className="text-sm">Total Inflows</p>
-                  <p className="text-green-600">{formatLKR(totalInflows)}</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-yellow-400 rounded"></div>
+                  <span className="font-medium">Living Expenses</span>
                 </div>
               </div>
             </div>
 
-            {/* OUTFLOWS */}
-            <div className="space-y-3">
-              <h3 className="font-semibold text-sm uppercase tracking-wide text-red-700 border-b pb-2">
-                Outflows (Expenses)
-              </h3>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">Tax Deducted (APIT/WHT)</p>
-                  <p className="font-semibold">{formatLKR(auditRisk.taxDeducted)}</p>
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">Asset Purchases</p>
-                  <p className="font-semibold">{formatLKR(auditRisk.assetGrowth)}</p>
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">Savings Deposits</p>
-                  <p className="font-semibold">{formatLKR(auditRisk.outflowBreakdown.balanceIncreases)}</p>
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">Property Expenses</p>
-                  <p className="font-semibold">{formatLKR(auditRisk.propertyExpenses)}</p>
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">Loan Principal</p>
-                  <p className="font-semibold">{formatLKR(auditRisk.outflowBreakdown.loanPrincipal)}</p>
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">Loan Interest</p>
-                  <p className="font-semibold">{formatLKR(auditRisk.outflowBreakdown.loanInterest)}</p>
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">Stock Cash Deposits</p>
-                  <p className="font-semibold">{formatLKR(auditRisk.outflowBreakdown.stockCashDeposits)}</p>
-                </div>
-                <div className="flex justify-between items-center pt-2 border-t font-bold">
-                  <p className="text-sm">Total Outflows</p>
-                  <p className="text-red-600">{formatLKR(totalOutflowsExcludingLiving)}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Balance Calculation */}
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg p-4">
-              <div className="space-y-2">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-700">Total Inflows:</span>
-                  <span className="font-semibold text-green-700">{formatLKR(totalInflows)}</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-700">Total Outflows:</span>
-                  <span className="font-semibold text-red-700">- {formatLKR(totalOutflowsExcludingLiving)}</span>
-                </div>
-                <div className="border-t-2 border-blue-300 pt-2 mt-2">
+            {/* RIGHT: Breakdown Tables */}
+            <div className="space-y-4">
+              {/* INFLOWS */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm uppercase tracking-wide text-green-700 border-b pb-2">
+                  Inflows (Sources)
+                </h3>
+                <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-blue-900">Living Expenses (Balance):</span>
-                    <span className="font-bold text-lg text-blue-900">{formatLKR(auditRisk.derivedLivingExpenses)}</span>
+                    <p className="text-sm text-muted-foreground">Employment Income</p>
+                    <p className="font-semibold">{formatLKR(auditRisk.employmentIncome)}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Business Income</p>
+                    <p className="font-semibold">{formatLKR(auditRisk.businessIncome)}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Investment Income</p>
+                    <p className="font-semibold">{formatLKR(auditRisk.investmentIncome)}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">New Loans</p>
+                    <p className="font-semibold">{formatLKR(auditRisk.newLoans)}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Asset Sales</p>
+                    <p className="font-semibold">{formatLKR(auditRisk.assetSales)}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Savings Withdrawals</p>
+                    <p className="font-semibold">{formatLKR(auditRisk.inflowBreakdown.balanceDecreases)}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Stock Cash Withdrawals</p>
+                    <p className="font-semibold">{formatLKR(auditRisk.inflowBreakdown.stockCashWithdrawals)}</p>
+                  </div>
+                  <div className="flex justify-between items-center pt-2 border-t font-bold">
+                    <p className="text-sm">Total Inflows</p>
+                    <p className="text-green-600">{formatLKR(totalInflows)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* OUTFLOWS */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm uppercase tracking-wide text-red-700 border-b pb-2">
+                  Outflows (Expenses)
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Tax Deducted (APIT/WHT)</p>
+                    <p className="font-semibold">{formatLKR(auditRisk.taxDeducted)}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Asset Purchases</p>
+                    <p className="font-semibold">{formatLKR(auditRisk.assetGrowth)}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Savings Deposits</p>
+                    <p className="font-semibold">{formatLKR(auditRisk.outflowBreakdown.balanceIncreases)}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Property Expenses</p>
+                    <p className="font-semibold">{formatLKR(auditRisk.propertyExpenses)}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Loan Principal</p>
+                    <p className="font-semibold">{formatLKR(auditRisk.outflowBreakdown.loanPrincipal)}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Loan Interest</p>
+                    <p className="font-semibold">{formatLKR(auditRisk.outflowBreakdown.loanInterest)}</p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Stock Cash Deposits</p>
+                    <p className="font-semibold">{formatLKR(auditRisk.outflowBreakdown.stockCashDeposits)}</p>
+                  </div>
+                  <div className="flex justify-between items-center pt-2 border-t font-bold">
+                    <p className="text-sm">Total Outflows</p>
+                    <p className="text-red-600">{formatLKR(totalOutflowsExcludingLiving)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Balance Calculation */}
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg p-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-700">Total Inflows:</span>
+                    <span className="font-semibold text-green-700">{formatLKR(totalInflows)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-700">Total Outflows:</span>
+                    <span className="font-semibold text-red-700">- {formatLKR(totalOutflowsExcludingLiving)}</span>
+                  </div>
+                  <div className="border-t-2 border-blue-300 pt-2 mt-2">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-blue-900">Living Expenses (Balance):</span>
+                      <span className="font-bold text-lg text-blue-900">{formatLKR(auditRisk.derivedLivingExpenses)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="pt-4 border-t bg-gray-50 p-4 rounded-lg">
-          <div className="text-center">
-            <p className="text-sm font-medium text-muted-foreground mb-2">Audit Risk Score</p>
-            {auditRisk.riskScore !== 0 && (
-              <>
-                <p className={`text-3xl font-bold ${auditRisk.riskScore > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  {formatLKR(Math.abs(auditRisk.riskScore))}
-                  {auditRisk.riskScore > 0 ? ' Unexplained' : ' Surplus'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Living Expenses = Inflows - Outflows (excl. living) | Risk = Total Outflows - Total Inflows
-                </p>
-              </>
-            )}
-            {auditRisk.riskScore === 0 && (
-              <>
-                <p className="text-2xl font-bold text-gray-600">Balanced</p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Total inflows match total outflows (including living expenses)
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* AI Tax Agent CTA */}
-        <div className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg">
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
-              <MessageCircle className="w-6 h-6 text-white" />
-            </div>
-            <div className="flex-1">
-              <h4 className="font-semibold text-gray-900 mb-1">Need Tax Planning Advice?</h4>
-              <p className="text-sm text-gray-600 mb-3">
-                Get personalized recommendations from our AI Tax Agent. Analyze your situation, discover optimization opportunities, and ensure compliance.
-              </p>
-              <Button 
-                onClick={() => setShowChatbot(true)}
-                className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
-              >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Start AI Tax Consultation
-              </Button>
+          <div className="pt-4 border-t bg-gray-50 p-4 rounded-lg">
+            <div className="text-center">
+              <p className="text-sm font-medium text-muted-foreground mb-2">Audit Risk Score</p>
+              {auditRisk.riskScore !== 0 && (
+                <>
+                  <p className={`text-3xl font-bold ${auditRisk.riskScore > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {formatLKR(Math.abs(auditRisk.riskScore))}
+                    {auditRisk.riskScore > 0 ? ' Unexplained' : ' Surplus'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Living Expenses = Inflows - Outflows (excl. living) | Risk = Total Outflows - Total Inflows
+                  </p>
+                </>
+              )}
+              {auditRisk.riskScore === 0 && (
+                <>
+                  <p className="text-2xl font-bold text-gray-600">Balanced</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Total inflows match total outflows (including living expenses)
+                  </p>
+                </>
+              )}
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
 
-    <AITaxAgentChatbot 
-      open={showChatbot}
-      onClose={() => setShowChatbot(false)}
-      defaultTaxYear={currentTaxYear}
-    />
+          {/* AI Tax Agent CTA */}
+          <div className="mt-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
+                <MessageCircle className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-gray-900 mb-1">Need Tax Planning Advice?</h4>
+                <p className="text-sm text-gray-600 mb-3">
+                  Get personalized recommendations from our AI Tax Agent. Analyze your situation, discover optimization opportunities, and ensure compliance.
+                </p>
+                <Button
+                  onClick={() => setShowChatbot(true)}
+                  className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Start AI Tax Consultation
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <AITaxAgentChatbot
+        open={showChatbot}
+        onClose={() => setShowChatbot(false)}
+        defaultTaxYear={currentTaxYear}
+      />
     </>
   );
 }

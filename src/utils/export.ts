@@ -34,6 +34,16 @@ function getAssetValueForYear(asset: Asset, taxYear: string): number {
 }
 
 /**
+ * Helper to calculate total cost including expenses
+ */
+function calculateTotalCost(asset: Asset): number {
+  const initialCost = asset.financials.cost || 0;
+  // Add property expenses if any
+  const expenses = asset.propertyExpenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
+  return initialCost + expenses;
+}
+
+/**
  * Downloads encrypted JSON backup
  */
 export async function downloadBackup(passphrase: string, fileName?: string): Promise<void> {
@@ -487,7 +497,7 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
     immovableProperty.forEach((asset, idx) => {
       report += `│ ${idx + 1}. ${asset.meta.description || 'Property'}\n`;
       report += `│    Acquired:             ${asset.meta.dateAcquired || 'N/A'}\n`;
-      report += `│    Cost:                 ${formatLKR(asset.financials.cost)}\n`;
+      report += `│    Original Cost:        ${formatLKR(calculateTotalCost(asset))}\n`;
       report += `│    Market Value:         ${formatLKR(getAssetValueForYear(asset, taxYear))}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
@@ -498,7 +508,7 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
     vehicles.forEach((asset, idx) => {
       report += `│ ${idx + 1}. ${asset.meta.description || 'Vehicle'}\n`;
       report += `│    Acquired:             ${asset.meta.dateAcquired || 'N/A'}\n`;
-      report += `│    Cost:                 ${formatLKR(asset.financials.cost)}\n`;
+      report += `│    Original Cost:        ${formatLKR(calculateTotalCost(asset))}\n`;
       report += `│    Market Value:         ${formatLKR(getAssetValueForYear(asset, taxYear))}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
@@ -509,7 +519,8 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
     bankDeposits.forEach((asset, idx) => {
       report += `│ ${idx + 1}. ${asset.meta.description || 'Bank Account'}\n`;
       report += `│    As at:                ${asset.meta.dateAcquired || 'N/A'}\n`;
-      report += `│    Original Cost:        ${formatLKR(asset.financials.cost)}\n`;
+      report += `│    As at:                ${asset.meta.dateAcquired || 'N/A'}\n`;
+      report += `│    Original Cost:        ${formatLKR(calculateTotalCost(asset))}\n`;
       report += `│    Balance/Value:        ${formatLKR(getAssetValueForYear(asset, taxYear))}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
@@ -520,7 +531,7 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
     shares.forEach((asset, idx) => {
       report += `│ ${idx + 1}. ${asset.meta.description || 'Shares'}\n`;
       report += `│    Acquired:             ${asset.meta.dateAcquired || 'N/A'}\n`;
-      report += `│    Cost:                 ${formatLKR(asset.financials.cost)}\n`;
+      report += `│    Original Cost:        ${formatLKR(calculateTotalCost(asset))}\n`;
       report += `│    Market Value:         ${formatLKR(getAssetValueForYear(asset, taxYear))}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
@@ -531,7 +542,7 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
     cash.forEach((asset, idx) => {
       report += `│ ${idx + 1}. ${asset.meta.description || 'Cash'}\n`;
       report += `│    As at:                ${asset.meta.dateAcquired || 'N/A'}\n`;
-      report += `│    Original Cost:        ${formatLKR(asset.financials.cost)}\n`;
+      report += `│    Original Cost:        ${formatLKR(calculateTotalCost(asset))}\n`;
       report += `│    Amount:               ${formatLKR(getAssetValueForYear(asset, taxYear))}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
@@ -542,7 +553,8 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
     loansGiven.forEach((asset, idx) => {
       report += `│ ${idx + 1}. ${asset.meta.description || 'Loan Given'}\n`;
       report += `│    Date:                 ${asset.meta.dateAcquired || 'N/A'}\n`;
-      report += `│    Amount:               ${formatLKR(asset.financials.cost)}\n`;
+      report += `│    Date:                 ${asset.meta.dateAcquired || 'N/A'}\n`;
+      report += `│    Amount:               ${formatLKR(calculateTotalCost(asset))}\n`;
       report += `│    Current Value:        ${formatLKR(getAssetValueForYear(asset, taxYear))}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
@@ -556,7 +568,8 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
       report += `│ ${idx + 1}. ${asset.meta.description || 'Jewellery'}\n`;
       report += `│    Type:                 ${itemType}\n`;
       report += `│    Acquired:             ${asset.meta.dateAcquired || 'N/A'}\n`;
-      report += `│    Original Cost:        ${formatLKR(asset.financials.cost)}\n`;
+      report += `│    Acquired:             ${asset.meta.dateAcquired || 'N/A'}\n`;
+      report += `│    Original Cost:        ${formatLKR(calculateTotalCost(asset))}\n`;
       report += `│    Calculated Value:     ${formatLKR(marketValue)}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
@@ -567,7 +580,7 @@ STATEMENT OF ASSETS AND LIABILITIES (As at ${taxYear}-03-31)
     businessProperty.forEach((asset, idx) => {
       report += `│ ${idx + 1}. ${asset.meta.description || 'Business Property'}\n`;
       report += `│    Acquired:             ${asset.meta.dateAcquired || 'N/A'}\n`;
-      report += `│    Cost:                 ${formatLKR(asset.financials.cost)}\n`;
+      report += `│    Original Cost:        ${formatLKR(calculateTotalCost(asset))}\n`;
       report += `│    Market Value:         ${formatLKR(getAssetValueForYear(asset, taxYear))}\n`;
       report += `│    ───────────────────────────────────────────────────────────────────\n`;
     });
@@ -1071,9 +1084,9 @@ export function downloadDetailedTaxReportPDF(
     doc.setFont('helvetica', 'normal');
     immovableProperty.forEach((asset, idx) => {
       checkPageBreak(15);
-      doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
+      doc.text(`${idx + 1}. ${asset.meta.description || 'Property'}`, margin + 10, yPos);
       yPos += lineHeight;
-      doc.text(`   Original Cost: ${formatLKR(asset.financials.cost)}`, margin + 10, yPos);
+      doc.text(`   Original Cost: ${formatLKR(calculateTotalCost(asset))}`, margin + 10, yPos);
       yPos += lineHeight;
       doc.text(`   Market Value: ${formatLKR(getAssetValueForYear(asset, taxYear))}`, margin + 10, yPos);
       yPos += lineHeight + 2;
@@ -1090,9 +1103,9 @@ export function downloadDetailedTaxReportPDF(
     doc.setFont('helvetica', 'normal');
     vehicles.forEach((asset, idx) => {
       checkPageBreak(15);
-      doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
+      doc.text(`${idx + 1}. ${asset.meta.description || 'Vehicle'}`, margin + 10, yPos);
       yPos += lineHeight;
-      doc.text(`   Original Cost: ${formatLKR(asset.financials.cost)}`, margin + 10, yPos);
+      doc.text(`   Original Cost: ${formatLKR(calculateTotalCost(asset))}`, margin + 10, yPos);
       yPos += lineHeight;
       doc.text(`   Market Value: ${formatLKR(getAssetValueForYear(asset, taxYear))}`, margin + 10, yPos);
       yPos += lineHeight + 2;
@@ -1109,9 +1122,9 @@ export function downloadDetailedTaxReportPDF(
     doc.setFont('helvetica', 'normal');
     bankDeposits.forEach((asset, idx) => {
       checkPageBreak(15);
-      doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
+      doc.text(`${idx + 1}. ${asset.meta.description || 'Bank Account'}`, margin + 10, yPos);
       yPos += lineHeight;
-      doc.text(`   Original Cost: ${formatLKR(asset.financials.cost)}`, margin + 10, yPos);
+      doc.text(`   Original Cost: ${formatLKR(calculateTotalCost(asset))}`, margin + 10, yPos);
       yPos += lineHeight;
       doc.text(`   Balance/Value: ${formatLKR(getAssetValueForYear(asset, taxYear))}`, margin + 10, yPos);
       yPos += lineHeight + 2;
@@ -1128,9 +1141,9 @@ export function downloadDetailedTaxReportPDF(
     doc.setFont('helvetica', 'normal');
     shares.forEach((asset, idx) => {
       checkPageBreak(15);
-      doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
+      doc.text(`${idx + 1}. ${asset.meta.description || 'Shares'}`, margin + 10, yPos);
       yPos += lineHeight;
-      doc.text(`   Original Cost: ${formatLKR(asset.financials.cost)}`, margin + 10, yPos);
+      doc.text(`   Original Cost: ${formatLKR(calculateTotalCost(asset))}`, margin + 10, yPos);
       yPos += lineHeight;
       doc.text(`   Market Value: ${formatLKR(getAssetValueForYear(asset, taxYear))}`, margin + 10, yPos);
       yPos += lineHeight + 2;
@@ -1147,9 +1160,9 @@ export function downloadDetailedTaxReportPDF(
     doc.setFont('helvetica', 'normal');
     cash.forEach((asset, idx) => {
       checkPageBreak(15);
-      doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
+      doc.text(`${idx + 1}. ${asset.meta.description || 'Cash'}`, margin + 10, yPos);
       yPos += lineHeight;
-      doc.text(`   Original Cost: ${formatLKR(asset.financials.cost)}`, margin + 10, yPos);
+      doc.text(`   Original Cost: ${formatLKR(calculateTotalCost(asset))}`, margin + 10, yPos);
       yPos += lineHeight;
       doc.text(`   Amount: ${formatLKR(getAssetValueForYear(asset, taxYear))}`, margin + 10, yPos);
       yPos += lineHeight + 2;
@@ -1166,9 +1179,9 @@ export function downloadDetailedTaxReportPDF(
     doc.setFont('helvetica', 'normal');
     loansGiven.forEach((asset, idx) => {
       checkPageBreak(15);
-      doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
+      doc.text(`${idx + 1}. ${asset.meta.description || 'Loan Given'}`, margin + 10, yPos);
       yPos += lineHeight;
-      doc.text(`   Original Cost: ${formatLKR(asset.financials.cost)}`, margin + 10, yPos);
+      doc.text(`   Original Cost: ${formatLKR(calculateTotalCost(asset))}`, margin + 10, yPos);
       yPos += lineHeight;
       doc.text(`   Amount: ${formatLKR(getAssetValueForYear(asset, taxYear))}`, margin + 10, yPos);
       yPos += lineHeight + 2;
@@ -1187,9 +1200,9 @@ export function downloadDetailedTaxReportPDF(
       checkPageBreak(20);
       const marketValue = getJewelleryMarketValue(asset, taxYear);
       const itemType = asset.meta.itemType || 'N/A';
-      doc.text(`${idx + 1}. ${asset.name} (${itemType})`, margin + 10, yPos);
+      doc.text(`${idx + 1}. ${asset.meta.description || 'Jewellery'} (${itemType})`, margin + 10, yPos);
       yPos += lineHeight;
-      doc.text(`   Original Cost: ${formatLKR(asset.financials.cost)}`, margin + 10, yPos);
+      doc.text(`   Original Cost: ${formatLKR(calculateTotalCost(asset))}`, margin + 10, yPos);
       yPos += lineHeight;
       doc.text(`   Calculated Market Value: ${formatLKR(marketValue)}`, margin + 10, yPos);
       yPos += lineHeight + 2;
@@ -1206,9 +1219,9 @@ export function downloadDetailedTaxReportPDF(
     doc.setFont('helvetica', 'normal');
     businessProperty.forEach((asset, idx) => {
       checkPageBreak(15);
-      doc.text(`${idx + 1}. ${asset.name}`, margin + 10, yPos);
+      doc.text(`${idx + 1}. ${asset.meta.description || 'Business Property'}`, margin + 10, yPos);
       yPos += lineHeight;
-      doc.text(`   Original Cost: ${formatLKR(asset.financials.cost)}`, margin + 10, yPos);
+      doc.text(`   Original Cost: ${formatLKR(calculateTotalCost(asset))}`, margin + 10, yPos);
       yPos += lineHeight;
       doc.text(`   Market Value: ${formatLKR(getAssetValueForYear(asset, taxYear))}`, margin + 10, yPos);
       yPos += lineHeight + 2;

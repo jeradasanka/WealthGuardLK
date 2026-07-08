@@ -168,7 +168,7 @@ npm run preview     # Preview production build
 
 ### Firebase Deployment
 ```bash
-firebase deploy     # Deploys to https://wealthguard-f7c26.web.app
+firebase deploy     # Deploys to https://wealthguard.web.app
 ```
 
 ### Key Files to Read First

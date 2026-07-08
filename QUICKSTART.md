@@ -2,7 +2,7 @@
 
 ## 🎯 Application Status
 
-The WealthGuard LK application is **complete and deployed** at https://wealthguard-f7c26.web.app
+The WealthGuard LK application is **complete and deployed** at https://wealthguard.web.app
 
 ## ✅ Working Features
 
@@ -117,7 +117,7 @@ Alerts if source < cost (unexplained wealth)
 ### Production (Live)
 ```bash
 # Access the deployed application
-https://wealthguard-f7c26.web.app
+https://wealthguard.web.app
 ```
 
 ### Development
@@ -260,7 +260,7 @@ Red:    Risk > Rs. 500,000 (Danger - Unexplained Wealth!)
 - [x] PDF import wizard ✅
 - [x] Firebase deployment ✅
 
-**Status: Production Ready - Deployed at https://wealthguard-f7c26.web.app**
+**Status: Production Ready - Deployed at https://wealthguard.web.app**
 
 ## 🆘 Common Tasks
 

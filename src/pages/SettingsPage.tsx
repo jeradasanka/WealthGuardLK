@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Settings as SettingsIcon, Download, Upload, Shield, User, Calendar, Trash2 } from 'lucide-react';
+import { ArrowLeft, Settings as SettingsIcon, Download, Upload, Shield, User, Calendar, Trash2, Cloud } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,9 +15,10 @@ import { ExportDialog } from '@/components/ExportDialog';
 import { ImportDialog } from '@/components/ImportDialog';
 import { EntityForm } from '@/components/EntityForm';
 import { deriveKey } from '@/utils/crypto';
-import { storePassphrase, clearStoredPassphrase } from '@/utils/storage';
+import { storePassphrase, clearStoredPassphrase, importData } from '@/utils/storage';
 import { getRecentTaxYears, formatTaxYear } from '@/lib/taxYear';
 import { fetchAvailableGeminiModels, FALLBACK_GEMINI_MODELS } from '@/utils/geminiPdfParser';
+import { loadGsiScript, getGoogleAccessToken, searchBackupFile, downloadBackupFile, uploadBackupFile } from '@/utils/googleDrive';
 
 export function SettingsPage() {
   const navigate = useNavigate();
@@ -35,8 +36,23 @@ export function SettingsPage() {
     geminiApiKey,
     setGeminiApiKey,
     geminiModel,
-    setGeminiModel
+    setGeminiModel,
+    googleClientId,
+    isGoogleDriveSynced,
+    googleDriveFileId,
+    googleAccessToken,
+    googleTokenExpiry,
+    setGoogleClientId,
+    setIsGoogleDriveSynced,
+    setGoogleAccessToken,
+    setGoogleDriveFileId,
+    loadFromStorage
   } = useStore();
+  const [googleClientIdInput, setGoogleClientIdInput] = useState(googleClientId || '');
+  const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
+  const [googleDriveSyncError, setGoogleDriveSyncError] = useState('');
+  const [isSyncingNow, setIsSyncingNow] = useState(false);
+  const [isRestoringNow, setIsRestoringNow] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showPassphraseChange, setShowPassphraseChange] = useState(false);
@@ -66,6 +82,123 @@ export function SettingsPage() {
         });
     }
   }, [useAiParsing, geminiApiKey]);
+
+  const handleConnectGoogleDrive = async () => {
+    setIsConnectingGoogle(true);
+    setGoogleDriveSyncError('');
+    try {
+      await loadGsiScript();
+      const auth = await getGoogleAccessToken(googleClientIdInput);
+      
+      setGoogleClientId(googleClientIdInput);
+      setGoogleAccessToken(auth.token, auth.expiresIn);
+      setIsGoogleDriveSynced(true);
+      
+      // Search for backup
+      const backup = await searchBackupFile(auth.token);
+      if (backup) {
+        setGoogleDriveFileId(backup.id);
+        console.log('Found existing Google Drive backup file:', backup.id);
+      }
+      alert('Successfully connected Google Drive Sync!');
+    } catch (err: any) {
+      console.error(err);
+      setGoogleDriveSyncError(err.message || 'Authentication failed. Please verify your Client ID.');
+    } finally {
+      setIsConnectingGoogle(false);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    let token = googleAccessToken;
+    if (!token || !googleTokenExpiry || googleTokenExpiry <= Date.now()) {
+      setIsSyncingNow(true);
+      try {
+        await loadGsiScript();
+        const auth = await getGoogleAccessToken(googleClientId);
+        setGoogleAccessToken(auth.token, auth.expiresIn);
+        token = auth.token;
+      } catch (err: any) {
+        alert('Authentication failed: ' + (err.message || err));
+        setIsSyncingNow(false);
+        return;
+      }
+    }
+
+    setIsSyncingNow(true);
+    try {
+      const encryptedData = localStorage.getItem('wealthguard_lk_data');
+      if (!encryptedData) {
+        throw new Error('No local data to sync');
+      }
+      const syncResult = await uploadBackupFile(token, encryptedData, googleDriveFileId || undefined);
+      if (syncResult && syncResult.id && syncResult.id !== googleDriveFileId) {
+        setGoogleDriveFileId(syncResult.id);
+      }
+      alert('Data successfully synced to Google Drive!');
+    } catch (err: any) {
+      alert('Sync failed: ' + (err.message || err));
+    } finally {
+      setIsSyncingNow(false);
+    }
+  };
+
+  const handleRestoreFromDrive = async () => {
+    let token = googleAccessToken;
+    if (!token || !googleTokenExpiry || googleTokenExpiry <= Date.now()) {
+      setIsRestoringNow(true);
+      try {
+        await loadGsiScript();
+        const auth = await getGoogleAccessToken(googleClientId);
+        setGoogleAccessToken(auth.token, auth.expiresIn);
+        token = auth.token;
+      } catch (err: any) {
+        alert('Authentication failed: ' + (err.message || err));
+        setIsRestoringNow(false);
+        return;
+      }
+    }
+
+    setIsRestoringNow(true);
+    try {
+      // Search for file
+      const backup = await searchBackupFile(token);
+      if (!backup) {
+        alert('No backup file found in your Google Drive.');
+        setIsRestoringNow(false);
+        return;
+      }
+      
+      // Prompt for passphrase
+      const userPassphrase = prompt('Enter your WealthGuard LK passphrase to decrypt the Google Drive backup:');
+      if (!userPassphrase) {
+        setIsRestoringNow(false);
+        return;
+      }
+      
+      const encryptedContent = await downloadBackupFile(token, backup.id);
+      const file = new File([encryptedContent], 'wealthguard_backup.wglk', { type: 'application/octet-stream' });
+      await importData(file, userPassphrase);
+      
+      // Decrypted successfully! Load state:
+      await loadFromStorage(userPassphrase);
+      setGoogleDriveFileId(backup.id);
+      
+      alert('Backup successfully restored from Google Drive!');
+    } catch (err: any) {
+      console.error(err);
+      alert('Restore failed: ' + (err.message || 'Check your passphrase and try again.'));
+    } finally {
+      setIsRestoringNow(false);
+    }
+  };
+
+  const handleDisconnectGoogleDrive = () => {
+    if (confirm('Are you sure you want to disconnect Google Drive Sync? This will stop automatic backups to your Google Drive.')) {
+      setIsGoogleDriveSynced(false);
+      alert('Google Drive Sync disconnected.');
+    }
+  };
 
   const entity = entities[0];
 
@@ -449,6 +582,114 @@ export function SettingsPage() {
                 Import Backup
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Google Drive Backup Sync */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Cloud className="h-5 w-5 text-blue-600" />
+              <CardTitle>Google Drive Backup Sync</CardTitle>
+            </div>
+            <CardDescription>Configure auto-sync to back up encrypted tax records in your Google Drive</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isGoogleDriveSynced ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div>
+                    <p className="font-semibold text-green-950 flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+                      Google Drive Sync is Active
+                    </p>
+                    <p className="text-xs text-green-800 mt-1">
+                      Your data is automatically backed up to Google Drive when you save changes.
+                    </p>
+                    {googleDriveFileId && (
+                      <p className="text-[10px] text-green-700 font-mono mt-1">
+                        Drive File ID: {googleDriveFileId}
+                      </p>
+                    )}
+                  </div>
+                  <Button variant="outline" size="sm" onClick={handleDisconnectGoogleDrive} className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700">
+                    Disconnect
+                  </Button>
+                </div>
+
+                {/* Token status / Re-auth warning */}
+                {(!googleAccessToken || !googleTokenExpiry || googleTokenExpiry <= Date.now()) && (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800 flex items-center justify-between">
+                    <span>⚠️ Google Drive authentication session expired. Please re-authenticate to continue background sync.</span>
+                    <Button size="sm" variant="outline" onClick={handleSyncNow} disabled={isSyncingNow} className="ml-2">
+                      Re-authorize
+                    </Button>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <Button onClick={handleSyncNow} disabled={isSyncingNow || isRestoringNow} size="sm">
+                    {isSyncingNow ? 'Syncing...' : 'Sync Now (Upload)'}
+                  </Button>
+                  <Button onClick={handleRestoreFromDrive} disabled={isSyncingNow || isRestoringNow} variant="outline" size="sm">
+                    {isRestoringNow ? 'Restoring...' : 'Restore from Drive (Download)'}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-900 leading-relaxed">
+                  <p className="font-semibold mb-1">🔒 Private & Zero-Knowledge</p>
+                  <p className="mb-2">Your backup is fully encrypted with your custom passphrase before upload. Google cannot see your tax details.</p>
+                  <p className="font-semibold mb-1">🛡️ Minimal Permissions</p>
+                  <p>WealthGuard LK uses the secure <code>drive.file</code> scope: it can ONLY view and edit backup files it creates itself. It has zero access to your other Google Drive files.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="googleClientIdSettings" className="flex justify-between items-center text-sm font-semibold">
+                    <span>Google Client ID</span>
+                    <a 
+                      href="https://console.cloud.google.com/" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      Create Client ID →
+                    </a>
+                  </Label>
+                  <Input
+                    id="googleClientIdSettings"
+                    type="text"
+                    placeholder="Enter OAuth Client ID"
+                    value={googleClientIdInput}
+                    onChange={(e) => setGoogleClientIdInput(e.target.value)}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-[10px] text-muted-foreground leading-normal">
+                    Create an OAuth 2.0 Client ID in the Google Cloud Console. Set Authorized JavaScript Origins to: <code>{window.location.origin}</code>.
+                  </p>
+                </div>
+
+                {googleDriveSyncError && (
+                  <p className="text-xs font-semibold text-red-600 bg-red-50 p-2 rounded border border-red-100">
+                    ⚠️ {googleDriveSyncError}
+                  </p>
+                )}
+
+                <Button 
+                  onClick={handleConnectGoogleDrive} 
+                  disabled={isConnectingGoogle || !googleClientIdInput.trim()} 
+                  className="w-full flex items-center justify-center gap-2"
+                >
+                  {isConnectingGoogle ? 'Connecting...' : (
+                    <>
+                      <Cloud className="w-4 h-4" />
+                      Connect Google Drive Sync
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 

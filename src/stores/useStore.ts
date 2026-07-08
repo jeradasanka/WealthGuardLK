@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import type { AppState, TaxEntity, Asset, Liability, Income, AITWHTCertificate, FinancialAssetBalance, LiabilityPayment, ValuationEntry } from '@/types';
 import { saveState, loadState } from '@/utils/storage';
 import { getCurrentTaxYear } from '@/lib/taxYear';
+import { uploadBackupFile } from '@/utils/googleDrive';
 
 interface StoreState extends AppState {
   passphrase: string | null;
@@ -14,11 +15,22 @@ interface StoreState extends AppState {
   geminiApiKey: string;
   geminiModel: string;
   
+  // Google Drive Sync properties
+  googleClientId: string;
+  isGoogleDriveSynced: boolean;
+  googleDriveFileId: string | null;
+  googleAccessToken: string | null;
+  googleTokenExpiry: number | null;
+  
   // Actions
   setPassphrase: (passphrase: string) => void;
   setUseAiParsing: (enabled: boolean) => void;
   setGeminiApiKey: (apiKey: string) => void;
   setGeminiModel: (model: string) => void;
+  setGoogleClientId: (clientId: string) => void;
+  setIsGoogleDriveSynced: (enabled: boolean) => void;
+  setGoogleAccessToken: (token: string | null, expiresInSeconds?: number) => void;
+  setGoogleDriveFileId: (fileId: string | null) => void;
   
   // Entity actions
   addEntity: (entity: TaxEntity) => void;
@@ -84,6 +96,13 @@ export const useStore = create<StoreState>((set, get) => ({
   geminiApiKey: localStorage.getItem('geminiApiKey') || '',
   geminiModel: localStorage.getItem('geminiModel') || 'gemini-2.0-flash-exp',
   
+  // Google Drive Sync properties
+  googleClientId: localStorage.getItem('wealthguard_lk_google_client_id') || import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+  isGoogleDriveSynced: localStorage.getItem('wealthguard_lk_google_drive_synced') === 'true',
+  googleDriveFileId: localStorage.getItem('wealthguard_lk_google_file_id') || null,
+  googleAccessToken: null,
+  googleTokenExpiry: null,
+  
   setPassphrase: (passphrase) => set({ passphrase }),
   
   setUseAiParsing: (enabled) => {
@@ -99,6 +118,35 @@ export const useStore = create<StoreState>((set, get) => ({
   setGeminiModel: (model) => {
     set({ geminiModel: model });
     localStorage.setItem('geminiModel', model);
+  },
+  
+  setGoogleClientId: (clientId) => {
+    set({ googleClientId: clientId });
+    localStorage.setItem('wealthguard_lk_google_client_id', clientId);
+  },
+  
+  setIsGoogleDriveSynced: (enabled) => {
+    set({ isGoogleDriveSynced: enabled });
+    localStorage.setItem('wealthguard_lk_google_drive_synced', enabled ? 'true' : 'false');
+    if (!enabled) {
+      // Clear token and cached file ID when disabled
+      set({ googleAccessToken: null, googleTokenExpiry: null, googleDriveFileId: null });
+      localStorage.removeItem('wealthguard_lk_google_file_id');
+    }
+  },
+  
+  setGoogleAccessToken: (token, expiresInSeconds) => {
+    const expiry = expiresInSeconds ? Date.now() + expiresInSeconds * 1000 : null;
+    set({ googleAccessToken: token, googleTokenExpiry: expiry });
+  },
+  
+  setGoogleDriveFileId: (fileId) => {
+    set({ googleDriveFileId: fileId });
+    if (fileId) {
+      localStorage.setItem('wealthguard_lk_google_file_id', fileId);
+    } else {
+      localStorage.removeItem('wealthguard_lk_google_file_id');
+    }
   },
   
   // Entity actions
@@ -331,6 +379,27 @@ export const useStore = create<StoreState>((set, get) => ({
     await saveState(appState, state.passphrase);
     console.log('=== SAVE COMPLETE ===');
     set({ lastSaved: appState.lastSaved });
+
+    // Sync with Google Drive if enabled and authenticated
+    if (state.isGoogleDriveSynced && state.googleAccessToken && state.googleTokenExpiry && state.googleTokenExpiry > Date.now()) {
+      const encryptedData = localStorage.getItem('wealthguard_lk_data');
+      if (encryptedData) {
+        try {
+          const syncResult = await uploadBackupFile(
+            state.googleAccessToken,
+            encryptedData,
+            state.googleDriveFileId || undefined
+          );
+          if (syncResult && syncResult.id && syncResult.id !== state.googleDriveFileId) {
+            set({ googleDriveFileId: syncResult.id });
+            localStorage.setItem('wealthguard_lk_google_file_id', syncResult.id);
+          }
+          console.log('Google Drive backup sync completed. File ID:', syncResult.id);
+        } catch (syncErr) {
+          console.error('Failed to sync backup to Google Drive:', syncErr);
+        }
+      }
+    }
   },
   
   loadFromStorage: async (passphrase) => {
@@ -343,5 +412,17 @@ export const useStore = create<StoreState>((set, get) => ({
     }
   },
   
-  resetState: () => set({ ...initialState, passphrase: null }),
+  resetState: () => {
+    set({ 
+      ...initialState, 
+      passphrase: null,
+      googleAccessToken: null,
+      googleTokenExpiry: null,
+      googleDriveFileId: null,
+      isGoogleDriveSynced: false
+    });
+    localStorage.removeItem('wealthguard_lk_google_client_id');
+    localStorage.removeItem('wealthguard_lk_google_drive_synced');
+    localStorage.removeItem('wealthguard_lk_google_file_id');
+  },
 }));

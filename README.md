@@ -395,7 +395,7 @@ See `src/types/index.ts` for complete type definitions.
   - Full Inland Revenue Act No. 24 of 2017 text
 - [ ] **Phase 16**: Testing and IRD compliance validation 🚧
 
-**MVP Status**: Ready for Production - Deployed at https://wealthguard-f7c26.web.app
+**MVP Status**: Ready for Production - Deployed at https://wealthguard.web.app
 
 ## 📖 IRD Reference
 

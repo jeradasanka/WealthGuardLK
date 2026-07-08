@@ -1,7 +1,7 @@
 # Firebase Deployment Guide
 
 ## Live Application
-**Production URL**: https://wealthguard-f7c26.web.app
+**Production URL**: https://wealthguard.web.app
 
 ## Prerequisites
 1. Install Firebase CLI: `npm install -g firebase-tools`
@@ -10,7 +10,7 @@
 ## Initial Setup
 1. Firebase project already configured: `wealthguard-f7c26`
 2. `.firebaserc` contains the project configuration (gitignored for security)
-3. `firebase.json` configures hosting settings
+3. `firebase.json` configures hosting settings (specifically targeted to deploy to `wealthguard` site under the default project)
 
 ## Build & Deploy
 

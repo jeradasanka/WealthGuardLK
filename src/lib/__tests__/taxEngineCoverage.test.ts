@@ -117,7 +117,7 @@ describe('Tax Engine Coverage Tests', () => {
           id: '1',
           ownerId: 'owner1',
           cageCategory: 'A',
-          meta: { dateAcquired: '2024-05-01' },
+          meta: { dateAcquired: '2024-05-01', description: 'Test Property 1' },
           financials: { cost: 5000000, marketValue: 5000000 },
           propertyExpenses: [
             { id: 'e1', taxYear: '2024', amount: 100000, description: 'Repair', date: '2024-06-01' },
@@ -127,7 +127,7 @@ describe('Tax Engine Coverage Tests', () => {
             id: '2',
             ownerId: 'owner1',
             cageCategory: 'A',
-            meta: { dateAcquired: '2020-01-01' }, // Old asset
+            meta: { dateAcquired: '2020-01-01', description: 'Test Property 2' }, // Old asset
             financials: { cost: 1000000, marketValue: 1000000 },
             disposed: {
                 date: '2024-08-01',
@@ -207,7 +207,7 @@ describe('Tax Engine Coverage Tests', () => {
               id: '1',
               ownerId: 'owner1',
               cageCategory: 'A',
-              meta: { dateAcquired: '2024-05-01' },
+              meta: { dateAcquired: '2024-05-01', description: 'Test Property' },
               financials: { cost: 10000000, marketValue: 10000000 },
             },
         ];
@@ -232,7 +232,7 @@ describe('Tax Engine Coverage Tests', () => {
               id: '1',
               ownerId: 'owner1',
               cageCategory: 'A',
-              meta: { dateAcquired: '2024-05-01' },
+              meta: { dateAcquired: '2024-05-01', description: 'Test Property' },
               financials: { cost: 200000, marketValue: 200000 },
             },
         ];
@@ -256,9 +256,9 @@ describe('Tax Engine Coverage Tests', () => {
         financials: {
           cost: 1000000,
           marketValue: 1000000,
-          sourceOfFunds: [
-            { id: 's1', type: 'savings', amount: 1000000, description: 'Savings' },
-          ],
+            sourceOfFunds: [
+              { type: 'savings', amount: 1000000, description: 'Savings' },
+            ],
         },
       };
       const result = validateSourceOfFunds(asset);
@@ -271,13 +271,13 @@ describe('Tax Engine Coverage Tests', () => {
         id: '1',
         ownerId: 'owner1',
         cageCategory: 'A',
-        meta: { dateAcquired: '2024-01-01' },
+        meta: { dateAcquired: '2024-01-01', description: 'Test Property' },
         financials: {
           cost: 1000000,
           marketValue: 1000000,
-          sourceOfFunds: [
-            { id: 's1', type: 'savings', amount: 500000, description: 'Savings' },
-          ],
+            sourceOfFunds: [
+              { type: 'savings', amount: 500000, description: 'Savings' },
+            ],
         },
       };
       const result = validateSourceOfFunds(asset);
@@ -290,7 +290,7 @@ describe('Tax Engine Coverage Tests', () => {
             id: '1',
             ownerId: 'owner1',
             cageCategory: 'A',
-            meta: { dateAcquired: '2024-01-01' },
+            meta: { dateAcquired: '2024-01-01', description: 'Test Property' },
             financials: {
               cost: 1000000,
               marketValue: 1000000,

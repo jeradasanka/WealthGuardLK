@@ -42,7 +42,6 @@ export function SettingsPage() {
     googleDriveFileId,
     googleAccessToken,
     googleTokenExpiry,
-    setGoogleClientId,
     setIsGoogleDriveSynced,
     setGoogleAccessToken,
     setGoogleDriveFileId,
@@ -60,7 +59,6 @@ export function SettingsPage() {
   const [confirmPassphrase, setConfirmPassphrase] = useState('');
   const [error, setError] = useState('');
   const [showAddFamily, setShowAddFamily] = useState(false);
-  const [editingEntity, setEditingEntity] = useState<string | null>(null);
   const [availableModels, setAvailableModels] = useState<Array<{ value: string; label: string; description: string }>>([
     ...FALLBACK_GEMINI_MODELS
   ]);

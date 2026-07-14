@@ -29,7 +29,7 @@ export function loadGsiScript(): Promise<void> {
     script.async = true;
     script.defer = true;
     script.onload = () => resolve();
-    script.onerror = (err) => reject(new Error('Failed to load Google Identity Services script'));
+    script.onerror = () => reject(new Error('Failed to load Google Identity Services script'));
     document.head.appendChild(script);
   });
 }

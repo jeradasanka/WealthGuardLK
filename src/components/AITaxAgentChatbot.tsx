@@ -176,7 +176,7 @@ export function AITaxAgentChatbot({
   }, []);
 
   // Load legislation from pre-extracted JSON files (fast, no API call)
-  const loadLegislation = useCallback(async (modelToUse: string) => {
+  const loadLegislation = useCallback(async () => {
     // Use refs to avoid dependency on state variables
     if (!geminiApiKey) {
       console.log('❌ Load legislation aborted: No API key');
@@ -243,7 +243,7 @@ export function AITaxAgentChatbot({
         .then(() => {
           // Load legislation AFTER models are fetched, using the default model from settings
           console.log('Models loaded, now loading legislation with model:', initialModelRef.current);
-          loadLegislation(initialModelRef.current);
+          loadLegislation();
         });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

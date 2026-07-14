@@ -97,7 +97,7 @@ export const useStore = create<StoreState>((set, get) => ({
   geminiModel: localStorage.getItem('geminiModel') || 'gemini-2.0-flash-exp',
   
   // Google Drive Sync properties
-  googleClientId: localStorage.getItem('wealthguard_lk_google_client_id') || import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+  googleClientId: localStorage.getItem('wealthguard_lk_google_client_id') || (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || '',
   isGoogleDriveSynced: localStorage.getItem('wealthguard_lk_google_drive_synced') === 'true',
   googleDriveFileId: localStorage.getItem('wealthguard_lk_google_file_id') || null,
   googleAccessToken: null,
@@ -308,7 +308,7 @@ export const useStore = create<StoreState>((set, get) => ({
   updateIncome: (id, updates) =>
     set((state) => ({
       incomes: state.incomes.map((i) =>
-        i.id === id ? { ...i, ...updates } : i
+        i.id === id ? { ...i, ...updates } as Income : i
       ),
     })),
     

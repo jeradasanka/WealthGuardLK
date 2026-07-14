@@ -45,7 +45,6 @@ export function Setup() {
   const [isRestoring, setIsRestoring] = useState(false);
 
   // Google Drive Store actions
-  const setGoogleClientId = useStore((state) => state.setGoogleClientId);
   const setGoogleAccessToken = useStore((state) => state.setGoogleAccessToken);
   const setIsGoogleDriveSynced = useStore((state) => state.setIsGoogleDriveSynced);
   const setGoogleDriveFileId = useStore((state) => state.setGoogleDriveFileId);

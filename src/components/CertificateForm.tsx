@@ -70,7 +70,7 @@ export function CertificateForm({ certificateId, onCancel }: CertificateFormProp
     if (!formData.ownerId) newErrors.ownerId = 'Please select an entity';
     if (!formData.taxYear) newErrors.taxYear = 'Please select a tax year';
     if (!formData.certificateNo.trim()) newErrors.certificateNo = 'Certificate number is required';
-    if (!formData.issueDate) newErrors.issueDate = 'Issue date is required';
+    if (!formData.paymentDate) newErrors.paymentDate = 'Payment date is required';
     if (!formData.payerName.trim()) newErrors.payerName = 'Payer name is required';
     if (!formData.payerTIN.trim()) newErrors.payerTIN = 'Payer TIN is required';
     

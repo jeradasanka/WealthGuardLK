@@ -15,7 +15,7 @@ import { PDFImportWizard } from '@/components/PDFImportWizard';
 import { useStore } from '@/stores/useStore';
 import { hasSavedData } from '@/utils/storage';
 import { formatLKR, filterAssetsForTaxYear, calculateTotalIncome, getJewelleryMarketValue, getForeignCurrencyMarketValue } from '@/lib/taxEngine';
-import { formatTaxYear, getTaxYearsFromStart, getTaxYearDateRange } from '@/lib/taxYear';
+import { formatTaxYear, getTaxYearsFromStart } from '@/lib/taxYear';
 import { downloadDetailedTaxReport, downloadDetailedTaxReportPDF } from '@/utils/export';
 
 export function Dashboard() {
@@ -79,7 +79,6 @@ export function Dashboard() {
   }
 
   // Filter data based on selected entity and tax year
-  const { start: taxYearStart, end: taxYearEnd } = getTaxYearDateRange(currentTaxYear);
   const taxYearEndString = `${parseInt(currentTaxYear) + 1}-03-31`;
   
   const filteredAssets = selectedEntityId === 'family' 
@@ -185,7 +184,7 @@ export function Dashboard() {
     
     // Subtract all payments made up to and including the selected tax year
     if (l.payments && l.payments.length > 0) {
-      const paymentsUpToYear = l.payments.filter(p => p.taxYear <= parseInt(currentTaxYear));
+      const paymentsUpToYear = l.payments.filter(p => parseInt(p.taxYear) <= parseInt(currentTaxYear));
       const totalPrincipalPaid = paymentsUpToYear.reduce((total, p) => total + p.principalPaid, 0);
       balanceAtYearEnd = l.originalAmount - totalPrincipalPaid;
     }

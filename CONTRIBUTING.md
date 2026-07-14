@@ -73,8 +73,9 @@ WealthGuard LK uses client-side Google API integrations. To configure Google Dri
    ```
 2. Open `.env` and fill in:
    - `VITE_GOOGLE_CLIENT_ID`: Your Google OAuth 2.0 Web Client ID.
-     - You can create one in the [Google Cloud Console](https://console.cloud.google.com/).
-     - Ensure the **Authorized JavaScript Origins** contains `http://localhost:5173` (or your Vite dev server port).
+     - You can copy this Client ID from your Firebase project (enable the Google Sign-in provider in Firebase Authentication to generate it automatically).
+     - Alternatively, create one in the [Google Cloud Console](https://console.cloud.google.com/).
+     - Ensure the **Authorized JavaScript Origins** includes `http://localhost:5173` (or your Vite dev server port).
 
 ---
 

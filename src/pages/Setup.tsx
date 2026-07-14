@@ -36,8 +36,6 @@ export function Setup() {
 
   // Google Drive Sync local state
   const googleClientIdStore = useStore((state) => state.googleClientId);
-  const [clientIdInput, setClientIdInput] = useState(googleClientIdStore || '');
-  const [showCustomClientId, setShowCustomClientId] = useState(!googleClientIdStore);
   const [isConnecting, setIsConnecting] = useState(false);
   const [googleAccessToken, setGoogleAccessTokenLocal] = useState('');
   const [authError, setAuthError] = useState('');
@@ -62,12 +60,14 @@ export function Setup() {
     setIsConnecting(true);
     setAuthError('');
     try {
+      if (!googleClientIdStore) {
+        throw new Error('Google Drive Integration is not configured. Please ensure VITE_GOOGLE_CLIENT_ID is set during deployment.');
+      }
       await loadGsiScript();
-      const auth = await getGoogleAccessToken(clientIdInput);
+      const auth = await getGoogleAccessToken(googleClientIdStore);
       setGoogleAccessTokenLocal(auth.token);
       
       // Save globally
-      setGoogleClientId(clientIdInput);
       setGoogleAccessToken(auth.token, auth.expiresIn);
       
       // Search backup file
@@ -77,7 +77,7 @@ export function Setup() {
       setIsSearching(false);
     } catch (err: any) {
       console.error(err);
-      setAuthError(err.message || 'Failed to authenticate with Google. Verify your Client ID and try again.');
+      setAuthError(err.message || 'Failed to authenticate with Google. Please try again.');
     } finally {
       setIsConnecting(false);
     }
@@ -330,48 +330,6 @@ export function Setup() {
               </p>
             </div>
 
-            {/* Google Client ID Option */}
-            {showCustomClientId ? (
-              <div className="space-y-2 border p-3 rounded-lg bg-slate-50/50">
-                <Label htmlFor="googleClientId" className="flex justify-between items-center text-xs font-semibold">
-                  <span>Custom Google Client ID (Advanced)</span>
-                  {googleClientIdStore && (
-                    <button 
-                      type="button" 
-                      onClick={() => {
-                        setShowCustomClientId(false);
-                        setClientIdInput(googleClientIdStore);
-                      }} 
-                      className="text-[10px] text-blue-600 hover:underline"
-                    >
-                      Use Default
-                    </button>
-                  )}
-                </Label>
-                <Input
-                  id="googleClientId"
-                  type="text"
-                  placeholder="Enter OAuth Client ID"
-                  value={clientIdInput}
-                  onChange={(e) => setClientIdInput(e.target.value)}
-                  className="text-xs font-mono"
-                />
-                <p className="text-[9px] text-muted-foreground leading-normal">
-                  Authorized JavaScript Origins for this Client ID must be set to: <code>{window.location.origin}</code>.
-                </p>
-              </div>
-            ) : (
-              <div className="text-right">
-                <button
-                  type="button"
-                  onClick={() => setShowCustomClientId(true)}
-                  className="text-xs text-slate-500 hover:text-slate-700 hover:underline font-medium"
-                >
-                  🔧 Use custom Google Client ID (Advanced)
-                </button>
-              </div>
-            )}
-
             {/* Error Message */}
             {authError && (
               <p className="text-xs font-medium text-red-600 bg-red-50 p-2 rounded border border-red-100">
@@ -383,7 +341,7 @@ export function Setup() {
             {!googleAccessToken ? (
               <Button 
                 onClick={handleGoogleSignIn} 
-                disabled={isConnecting || !clientIdInput.trim()} 
+                disabled={isConnecting || !googleClientIdStore} 
                 className="w-full flex items-center justify-center gap-2"
                 size="lg"
               >

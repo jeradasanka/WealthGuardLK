@@ -48,7 +48,6 @@ export function SettingsPage() {
     setGoogleDriveFileId,
     loadFromStorage
   } = useStore();
-  const [googleClientIdInput, setGoogleClientIdInput] = useState(googleClientId || '');
   const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
   const [googleDriveSyncError, setGoogleDriveSyncError] = useState('');
   const [isSyncingNow, setIsSyncingNow] = useState(false);
@@ -87,10 +86,12 @@ export function SettingsPage() {
     setIsConnectingGoogle(true);
     setGoogleDriveSyncError('');
     try {
+      if (!googleClientId) {
+        throw new Error('Google Drive Integration is not configured. Please ensure VITE_GOOGLE_CLIENT_ID is set during deployment.');
+      }
       await loadGsiScript();
-      const auth = await getGoogleAccessToken(googleClientIdInput);
+      const auth = await getGoogleAccessToken(googleClientId);
       
-      setGoogleClientId(googleClientIdInput);
       setGoogleAccessToken(auth.token, auth.expiresIn);
       setIsGoogleDriveSynced(true);
       
@@ -103,7 +104,7 @@ export function SettingsPage() {
       alert('Successfully connected Google Drive Sync!');
     } catch (err: any) {
       console.error(err);
-      setGoogleDriveSyncError(err.message || 'Authentication failed. Please verify your Client ID.');
+      setGoogleDriveSyncError(err.message || 'Authentication failed. Please try again.');
     } finally {
       setIsConnectingGoogle(false);
     }
@@ -645,31 +646,6 @@ export function SettingsPage() {
                   <p>WealthGuard LK uses the secure <code>drive.file</code> scope: it can ONLY view and edit backup files it creates itself. It has zero access to your other Google Drive files.</p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="googleClientIdSettings" className="flex justify-between items-center text-sm font-semibold">
-                    <span>Google Client ID</span>
-                    <a 
-                      href="https://console.cloud.google.com/" 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-xs text-blue-600 hover:underline"
-                    >
-                      Create Client ID →
-                    </a>
-                  </Label>
-                  <Input
-                    id="googleClientIdSettings"
-                    type="text"
-                    placeholder="Enter OAuth Client ID"
-                    value={googleClientIdInput}
-                    onChange={(e) => setGoogleClientIdInput(e.target.value)}
-                    className="font-mono text-sm"
-                  />
-                  <p className="text-[10px] text-muted-foreground leading-normal">
-                    Create an OAuth 2.0 Client ID in the Google Cloud Console. Set Authorized JavaScript Origins to: <code>{window.location.origin}</code>.
-                  </p>
-                </div>
-
                 {googleDriveSyncError && (
                   <p className="text-xs font-semibold text-red-600 bg-red-50 p-2 rounded border border-red-100">
                     ⚠️ {googleDriveSyncError}
@@ -678,7 +654,7 @@ export function SettingsPage() {
 
                 <Button 
                   onClick={handleConnectGoogleDrive} 
-                  disabled={isConnectingGoogle || !googleClientIdInput.trim()} 
+                  disabled={isConnectingGoogle || !googleClientId} 
                   className="w-full flex items-center justify-center gap-2"
                 >
                   {isConnectingGoogle ? 'Connecting...' : (

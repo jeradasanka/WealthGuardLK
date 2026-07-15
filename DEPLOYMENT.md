@@ -74,16 +74,39 @@ The build creates:
 ```
 
 ## Storage Architecture
-- **localStorage**: All encrypted user data (supports larger datasets)
-- **No backend**: Fully client-side application
-- **Offline-first**: Works without internet after initial load
-- **Backup files**: .wglk format (WealthGuard LK encrypted backups)
+- **localStorage**: All encrypted user data (Zustand store with automatic persistence)
+- **No custom backend**: Fully client-side application running 100% in browser
+- **Offline-first**: Works without internet after initial page load
+- **Local Backup files**: `.wglk` format (WealthGuard LK custom encrypted backups)
+- **Cloud Backup**: Google Drive Integration (GIS OAuth 2.0 Web Client)
+  - Uses `drive.file` scope (only interacts with files created by WealthGuard LK)
+  - Seamless background auto-sync on state change saves
+
+## Google Drive Integration Setup
+To set up Google Drive sync capability on your deployed version, you can leverage your existing Firebase project configuration:
+
+### Method A: Using your existing Firebase Project (Recommended)
+1. Go to the [Firebase Console](https://console.firebase.google.com/).
+2. Select your Firebase project (e.g., `wealthguard-f7c26`).
+3. Go to **Authentication > Sign-in method** and enable the **Google** provider.
+4. Under the Web SDK configuration, copy the **Web client ID**.
+5. Set the **Authorized JavaScript Origins** in the Google Cloud Console (associated with this Firebase project) to your deployment domain (e.g., `https://wealthguard.web.app` or `http://localhost:5173` for local testing).
+6. Enter this Client ID in the `.env` file as `VITE_GOOGLE_CLIENT_ID` before building the app, or enter it directly in the Settings/Setup UI.
+
+### Method B: Manual Google Cloud Setup
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
+2. Create or select a project.
+3. Enable the **Google Drive API**.
+4. Configure the OAuth Consent Screen (External, requesting the `.../auth/drive.file` scope).
+5. Create credentials: **OAuth 2.0 Client ID** (Web application).
+6. Set the **Authorized JavaScript Origins** to your deployment domain (e.g., `https://wealthguard.web.app`).
+7. Enter this Client ID in the `.env` file as `VITE_GOOGLE_CLIENT_ID` before building the app, or enter it directly in the Settings UI.
 
 ## Security Notes
 - `.firebaserc` is gitignored to keep project ID private in public repos
-- All sensitive data encrypted client-side before localStorage
-- No server-side data processing or storage
-- Backup files are encrypted and require passphrase to decrypt
+- All sensitive data is encrypted client-side using `AES-GCM` before localStorage and Google Drive upload
+- No server-side processing is done - the data is 100% yours
+- Backup files are encrypted and require your passphrase to decrypt
 
 ## Important Notes
 - The app uses client-side encryption, so all sensitive data stays in the browser

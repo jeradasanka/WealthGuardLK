@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useStore } from '@/stores/useStore';
-import { parseLiabilityPaymentPdf, type ParsedLiabilityPayment } from '@/utils/liabilityPaymentPdfParser';
+import { parseLiabilityPaymentPdf } from '@/utils/liabilityPaymentPdfParser';
 import { fetchAvailableGeminiModels, FALLBACK_GEMINI_MODELS } from '@/utils/geminiPdfParser';
 import { formatLKR } from '@/lib/taxEngine';
 import { formatTaxYear, getTaxYearsFromStart, getTaxYearForDate } from '@/lib/taxYear';

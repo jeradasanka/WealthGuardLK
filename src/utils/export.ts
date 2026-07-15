@@ -25,7 +25,7 @@ function getAssetValueForYear(asset: Asset, taxYear: string): number {
   if (asset.stockBalances && asset.stockBalances.length > 0) {
     const stockRecord = asset.stockBalances.find(b => b.taxYear === taxYear || b.taxYear.startsWith(taxYear));
     if (stockRecord) {
-      return stockRecord.marketValue;
+      return stockRecord.portfolioValue;
     }
   }
 
@@ -69,8 +69,8 @@ export async function downloadBackup(passphrase: string, fileName?: string): Pro
  */
 export function generateSchedule7CSV(
   investmentIncomes: InvestmentIncome[],
-  taxYear: string,
-  taxpayerTIN: string
+  _taxYear: string,
+  _taxpayerTIN: string
 ): string {
   // Filter only investment incomes with WHT
   const whtIncomes = investmentIncomes.filter((income) => income.details.whtDeducted > 0);
@@ -259,7 +259,7 @@ export function generateDetailedTaxReport(
   const incomeBreakdown = calculateTotalIncome(filteredIncomes);
 
   // Calculate tax (solar investment assumed as 0 for now, could be passed as parameter)
-  const taxComputation = computeTax(filteredIncomes, 0);
+  const taxComputation = computeTax(filteredIncomes, filteredAssets, taxYear, 0);
 
   // Calculate audit risk
   const auditRisk = calculateAuditRisk(
@@ -764,7 +764,7 @@ export function downloadDetailedTaxReportPDF(
   const incomeBreakdown = calculateTotalIncome(filteredIncomes);
 
   // Calculate tax
-  const taxComputation = computeTax(filteredIncomes, 0);
+  const taxComputation = computeTax(filteredIncomes, filteredAssets, taxYear, 0);
   const taxBreakdown = getTaxBreakdown(taxComputation.taxableIncome, taxYear);
 
   // Calculate audit risk

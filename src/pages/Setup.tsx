@@ -3,9 +3,9 @@
  * Initial setup for creating tax entities and setting passphrase
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Lock, Users, Upload, Sparkles } from 'lucide-react';
+import { Shield, Lock, Users, Upload, Sparkles, Cloud } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,11 +14,13 @@ import { EntityForm } from '@/components/EntityForm';
 import { ImportDialog } from '@/components/ImportDialog';
 import { useStore } from '@/stores/useStore';
 import { generatePassphrase } from '@/utils/crypto';
+import { importData } from '@/utils/storage';
+import { loadGsiScript, getGoogleAccessToken, searchBackupFile, downloadBackupFile } from '@/utils/googleDrive';
 import type { TaxEntity } from '@/types';
 
 export function Setup() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<'welcome' | 'passphrase' | 'entity'>('welcome');
+  const [step, setStep] = useState<'welcome' | 'passphrase' | 'entity' | 'google-setup'>('welcome');
   const [passphrase, setPassphraseInput] = useState('');
   const [confirmPassphrase, setConfirmPassphrase] = useState('');
   const [generatedPassphrase, setGeneratedPassphrase] = useState('');
@@ -31,6 +33,82 @@ export function Setup() {
   const setGeminiApiKey = useStore((state) => state.setGeminiApiKey);
   const [showGeminiSetup, setShowGeminiSetup] = useState(false);
   const [geminiKey, setGeminiKey] = useState('');
+
+  // Google Drive Sync local state
+  const googleClientIdStore = useStore((state) => state.googleClientId);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [googleAccessToken, setGoogleAccessTokenLocal] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [driveBackupFile, setDriveBackupFile] = useState<{ id: string; name: string; modifiedTime: string } | null>(null);
+  const [googlePassphrase, setGooglePassphrase] = useState('');
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  // Google Drive Store actions
+  const setGoogleAccessToken = useStore((state) => state.setGoogleAccessToken);
+  const setIsGoogleDriveSynced = useStore((state) => state.setIsGoogleDriveSynced);
+  const setGoogleDriveFileId = useStore((state) => state.setGoogleDriveFileId);
+  const loadFromStorage = useStore((state) => state.loadFromStorage);
+
+  // Pre-load Google Identity Services script on mount
+  useEffect(() => {
+    loadGsiScript().catch((err) => console.error('Failed to pre-load GSI script:', err));
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    setIsConnecting(true);
+    setAuthError('');
+    try {
+      if (!googleClientIdStore) {
+        throw new Error('Google Drive Integration is not configured. Please ensure VITE_GOOGLE_CLIENT_ID is set during deployment.');
+      }
+      await loadGsiScript();
+      const auth = await getGoogleAccessToken(googleClientIdStore);
+      setGoogleAccessTokenLocal(auth.token);
+      
+      // Save globally
+      setGoogleAccessToken(auth.token, auth.expiresIn);
+      
+      // Search backup file
+      setIsSearching(true);
+      const backup = await searchBackupFile(auth.token);
+      setDriveBackupFile(backup);
+      setIsSearching(false);
+    } catch (err: any) {
+      console.error(err);
+      setAuthError(err.message || 'Failed to authenticate with Google. Please try again.');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleRestoreBackup = async () => {
+    setIsRestoring(true);
+    setAuthError('');
+    try {
+      if (!driveBackupFile) return;
+      const encryptedContent = await downloadBackupFile(googleAccessToken, driveBackupFile.id);
+      
+      // Use temporary File object to parse using importData
+      const file = new File([encryptedContent], 'wealthguard_backup.wglk', { type: 'application/octet-stream' });
+      await importData(file, googlePassphrase);
+      
+      // Decrypted successfully and saved to storage! Load it:
+      await loadFromStorage(googlePassphrase);
+      
+      // Save Google file ID & sync status
+      setGoogleDriveFileId(driveBackupFile.id);
+      setIsGoogleDriveSynced(true);
+      
+      alert('Backup successfully restored from Google Drive!');
+      navigate('/');
+    } catch (err: any) {
+      console.error(err);
+      setAuthError('Decryption failed. Please verify that your passphrase is correct.');
+    } finally {
+      setIsRestoring(false);
+    }
+  };
 
   const handleGeneratePassphrase = () => {
     const generated = generatePassphrase();
@@ -195,25 +273,156 @@ export function Setup() {
               <Button onClick={() => setStep('passphrase')} className="w-full" size="lg">
                 Get Started - Create New Profile
               </Button>
-              <Button 
-                onClick={() => setShowImport(true)} 
-                variant="outline" 
-                className="w-full" 
-                size="lg"
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                Import from Backup
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  onClick={() => setShowImport(true)} 
+                  variant="outline" 
+                  className="w-full text-sm py-5"
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Local Backup
+                </Button>
+                <Button 
+                  onClick={() => setStep('google-setup')} 
+                  variant="outline" 
+                  className="w-full text-sm py-5 border-blue-200 hover:border-blue-300 hover:bg-blue-50/50"
+                >
+                  <Cloud className="mr-2 h-4 w-4 text-blue-600 animate-pulse" />
+                  Google Drive
+                </Button>
+              </div>
             </div>
             
             <p className="text-xs text-center text-gray-500">
-              Already have a backup? Import it to restore your data and skip setup.
+              Already have a backup? Restore your data via a local file or from your Google Drive.
             </p>
           </CardContent>
         </Card>
         
         {/* Import Dialog */}
         {showImport && <ImportDialog onClose={() => setShowImport(false)} redirectToDashboard={true} />}
+      </div>
+    );
+  }
+
+  if (step === 'google-setup') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <div className="flex items-center gap-2 text-blue-600 mb-1">
+              <Cloud className="w-6 h-6" />
+              <CardTitle className="text-xl">Sync with Google Drive</CardTitle>
+            </div>
+            <CardDescription>
+              Keep your encrypted tax backup in your personal Google Drive for easy access and cross-device sync.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Privacy Alert */}
+            <div className="p-3 bg-blue-50/80 border border-blue-100 rounded-lg text-xs text-blue-900 space-y-2">
+              <p>
+                <strong>🔒 Zero-Knowledge Security:</strong> Your data is fully encrypted using your passphrase <em>before</em> upload. Google and WealthGuard LK cannot see or read your data.
+              </p>
+              <p>
+                <strong>🛡️ Restricted Access:</strong> We request the secure <code>drive.file</code> scope. The app can ONLY view and edit files it created itself. It has zero access to other files in your drive.
+              </p>
+            </div>
+
+            {/* Error Message */}
+            {authError && (
+              <p className="text-xs font-medium text-red-600 bg-red-50 p-2 rounded border border-red-100">
+                ⚠️ {authError}
+              </p>
+            )}
+
+            {/* Google Authentication States */}
+            {!googleAccessToken ? (
+              <Button 
+                onClick={handleGoogleSignIn} 
+                disabled={isConnecting || !googleClientIdStore} 
+                className="w-full flex items-center justify-center gap-2"
+                size="lg"
+              >
+                {isConnecting ? (
+                  <span>Connecting...</span>
+                ) : (
+                  <>
+                    <Cloud className="w-5 h-5" />
+                    Sign In with Google
+                  </>
+                )}
+              </Button>
+            ) : (
+              <div className="space-y-4 pt-2 border-t">
+                {isSearching ? (
+                  <p className="text-sm text-center text-muted-foreground py-2">
+                    🔍 Searching Google Drive for existing backup...
+                  </p>
+                ) : driveBackupFile ? (
+                  <div className="space-y-3">
+                    <div className="bg-green-50/80 border border-green-100 rounded-lg p-3 text-xs text-green-900">
+                      <p className="font-semibold mb-1">✅ Backup Found in Google Drive!</p>
+                      <p>File: {driveBackupFile.name}</p>
+                      <p>Last Modified: {new Date(driveBackupFile.modifiedTime).toLocaleString()}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="googlePassphrase">Enter Backup Passphrase</Label>
+                      <Input
+                        id="googlePassphrase"
+                        type="password"
+                        placeholder="Passphrase used for encryption"
+                        value={googlePassphrase}
+                        onChange={(e) => setGooglePassphrase(e.target.value)}
+                      />
+                    </div>
+                    {authError && (
+                      <p className="text-xs font-medium text-red-600 bg-red-50 p-2 rounded border border-red-100">
+                        ⚠️ {authError}
+                      </p>
+                    )}
+                    <Button 
+                      onClick={handleRestoreBackup} 
+                      disabled={isRestoring || !googlePassphrase} 
+                      className="w-full"
+                    >
+                      {isRestoring ? 'Restoring...' : 'Decrypt & Restore Backup'}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="bg-yellow-50 border border-yellow-100 rounded-lg p-3 text-xs text-yellow-900">
+                      <p className="font-semibold mb-1">ℹ️ No Backup Found</p>
+                      <p>No existing WealthGuard backup file was found in your Google Drive. You can start with a new profile and it will auto-sync to your Drive.</p>
+                    </div>
+                    <Button 
+                      onClick={() => {
+                        // Enable sync in store and proceed to create passphrase
+                        setIsGoogleDriveSynced(true);
+                        setStep('passphrase');
+                      }}
+                      className="w-full font-semibold"
+                    >
+                      Create New Profile & Auto-Sync
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <Button 
+              variant="ghost" 
+              onClick={() => {
+                setStep('welcome');
+                setAuthError('');
+              }} 
+              className="w-full text-sm"
+              disabled={isRestoring}
+            >
+              Cancel & Go Back
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }

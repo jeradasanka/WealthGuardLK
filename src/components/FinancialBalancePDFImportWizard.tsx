@@ -4,13 +4,13 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useStore } from '@/stores/useStore';
-import { parseFinancialBalancePdf, type ParsedFinancialBalance } from '@/utils/financialBalancePdfParser';
+import { parseFinancialBalancePdf } from '@/utils/financialBalancePdfParser';
 import { fetchAvailableGeminiModels, FALLBACK_GEMINI_MODELS } from '@/utils/geminiPdfParser';
 import { formatLKR } from '@/lib/taxEngine';
 import { formatTaxYear, getTaxYearsFromStart, getTaxYearForDate } from '@/lib/taxYear';
@@ -315,7 +315,7 @@ export function FinancialBalancePDFImportWizard({
                 <option value="">-- Select Asset --</option>
                 {financialAssets.map((asset) => (
                   <option key={asset.id} value={asset.id}>
-                    {asset.name} ({asset.cageCategory === 'Bii' ? 'Bank Account' : asset.cageCategory === 'Biv' ? 'Cash' : 'Loan Given'})
+                    {asset.meta.description} ({asset.cageCategory === 'Bii' ? 'Bank Account' : asset.cageCategory === 'Biv' ? 'Cash' : 'Loan Given'})
                     {asset.meta.accountNo && ` - ${asset.meta.accountNo}`}
                   </option>
                 ))}

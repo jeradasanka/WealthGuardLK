@@ -25,13 +25,17 @@ export function ExportDialog({ onClose }: ExportDialogProps) {
   const [error, setError] = useState('');
 
   const entity = entities[0]; // Primary entity
-  const investmentIncomes = incomes.filter((i) => i.type === 'investment') as InvestmentIncome[];
+  const investmentIncomes = incomes.filter((i) => i.schedule === '3') as InvestmentIncome[];
   const hasWHT = investmentIncomes.some((i) => i.details.whtDeducted > 0);
 
-  const totalIncome = incomes.reduce((sum, i) => sum + i.details.grossAmount, 0);
-  const totalAssets = assets.reduce((sum, a) => sum + a.marketValue, 0);
+  const totalIncome = incomes.reduce((sum, i) => {
+    if (i.schedule === '1') return sum + (i.details.grossRemuneration + i.details.nonCashBenefits);
+    if (i.schedule === '2') return sum + i.details.netProfit;
+    return sum + i.details.grossAmount;
+  }, 0);
+  const totalAssets = assets.reduce((sum, a) => sum + a.financials.marketValue, 0);
   const totalLiabilities = liabilities.reduce((sum, l) => sum + l.currentBalance, 0);
-  const taxComputation = computeTax(incomes, totalAssets, totalLiabilities, assets, liabilities, 1200000);
+  const taxComputation = computeTax(incomes, assets, entity?.taxYear || '2024', 0, []);
 
   const handleBackupExport = async () => {
     if (!exportPassphrase) {
@@ -80,7 +84,7 @@ export function ExportDialog({ onClose }: ExportDialogProps) {
       totalIncome,
       totalAssets,
       totalLiabilities,
-      taxComputation.finalTaxPayable
+      taxComputation.taxPayable
     );
     downloadSummaryReport(report, entity.tin || 'TAXPAYER', entity.taxYear);
     alert('Summary report downloaded successfully');

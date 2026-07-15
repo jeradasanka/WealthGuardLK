@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
-import type { EmploymentIncome, TaxEntity } from '@/types';
+import type { EmploymentIncome } from '@/types';
 import { formatLKR } from '@/lib/taxEngine';
 import { formatTaxYear } from '@/lib/taxYear';
 

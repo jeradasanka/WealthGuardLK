@@ -29,7 +29,6 @@ export function AssetsPage() {
   const liabilities = useStore((state) => state.liabilities);
   const entities = useStore((state) => state.entities);
   const currentTaxYear = useStore((state) => state.currentTaxYear);
-  const removeAsset = useStore((state) => state.removeAsset);
   const updateLiability = useStore((state) => state.updateLiability);
   const saveToStorage = useStore((state) => state.saveToStorage);
 
@@ -39,7 +38,6 @@ export function AssetsPage() {
   const [paymentLiability, setPaymentLiability] = useState<Liability | null>(null);
   const [balanceAsset, setBalanceAsset] = useState<Asset | null>(null);
   const [stockBalanceAsset, setStockBalanceAsset] = useState<Asset | null>(null);
-  const [transactionAsset, setTransactionAsset] = useState<Asset | null>(null);
   const [expenseAsset, setExpenseAsset] = useState<Asset | null>(null);
   const [valuationAsset, setValuationAsset] = useState<Asset | null>(null);
   const [pendingAsset, setPendingAsset] = useState<Asset | null>(null);
@@ -216,12 +214,8 @@ export function AssetsPage() {
 
   const assetsByCategory = groupAssetsByCategory();
 
-  const handleDeleteAsset = async (id: string) => {
-    if (confirm('Are you sure you want to delete this asset?')) {
-      removeAsset(id);
-      await saveToStorage();
-    }
-  };
+  // Deleted unused handleDeleteAsset function
+
 
   const handleEditAsset = (asset: Asset) => {
     setEditingAsset(asset);
@@ -262,15 +256,8 @@ export function AssetsPage() {
     setViewMode('manage-stock-balances');
   };
 
-  const handleAssetSaveWithFunding = (asset: Asset) => {
-    // Prompt for source of funds if asset cost > 500k
-    if (asset.financials.cost > 500000) {
-      setPendingAsset(asset);
-      setViewMode('source-of-funds');
-    } else {
-      handleFormClose();
-    }
-  };
+  // Deleted unused handleAssetSaveWithFunding function
+
 
   const handleFundingComplete = (fundingSources: FundingSource[]) => {
     if (pendingAsset) {

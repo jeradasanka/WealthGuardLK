@@ -8,7 +8,7 @@ WealthGuard LK is a privacy-first, offline-first web application designed to hel
 
 - **Zero-Knowledge Privacy**: All data encrypted with AES-GCM and stored locally in browser localStorage
 - **Offline-First**: Works 100% offline - no data ever sent to any server
-- **Backup & Restore**: Import/Export encrypted backups (.wglk files) with passphrase protection
+- **Backup & Restore**: Import/Export encrypted backups (.wglk files) with passphrase protection and secure Google Drive cloud sync
 - **Audit Risk Detection**: Real-time "Danger Meter" warns about unexplained wealth
 - **IRD Compliance**: Generates filled values for IRD Schedules (1-10) and Statement of Assets & Liabilities
 - **Tax Certificate Tracking**: Track APIT and WHT certificates with automatic linking to income entries
@@ -37,6 +37,7 @@ WealthGuard LK is a privacy-first, offline-first web application designed to hel
 - **Encryption**: Web Crypto API (AES-GCM + PBKDF2)
 - **AI Integration**: Google Gemini AI (PDF parsing, tax advice)
 - **PDF Processing**: pdfjs-dist (legislation extraction), Gemini AI (document import)
+- **Cloud Backup**: Google Drive API v3 (GIS OAuth 2.0 Client-side)
 - **Hosting**: Firebase Hosting
 
 ## 🚀 Getting Started
@@ -134,9 +135,10 @@ The app will be available at `http://localhost:5173`
   - Specific pre-filing recommendations
   - Potential red flags identification with regulatory context
 
-### 8. Export & Import (FR-11)
+### 8. Export, Import & Google Drive Sync (FR-11)
 - **Export**: Encrypted JSON backup (.wglk files)
 - **Import**: Restore data from backup during setup or from settings
+- **Google Drive Sync**: Securely back up and restore your encrypted data to/from your personal Google Drive
 - **IRD Schedule 7**: CSV export for WHT certificates
 
 ### 9. AI-Powered PDF Import (FR-14)

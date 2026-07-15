@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Upload, FileText, AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { Upload, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -212,14 +212,12 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
           addIncome({
             id: incomeId,
             ownerId: selectedEntityId,
-            type: 'employment',
             schedule: '1',
             taxYear: parsedData.taxYear,
             details: {
               employerName: income.employerName,
               employerTIN: income.employerTIN || '',
               grossRemuneration: income.grossRemuneration,
-              grossAmount: income.grossRemuneration,
               nonCashBenefits: income.nonCashBenefits || 0,
               apitDeducted: income.apitDeducted || 0,
               exemptIncome: income.exemptIncome || 0,
@@ -240,13 +238,11 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
           addIncome({
             id: crypto.randomUUID(),
             ownerId: selectedEntityId,
-            type: 'business',
             schedule: '2',
             taxYear: parsedData.taxYear,
             details: {
               businessName: income.businessName,
               grossRevenue: income.grossRevenue,
-              grossAmount: income.netProfit,
               directExpenses: income.directExpenses || 0,
               netProfit: income.netProfit,
             },
@@ -263,15 +259,13 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
           addIncome({
             id: incomeId,
             ownerId: selectedEntityId,
-            type: 'investment',
+            type: (income.rent && income.rent > 0 ? 'rent' : income.dividends && income.dividends > 0 ? 'dividend' : 'interest') as 'interest' | 'dividend' | 'rent',
             schedule: '3',
             taxYear: parsedData.taxYear,
             details: {
               source: income.source,
               grossAmount: (income.dividends || 0) + (income.interest || 0) + (income.rent || 0),
-              dividends: income.dividends || 0,
-              interest: income.interest || 0,
-              rent: income.rent || 0,
+              whtDeducted: income.wht || 0,
             },
           });
           // Map source name to income ID for certificate linking
@@ -646,7 +640,7 @@ export function PDFImportWizard({ open, onClose }: PDFImportWizardProps) {
                           className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                         />
                         <div className="text-sm text-muted-foreground">
-                          {liability.description}: {formatLKR(liability.amount)}
+                          {liability.description}: {formatLKR(liability.currentBalance || liability.originalAmount)}
                         </div>
                       </div>
                     ))}

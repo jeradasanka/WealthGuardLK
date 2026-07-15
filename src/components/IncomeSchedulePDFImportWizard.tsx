@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Upload, FileText, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { Upload, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -199,7 +199,7 @@ export function IncomeSchedulePDFImportWizard({ open, onClose }: IncomeScheduleP
           addIncome({
             ...baseIncome,
             schedule: '3',
-            type: income.investmentDetails.sourceType,
+            type: (income.investmentDetails.sourceType === 'other' ? 'interest' : income.investmentDetails.sourceType) as 'interest' | 'dividend' | 'rent',
             details: {
               source: income.investmentDetails.source,
               grossAmount: income.investmentDetails.taxableAmount || income.investmentDetails.grossAmount,

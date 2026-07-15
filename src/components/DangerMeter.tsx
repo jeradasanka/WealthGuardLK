@@ -197,7 +197,7 @@ export function DangerMeter({ selectedEntityId = 'family' }: DangerMeterProps) {
                       cx="50%"
                       cy="45%"
                       labelLine={true}
-                      label={({ cx, cy, midAngle, outerRadius, name, value, category }) => {
+                      label={({ cx, cy, midAngle, outerRadius, name, value, category }: any) => {
                         // Add type guards for optional parameters
                         if (typeof midAngle !== 'number' || typeof outerRadius !== 'number') return null;
                         if (!cx || !cy) return null;

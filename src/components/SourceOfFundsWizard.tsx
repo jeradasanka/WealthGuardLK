@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { X, ArrowRight, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { X, ArrowRight, AlertTriangle } from 'lucide-react';
 import type { Asset, FundingSource } from '@/types';
 import { useStore } from '@/stores/useStore';
 import { Button } from './ui/button';
@@ -19,24 +19,24 @@ interface SourceOfFundsWizardProps {
 }
 
 export function SourceOfFundsWizard({ asset, onComplete, onCancel }: SourceOfFundsWizardProps) {
-  const { entities, incomes, assets, liabilities } = useStore();
-  const [step, setStep] = useState(1);
+  const { incomes, assets, liabilities } = useStore();
+  const step = 1;
   const [fundingSources, setFundingSources] = useState<FundingSource[]>([]);
   const [currentSource, setCurrentSource] = useState<Partial<FundingSource>>({ type: 'current-income' });
 
   const totalFunded = fundingSources.reduce((sum, fs) => sum + fs.amount, 0);
-  const remaining = asset.cost - totalFunded;
+  const remaining = asset.financials.cost - totalFunded;
   const isFullyFunded = remaining <= 0;
 
   // Available options for funding sources
   const availableIncomes = incomes.filter(
-    (income) => new Date(income.period.endDate) >= new Date(asset.purchaseDate)
+    (income) => parseInt(income.taxYear) >= parseInt(asset.meta.dateAcquired.split('-')[0])
   );
   const availableAssets = assets.filter(
-    (a) => a.id !== asset.id && a.disposed && new Date(a.disposed.date) <= new Date(asset.purchaseDate)
+    (a) => a.id !== asset.id && a.disposed && new Date(a.disposed.date) <= new Date(asset.meta.dateAcquired)
   );
   const availableLoans = liabilities.filter(
-    (l) => new Date(l.date) <= new Date(asset.purchaseDate)
+    (l) => new Date(l.dateAcquired) <= new Date(asset.meta.dateAcquired)
   );
 
   const handleAddSource = () => {
@@ -68,7 +68,7 @@ export function SourceOfFundsWizard({ asset, onComplete, onCancel }: SourceOfFun
   const handleComplete = () => {
     if (!isFullyFunded) {
       const proceed = confirm(
-        `Warning: Asset cost (Rs. ${asset.cost.toLocaleString('en-LK')}) exceeds declared funding sources (Rs. ${totalFunded.toLocaleString('en-LK')}). This will increase audit risk. Continue?`
+        `Warning: Asset cost (Rs. ${asset.financials.cost.toLocaleString('en-LK')}) exceeds declared funding sources (Rs. ${totalFunded.toLocaleString('en-LK')}). This will increase audit risk. Continue?`
       );
       if (!proceed) return;
     }
@@ -83,7 +83,7 @@ export function SourceOfFundsWizard({ asset, onComplete, onCancel }: SourceOfFun
             <div>
               <CardTitle>Source of Funds</CardTitle>
               <CardDescription>
-                Explain how you funded: {asset.description} (Rs. {asset.cost.toLocaleString('en-LK')})
+                Explain how you funded: {asset.meta.description} (Rs. {asset.financials.cost.toLocaleString('en-LK')})
               </CardDescription>
             </div>
             <Button variant="ghost" size="icon" onClick={onCancel}>
@@ -105,12 +105,12 @@ export function SourceOfFundsWizard({ asset, onComplete, onCancel }: SourceOfFun
                 className={`h-3 rounded-full transition-all ${
                   isFullyFunded ? 'bg-green-500' : 'bg-blue-500'
                 }`}
-                style={{ width: `${Math.min((totalFunded / asset.cost) * 100, 100)}%` }}
+                style={{ width: `${Math.min((totalFunded / asset.financials.cost) * 100, 100)}%` }}
               />
             </div>
             <div className="flex justify-between text-xs text-gray-600 mt-1">
               <span>Rs. {totalFunded.toLocaleString('en-LK')}</span>
-              <span>Rs. {asset.cost.toLocaleString('en-LK')}</span>
+              <span>Rs. {asset.financials.cost.toLocaleString('en-LK')}</span>
             </div>
           </div>
 
@@ -146,12 +146,16 @@ export function SourceOfFundsWizard({ asset, onComplete, onCancel }: SourceOfFun
                     <option value="">-- Not Specified --</option>
                     {availableIncomes.map((income) => (
                       <option key={income.id} value={income.id}>
-                        {income.type === 'employment'
-                          ? `Employment: ${income.details.employer}`
-                          : income.type === 'business'
-                          ? `Business: ${income.details.businessName}`
-                          : `Investment: ${income.details.source}`}{' '}
-                        - Rs. {income.details.grossAmount.toLocaleString('en-LK')}
+                        {income.schedule === '1'
+                          ? `Employment: ${(income as any).details.employerName}`
+                          : income.schedule === '2'
+                          ? `Business: ${(income as any).details.businessName}`
+                          : `Investment: ${(income as any).details.source}`}{' '}
+                        - Rs. {(income.schedule === '1'
+                          ? (income as any).details.grossRemuneration
+                          : income.schedule === '2'
+                          ? (income as any).details.netProfit
+                          : (income as any).details.grossAmount).toLocaleString('en-LK')}
                       </option>
                     ))}
                   </select>
@@ -170,7 +174,7 @@ export function SourceOfFundsWizard({ asset, onComplete, onCancel }: SourceOfFun
                     <option value="">-- Not Specified --</option>
                     {availableAssets.map((a) => (
                       <option key={a.id} value={a.id}>
-                        {a.description} - Sale Price: Rs. {a.disposed?.salePrice.toLocaleString('en-LK')}
+                        {a.meta.description} - Sale Price: Rs. {a.disposed?.salePrice.toLocaleString('en-LK')}
                       </option>
                     ))}
                   </select>

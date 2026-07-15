@@ -289,7 +289,7 @@ export function FinancialAssetBalanceForm({ asset, onClose }: Props) {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDeleteBalance(balance.id)}
-                              disabled={asset.closed}
+                              disabled={!!asset.closed}
                               className="text-red-600 hover:text-red-700 hover:bg-red-50"
                               title={asset.closed ? 'Cannot delete - account is closed' : 'Delete this record'}
                             >

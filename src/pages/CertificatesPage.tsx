@@ -73,6 +73,7 @@ export function CertificatesPage() {
         taxYear: income.taxYear,
         certificateNo: 'From Income Schedule',
         issueDate: '',
+        paymentDate: '',
         type: 'employment' as const,
         details: {
           payerName: (income as any).details.employerName,
@@ -124,16 +125,8 @@ export function CertificatesPage() {
     await saveToStorage();
   };
 
-  const getCertificateTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      employment: 'Employment (APIT)',
-      interest: 'Interest Income (WHT)',
-      dividend: 'Dividend Income (WHT)',
-      rent: 'Rent Income (WHT)',
-      other: 'Other (WHT)',
-    };
-    return labels[type] || type;
-  };
+    // Deleted unused getCertificateTypeLabel function
+
 
   const getCertificateTypeColor = (type: string) => {
     const colors: Record<string, string> = {
@@ -390,7 +383,9 @@ export function CertificatesPage() {
                         <tr key={cert.id} className={`hover:bg-slate-50 transition-colors ${fromSchedule ? 'bg-blue-50/30' : ''}`}>
                           <td className="px-4 py-2">
                             {fromSchedule ? (
-                              <CheckCircle2 className="w-4 h-4 text-blue-600" title="From Income Schedule" />
+                              <span title="From Income Schedule">
+                                <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                              </span>
                             ) : (
                               <button
                                 onClick={() => handleToggleVerified(cert)}

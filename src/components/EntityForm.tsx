@@ -28,7 +28,11 @@ export function EntityForm({ entity, onSave, onCancel }: EntityFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    onSave({
+      ...formData,
+      type: entity?.type || 'individual',
+      taxYear: entity?.taxYear || '2024',
+    });
   };
 
   const handleChange = (field: keyof typeof formData) => (

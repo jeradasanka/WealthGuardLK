@@ -15,7 +15,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { calculateAuditRisk, formatLKR, computeTax } from '@/lib/taxEngine';
 import { formatTaxYear } from '@/lib/taxYear';
 import { fetchAvailableGeminiModels, FALLBACK_GEMINI_MODELS } from '@/utils/geminiPdfParser';
-import { loadLegislationJSON, AVAILABLE_LEGISLATION } from '@/utils/legislationLoader';
+import { loadLegislationJSON, loadLegislationChunks, AVAILABLE_LEGISLATION } from '@/utils/legislationLoader';
+import { LegislationChunk, searchLegislationChunks, formatSectionsForPrompt, getRecommendedSectionNumbersForContext } from '@/utils/legislationSearch';
 
 interface AITaxAgentChatbotProps {
   readonly open: boolean;
@@ -153,6 +154,7 @@ export function AITaxAgentChatbot({
   const [showConfig, setShowConfig] = useState(true);
   const [legislationLoaded, setLegislationLoaded] = useState(false);
   const [legislationText, setLegislationText] = useState<string>('');
+  const [legislationChunks, setLegislationChunks] = useState<LegislationChunk[]>([]);
   const [loadingLegislation, setLoadingLegislation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasLoadedLegislationRef = useRef(false);
@@ -203,7 +205,20 @@ export function AITaxAgentChatbot({
     try {
       // Load the first available legislation (pre-extracted JSON)
       const mainAct = AVAILABLE_LEGISLATION[0];
-      console.log('📄 Loading JSON from:', mainAct.path);
+      
+      // Load structured chunks first for high-precision retrieval
+      if (mainAct.sectionsPath) {
+        try {
+          console.log('📄 Loading chunks JSON from:', mainAct.sectionsPath);
+          const chunks = await loadLegislationChunks(mainAct.sectionsPath);
+          setLegislationChunks(chunks);
+          console.log('✅ Chunks loaded successfully, count:', chunks.length);
+        } catch (chunkErr) {
+          console.warn('⚠️ Could not load structured chunks, fallback to raw text:', chunkErr);
+        }
+      }
+
+      console.log('📄 Loading raw JSON from:', mainAct.path);
       const text = await loadLegislationJSON(mainAct.path);
       console.log('✅ JSON loaded, text length:', text.length);
       setLegislationText(text);
@@ -350,9 +365,41 @@ export function AITaxAgentChatbot({
 
       const context = generateFinancialContext();
 
-      const legislationContext = legislationLoaded 
-        ? `\n\n**CRITICAL INSTRUCTION - LEGISLATION REFERENCE:**\nYou have been provided with the COMPLETE text of the Inland Revenue Act No. 24 of 2017 below. You MUST base ALL your tax advice, calculations, rates, and recommendations EXCLUSIVELY on this provided legislation text. DO NOT use general knowledge or training data about Sri Lankan tax law.\n\nWhen citing the Act:\n1. Quote the exact text from the legislation provided below\n2. Include the specific section number (e.g., "Section 3 states: '[exact quote]'")\n3. If a section is not found in the provided text, explicitly state "This information is not available in the provided legislation"\n4. Never assume or infer tax rules not explicitly stated in the text below\n\n--- BEGIN INLAND REVENUE ACT NO. 24 OF 2017 ---\n${legislationText.slice(0, 30000)}\n--- END LEGISLATION EXCERPT ---\n\nIMPORTANT: Base your entire analysis on the legislation text provided above. Cite specific sections with exact quotes.`
-        : '\n\n**Note:** Legislation not loaded. Providing general guidance only - taxpayer should verify all information with official IRD sources.';
+      let legislationContext = '';
+      if (legislationLoaded && legislationChunks.length > 0) {
+        const recommendedSectionNums = getRecommendedSectionNumbersForContext({
+          hasEmploymentIncome: context.income.employment !== 'Rs. 0',
+          hasBusinessIncome: context.income.business !== 'Rs. 0',
+          hasInvestmentIncome: context.income.investment !== 'Rs. 0',
+          hasCertificates: context.certificates.count > 0,
+          hasAuditRisk: context.auditRisk.level !== 'safe'
+        });
+
+        const selectedChunks = legislationChunks.filter(c => 
+          recommendedSectionNums.includes(c.number) || 
+          recommendedSectionNums.includes(c.number.toUpperCase()) ||
+          recommendedSectionNums.some(num => c.title.toLowerCase().includes(num.toLowerCase()))
+        );
+
+        const retrievedText = formatSectionsForPrompt(
+          selectedChunks.map(chunk => ({ chunk, score: 100, matchedTerms: ['financial-profile'] })),
+          25000
+        );
+
+        legislationContext = `\n\n**CRITICAL INSTRUCTION - LEGISLATION REFERENCE (Inland Revenue Act No. 24 of 2017):**
+The following exact sections and schedules from the Inland Revenue Act No. 24 of 2017 have been retrieved for this taxpayer's specific profile:
+
+${retrievedText}
+
+When providing advice:
+1. Quote or cite the exact section numbers and schedules above (e.g. "Section 5(2) states...", "First Schedule sets out...")
+2. Base all rates, reliefs, and allowable deductions strictly on the provisions above
+3. Explain the tax implications and pre-audit considerations clearly.`;
+      } else if (legislationLoaded) {
+        legislationContext = `\n\n--- BEGIN INLAND REVENUE ACT NO. 24 OF 2017 ---\n${legislationText.slice(0, 30000)}\n--- END LEGISLATION EXCERPT ---`;
+      } else {
+        legislationContext = '\n\n**Note:** Legislation not loaded. Providing general guidance only - taxpayer should verify all information with official IRD sources.';
+      }
 
       const prompt = `You are an expert Sri Lankan tax advisor. Analyze the following taxpayer's financial situation and provide a comprehensive tax advisory report.\n\nIMPORTANT: If legislation is loaded, you MUST cite specific sections from the provided Inland Revenue Act text with exact quotes. Do not rely on general knowledge.
 
@@ -487,9 +534,28 @@ Use **bold text** for important terms and numbers. Keep paragraphs concise and a
         `${m.role === 'user' ? 'User' : 'Tax Advisor'}: ${m.content}`
       ).join('\n\n');
 
-      const legislationContext = legislationLoaded 
-        ? `\n\n**CRITICAL INSTRUCTION - LEGISLATION REFERENCE:**\nYou have been provided with the COMPLETE text of the Inland Revenue Act No. 24 of 2017 below. You MUST answer the user's question EXCLUSIVELY based on this provided legislation text. DO NOT use general knowledge.\n\nWhen answering:\n1. Search the provided legislation text for relevant sections\n2. Quote exact text from the legislation (e.g., "Section 52 states: '[exact quote]'")\n3. If the answer is not in the provided text, say "The provided legislation does not cover this topic"\n4. Never make up or assume tax rules not in the text below\n\n--- BEGIN INLAND REVENUE ACT NO. 24 OF 2017 ---\n${legislationText.slice(0, 20000)}\n--- END LEGISLATION EXCERPT ---\n\nYou MUST base your answer on the above legislation text with specific citations and quotes.`
-        : '\n\n**Note:** Legislation not loaded. Providing general guidance only.';
+      let legislationContext = '';
+      if (legislationLoaded && legislationChunks.length > 0) {
+        const searchResults = searchLegislationChunks(legislationChunks, inputMessage, { maxResults: 5 });
+        if (searchResults.length > 0) {
+          const sectionsText = formatSectionsForPrompt(searchResults, 20000);
+          legislationContext = `\n\n**CRITICAL INSTRUCTION - LEGISLATION REFERENCE (Inland Revenue Act No. 24 of 2017):**
+The following exact sections and schedules from the Inland Revenue Act No. 24 of 2017 were retrieved based on the user's specific query:
+
+${sectionsText}
+
+When answering:
+1. Base your answer directly on the retrieved legislation sections above
+2. Quote exact section text and cite section numbers (e.g. "Section ${searchResults[0].chunk.number} states: '[exact quote]'")
+3. If the answer is not contained in the retrieved sections, state what the general Sri Lankan tax rule is and recommend referring to official IRD guidelines.`;
+        } else {
+          legislationContext = '\n\n**Note:** No specific sections directly matched the user query terms. Answering based on general Sri Lankan tax rules.';
+        }
+      } else if (legislationLoaded) {
+        legislationContext = `\n\n--- BEGIN INLAND REVENUE ACT NO. 24 OF 2017 ---\n${legislationText.slice(0, 20000)}\n--- END LEGISLATION EXCERPT ---`;
+      } else {
+        legislationContext = '\n\n**Note:** Legislation not loaded. Providing general guidance only.';
+      }
 
       const prompt = `You are an expert Sri Lankan tax advisor helping a taxpayer with their ${context.taxYear} tax filing.\n\nCRITICAL: If legislation text is provided above, you MUST:\n- Answer based ONLY on that exact text\n- Quote specific sections with exact wording\n- State clearly if information is not in the provided legislation\n- Never rely on general knowledge when legislation is provided\n\n**Current Financial Context:**\n- Income: ${context.income.total}\n- Assets: ${context.assets.totalValue}\n- Tax Payable: ${context.tax.taxPayable}\n- Audit Risk: ${context.auditRisk.level.toUpperCase()}\n${legislationContext}\n\n**Previous Conversation:**\n${conversationHistory}\n\n**User's Question:**\n${inputMessage}\n\nProvide a helpful, accurate response. Format your response clearly:\n- Use **bold** for important terms and amounts\n- Use bullet points (-) for lists\n- Use numbered lists (1. 2.) for step-by-step instructions\n- Keep paragraphs concise and actionable\n- Include specific numbers and references when relevant\n- ALWAYS cite legislation sections with exact quotes (e.g., 'Section 3 of the Inland Revenue Act states: "[exact text]"')\n- If using the provided legislation, quote the exact text, don't paraphrase\n\nBe specific and explain tax implications of any recommendations.`;
 

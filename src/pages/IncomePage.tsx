@@ -3,9 +3,9 @@
  * Lists and manages all income entries across schedules
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Edit, Briefcase, Building2, TrendingUp, ArrowLeft, ChevronDown, Calculator, FileText, CheckCircle2, Upload } from 'lucide-react';
+import { Plus, Trash2, Edit, Briefcase, Building2, TrendingUp, ArrowLeft, ChevronDown, Calculator, FileText, CheckCircle2, Upload, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -17,6 +17,7 @@ import { IncomeSchedulePDFImportWizard } from '@/components/IncomeSchedulePDFImp
 import { formatLKR, calculateTotalIncome, calculateDerivedInvestmentIncome, computeTax, getTaxConfig } from '@/lib/taxEngine';
 import { formatTaxYear, getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Income, EmploymentIncome, BusinessIncome, InvestmentIncome, OtherIncome } from '@/types';
+import { searchIncomes } from '@/utils/searchUtils';
 
 export function IncomePage() {
   const navigate = useNavigate();
@@ -38,10 +39,22 @@ export function IncomePage() {
   const [manualTaxPayable, setManualTaxPayable] = useState<number>(0);
   const [manualTotalTax, setManualTotalTax] = useState<number>(0);
   const [selectedEntityForTax, setSelectedEntityForTax] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const currentYearIncomes = incomes.filter((i) => i.taxYear === currentTaxYear);
   const startYear = entities.length > 0 ? (entities[0]?.taxYear || '2024') : '2024';
   const availableTaxYears = getTaxYearsFromStart(startYear);
+
+  // Filter manual incomes by entity and search query
+  const manualIncomes = useMemo(() => {
+    return currentYearIncomes.filter(
+      (i) => i.schedule !== '3' && (!selectedEntityForTax || i.ownerId === selectedEntityForTax)
+    );
+  }, [currentYearIncomes, selectedEntityForTax]);
+
+  const displayedManualIncomes = useMemo(() => {
+    return searchIncomes(manualIncomes, searchQuery);
+  }, [manualIncomes, searchQuery]);
 
   // Calculate investment income from assets
   const derivedInvestmentIncome = calculateDerivedInvestmentIncome(assets, currentTaxYear);
@@ -911,11 +924,45 @@ export function IncomePage() {
           </Card>
         ) : (
           <div>
-            <h2 className="text-xl font-bold mb-4">Manual Income Entries</h2>
-            <div className="space-y-4">
-              {currentYearIncomes
-                .filter((i) => i.schedule !== '3' && (!selectedEntityForTax || i.ownerId === selectedEntityForTax))
-                .map((income) => (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <h2 className="text-xl font-bold">Manual Income Entries</h2>
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search employer, source, TIN..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-8 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600"
+                    title="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {displayedManualIncomes.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Search className="w-12 h-12 mx-auto text-slate-400 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Matching Incomes</h3>
+                  <p className="text-muted-foreground mb-4">
+                    No income entries matched "{searchQuery}".
+                  </p>
+                  <Button variant="outline" onClick={() => setSearchQuery('')}>
+                    Clear Search
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {displayedManualIncomes.map((income) => (
                   <Card key={income.id}>
                     <CardContent className="py-4">
                       <div>
@@ -1021,7 +1068,8 @@ export function IncomePage() {
                     </CardContent>
                   </Card>
                 ))}
-            </div>
+              </div>
+            )}
           </div>
         )}
       </div>

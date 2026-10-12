@@ -1,0 +1,5 @@
+# robots.txt for WealthGuard LK
+User-agent: *
+Allow: /
+
+Sitemap: https://wealthguard.site/sitemap.xml

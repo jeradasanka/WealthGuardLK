@@ -5,7 +5,7 @@
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, Pencil, Trash2, CheckCircle2, Circle, Upload } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Pencil, Trash2, CheckCircle2, Circle, Upload, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
@@ -13,11 +13,13 @@ import { formatLKR } from '@/lib/taxEngine';
 import { formatTaxYear, getTaxYearsFromStart } from '@/lib/taxYear';
 import type { AITWHTCertificate } from '@/types';
 import { CertificatePDFImportWizard } from '@/components/CertificatePDFImportWizard';
+import { searchCertificates } from '@/utils/searchUtils';
 
 export function CertificatesPage() {
   const navigate = useNavigate();
   const [selectedEntityId, setSelectedEntityId] = useState<string | 'all'>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showPDFImport, setShowPDFImport] = useState(false);
   
   const entities = useStore((state) => state.entities);
@@ -108,6 +110,11 @@ export function CertificatesPage() {
     return filteredCertificates;
   }, [employmentIncomes, filteredCertificates, selectedType]);
 
+  // Filter by search query
+  const displayedCertificates = useMemo(() => {
+    return searchCertificates(allCertificates, searchQuery);
+  }, [allCertificates, searchQuery]);
+
   // Calculate totals from all certificates (including employment income)
   const totalGross = allCertificates.reduce((sum, c) => sum + c.details.grossAmount, 0);
   const totalTaxDeducted = allCertificates.reduce((sum, c) => sum + c.details.taxDeducted, 0);
@@ -182,7 +189,7 @@ export function CertificatesPage() {
             <CardTitle className="text-lg">Tax Year Selection</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Tax Year</label>
                 <select
@@ -226,6 +233,28 @@ export function CertificatesPage() {
                   <option value="rent">Rent (WHT)</option>
                   <option value="other">Other (WHT)</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search payer, TIN, cert #..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
+                      title="Clear search"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -355,6 +384,19 @@ export function CertificatesPage() {
               </Button>
             </CardContent>
           </Card>
+        ) : displayedCertificates.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Search className="w-12 h-12 mx-auto text-slate-400 mb-4" />
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">No Matching Certificates</h3>
+              <p className="text-slate-600 mb-4">
+                No certificates matched "{searchQuery}". Try different keywords.
+              </p>
+              <Button variant="outline" onClick={() => setSearchQuery('')}>
+                Clear Search
+              </Button>
+            </CardContent>
+          </Card>
         ) : (
           <Card>
             <CardContent className="p-0">
@@ -375,7 +417,7 @@ export function CertificatesPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {allCertificates.map((cert) => {
+                    {displayedCertificates.map((cert) => {
                       const owner = entities.find((e) => e.id === cert.ownerId);
                       const fromSchedule = (cert as any).fromIncomeSchedule;
                       

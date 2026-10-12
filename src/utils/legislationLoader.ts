@@ -5,10 +5,12 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { fileToBase64 } from './pdfParserUtils';
+import { LegislationChunk, searchLegislationChunks, formatSectionsForPrompt } from './legislationSearch';
 
 export interface LegislationDocument {
   name: string;
   path: string; // Path to pre-extracted JSON file
+  sectionsPath?: string; // Path to structured chunks JSON file
   category: 'acts' | 'amendments' | 'circulars';
   year?: string;
 }
@@ -30,11 +32,33 @@ export const AVAILABLE_LEGISLATION: LegislationDocument[] = [
   {
     name: 'Inland Revenue Act No. 24 of 2017',
     path: '/tax-legislation/extracted/inland-revenue-act-2017.json',
+    sectionsPath: '/tax-legislation/extracted/inland-revenue-act-2017-sections.json',
     category: 'acts',
     year: '2017'
   },
   // Add more documents as they are extracted
 ];
+
+/**
+ * Load pre-extracted legislation chunks (fast, structured, section-aware)
+ */
+export async function loadLegislationChunks(
+  jsonPath: string = '/tax-legislation/extracted/inland-revenue-act-2017-sections.json'
+): Promise<LegislationChunk[]> {
+  try {
+    console.log('📥 Fetching pre-extracted legislation chunks from:', jsonPath);
+    const response = await fetch(jsonPath);
+    if (!response.ok) {
+      throw new Error(`Failed to load chunks JSON: ${jsonPath} (Status: ${response.status})`);
+    }
+    const chunks: LegislationChunk[] = await response.json();
+    console.log(`✅ Loaded ${chunks.length} structured legislation sections`);
+    return chunks;
+  } catch (error) {
+    console.error('❌ Error loading legislation chunks:', error);
+    throw error;
+  }
+}
 
 /**
  * Load pre-extracted legislation JSON (fast, no API call needed)
@@ -149,18 +173,29 @@ export async function searchLegislation(
   query: string,
   legislationText: string,
   apiKey: string,
-  model: string = 'gemini-2.0-flash-exp'
+  model: string = 'gemini-2.0-flash-exp',
+  chunks?: LegislationChunk[]
 ): Promise<string> {
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const aiModel = genAI.getGenerativeModel({ model });
+
+    let legislationContext = '';
+    if (chunks && chunks.length > 0) {
+      const searchResults = searchLegislationChunks(chunks, query, { maxResults: 5 });
+      legislationContext = formatSectionsForPrompt(searchResults);
+    }
+
+    if (!legislationContext) {
+      legislationContext = legislationText.slice(0, 50000);
+    }
 
     const prompt = `Based on this tax legislation document, find and extract the most relevant sections for the following query:
 
 Query: "${query}"
 
 Tax Legislation:
-${legislationText.slice(0, 50000)} // Limit to avoid token limits
+${legislationContext}
 
 Provide:
 1. Relevant section numbers and titles

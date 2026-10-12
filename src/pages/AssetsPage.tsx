@@ -5,7 +5,7 @@
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign, TrendingUp, FileText, Building2, Gem } from 'lucide-react';
+import { Plus, Edit, Home, Car, Wallet as WalletIcon, CreditCard, ArrowLeft, DollarSign, TrendingUp, FileText, Building2, Gem, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useStore } from '@/stores/useStore';
@@ -20,6 +20,7 @@ import { SourceOfFundsWizard } from '@/components/SourceOfFundsWizard';
 import { formatLKR, getAssetMarketValue } from '@/lib/taxEngine';
 import { getTaxYearsFromStart } from '@/lib/taxYear';
 import type { Asset, Liability, FundingSource } from '@/types';
+import { searchAssets } from '@/utils/searchUtils';
 
 type ViewMode = 'list' | 'add-asset' | 'edit-asset' | 'add-liability' | 'edit-liability' | 'source-of-funds' | 'record-payment' | 'manage-balances' | 'manage-stock-balances' | 'manage-property-expenses' | 'manage-valuations';
 
@@ -41,6 +42,7 @@ export function AssetsPage() {
   const [expenseAsset, setExpenseAsset] = useState<Asset | null>(null);
   const [valuationAsset, setValuationAsset] = useState<Asset | null>(null);
   const [pendingAsset, setPendingAsset] = useState<Asset | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Show all assets in the list (including sold/closed)
   const allAssets = assets;
@@ -197,13 +199,18 @@ export function AssetsPage() {
     }
   };
 
+  // Filter assets by search query
+  const searchedAssets = useMemo(() => {
+    return searchAssets(allAssets, searchQuery);
+  }, [allAssets, searchQuery]);
+
   // Group assets by category
   const groupAssetsByCategory = () => {
     const categories = ['A', 'Bi', 'Bii', 'Biii', 'Biv', 'Bv', 'Bvi', 'C'];
     const grouped: Record<string, Asset[]> = {};
     
     categories.forEach(category => {
-      const assetsInCategory = allAssets.filter(asset => asset.cageCategory === category);
+      const assetsInCategory = searchedAssets.filter(asset => asset.cageCategory === category);
       if (assetsInCategory.length > 0) {
         grouped[category] = assetsInCategory;
       }
@@ -480,12 +487,33 @@ export function AssetsPage() {
 
         {/* Assets Section */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
             <h2 className="text-2xl font-bold">Assets</h2>
-            <Button onClick={() => setViewMode('add-asset')}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Asset
-            </Button>
+            <div className="flex items-center gap-3">
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search assets by name, bank, #..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
+                    title="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <Button onClick={() => setViewMode('add-asset')}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Asset
+              </Button>
+            </div>
           </div>
 
           {allAssets.length === 0 ? (
@@ -494,6 +522,19 @@ export function AssetsPage() {
                 <p className="text-muted-foreground">
                   No assets recorded. Click "Add Asset" to get started.
                 </p>
+              </CardContent>
+            </Card>
+          ) : Object.keys(assetsByCategory).length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Search className="w-12 h-12 mx-auto text-slate-400 mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Matching Assets</h3>
+                <p className="text-muted-foreground mb-4">
+                  No assets matched "{searchQuery}".
+                </p>
+                <Button variant="outline" onClick={() => setSearchQuery('')}>
+                  Clear Search
+                </Button>
               </CardContent>
             </Card>
           ) : (

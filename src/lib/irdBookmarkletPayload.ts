@@ -6,14 +6,14 @@
  * zero external network requests (CSP-safe) and zero `innerHTML` usage
  * (Trusted-Types-safe).
  *
- * Tailored for Sri Lanka IRD RAMIS (`https://eservices.ird.gov.lk`) which uses
- * ASP.NET MVC + jQuery + Telerik Kendo UI (`numerictextbox`, `dropdownlist`,
- * `datepicker`), while also supporting standard React, Angular, and WebForms
- * inputs via native property descriptors.
+ * Supports BOTH:
+ *  1. Direct Cage fields (`MainReturnForm`, `Schedule8Form`, `StatementForm` flags)
+ *  2. Repeating Kendo Grid rows (`Schedule1Form`–`Schedule4Form`, `Schedule7Form`,
+ *     and `StatementForm` assets & liabilities) — all in one click.
  */
 
 export interface IrdFieldMapping {
-  /** Key in the embedded JSON payload */
+  /** Key in the embedded JSON payload (or in a grid row object) */
   key: string;
   /** Human-readable label shown in the floating toast if unmatched */
   label: string;
@@ -27,20 +27,26 @@ export interface IrdFieldMapping {
   waitTimeoutMs?: number;
 }
 
+export interface IrdGridMapping {
+  /** Key in the embedded JSON payload containing an array of row objects */
+  rowsKey: string;
+  /** Human-readable section name shown in toast on error */
+  label: string;
+  /** Optional "Add Row" button to click before filling (used in StatementForm popups) */
+  preClickSelector?: string;
+  /** Button selector to submit/append the row into the Kendo Grid */
+  addButtonSelector: string;
+  /** Delay in ms after clicking Add before starting the next row (default: 350) */
+  rowDelayMs?: number;
+  /** Field mappings for each row object */
+  fields: IrdFieldMapping[];
+}
+
 /**
- * Default field mapping for IRD RAMIS Individual Income Tax Return (IIT2).
+ * Direct Cage mappings for `MainReturnForm`, `Schedule8Form`, and `StatementForm`.
  *
  * ============================================================================
- * WHERE TO PLUG IN / CUSTOMIZE IRD FORM FIELD SELECTORS:
- * Add or edit entries below to target additional RAMIS schedules or cages.
- * Verified IDs from RAMIS `MainReturnForm` & `Schedule8Form`:
- *   - `#DeclarationTax_Rtn_Cage10` : Employment income (Rs.)
- *   - `#DeclarationTax_Rtn_Cage20` : Business income (Rs.)
- *   - `#DeclarationTax_Rtn_Cage30` : Investment income (Rs.)
- *   - `#DeclarationTax_Rtn_Cage40` : Other income (Rs.)
- *   - `#Deduction_Rtn_Cage100`     : Personal relief (Rs.)
- *   - `#Deduction_Rtn_Cage120`     : Qualifying payments (Rs.)
- *   - `#Sch8_Cage801`              : Schedule 8 total assessable income
+ * WHERE TO PLUG IN / CUSTOMIZE DIRECT IRD FORM FIELD SELECTORS:
  * ============================================================================
  */
 export const DEFAULT_RAMIS_FIELD_MAP: IrdFieldMapping[] = [
@@ -80,17 +86,155 @@ export const DEFAULT_RAMIS_FIELD_MAP: IrdFieldMapping[] = [
     selector: '#Deduction_Rtn_Cage120',
     type: 'number',
   },
+  {
+    key: 'hasLocalAssets',
+    label: 'Statement: Local Assets Checkbox',
+    selector: '#localAsset',
+    type: 'checkbox',
+  },
+  {
+    key: 'hasForeignAssets',
+    label: 'Statement: Foreign Assets Checkbox',
+    selector: '#foreignAsset',
+    type: 'checkbox',
+  },
+];
+
+/**
+ * Repeating Kendo Grid mappings for Schedules 1–4, 7, and Statement of Assets.
+ *
+ * ============================================================================
+ * WHERE TO PLUG IN / CUSTOMIZE SCHEDULE & STATEMENT GRID SELECTORS:
+ * ============================================================================
+ */
+export const DEFAULT_RAMIS_GRID_MAP: IrdGridMapping[] = [
+  {
+    rowsKey: 'schedule1Rows',
+    label: 'Schedule 1A (Employment Income)',
+    addButtonSelector: '#btnS1AddA_2',
+    fields: [
+      { key: 'employerName', label: 'Employer/Company Name (Cage 102)', selector: '#Schedule1AModel_Sch1_Cage102', type: 'text' },
+      { key: 'tin', label: 'TIN of Employer (Cage 103)', selector: '#Schedule1AModel_Sch1_Cage103', type: 'text' },
+      { key: 'amount', label: 'Remuneration (Cage 104)', selector: '#Schedule1AModel_Sch1_Cage104', type: 'number' },
+    ],
+  },
+  {
+    rowsKey: 'schedule2Rows',
+    label: 'Schedule 2A (Business Income)',
+    addButtonSelector: '#btnS2AAdd_2',
+    fields: [
+      { key: 'businessName', label: 'Nature of Business (Cage 202)', selector: '#Schedule2AModel_Sch2_Cage202', type: 'text' },
+      { key: 'amount', label: 'Income (Cage 203)', selector: '#Schedule2AModel_Sch2_Cage203', type: 'number' },
+    ],
+  },
+  {
+    rowsKey: 'schedule3Rows',
+    label: 'Schedule 3A (Investment Income)',
+    addButtonSelector: '#btnS301Add_2',
+    fields: [
+      { key: 'source', label: 'Type of Income (Cage 302)', selector: '#Schedule3AModel_Sch3_Cage302', type: 'text' },
+      { key: 'amount', label: 'Income (Cage 303)', selector: '#Schedule3AModel_Sch3_Cage303', type: 'number' },
+    ],
+  },
+  {
+    rowsKey: 'schedule4Rows',
+    label: 'Schedule 4 (Other Income)',
+    addButtonSelector: '#btnS4Add',
+    fields: [
+      { key: 'description', label: 'Type of Income (Cage 401)', selector: '#Schedule4AModel_Sch4_Cage401', type: 'text' },
+      { key: 'amount', label: 'Income (Cage 402)', selector: '#Schedule4AModel_Sch4_Cage402', type: 'number' },
+    ],
+  },
+  {
+    rowsKey: 'schedule7Rows',
+    label: 'Schedule 7A (WHT / APIT Credits)',
+    addButtonSelector: '#btnS7AAdd',
+    fields: [
+      { key: 'sourceType', label: 'Source/Type (Cage 701)', selector: '#Schedule7AModel_Sch7_Cage701', type: 'text' },
+      { key: 'tin', label: 'TIN of Withholding Agent (Cage 702)', selector: '#Schedule7AModel_Sch7_Cage702', type: 'text' },
+      { key: 'certificateNo', label: 'WHT Certificate No (Cage 703)', selector: '#Schedule7AModel_Sch7_Cage703', type: 'text' },
+      { key: 'grossAmount', label: 'Amount Received (Cage 704)', selector: '#Schedule7AModel_Sch7_Cage704', type: 'number' },
+      { key: 'paymentDate', label: 'Date of Payment (Cage 705)', selector: '#Schedule7AModel_Sch7_Cage705', type: 'date' },
+      { key: 'taxDeducted', label: 'WHT Deducted (Cage 706)', selector: '#Schedule7AModel_Sch7_Cage706', type: 'number' },
+      { key: 'name', label: 'Name of Withholding Agent (Cage 707)', selector: '#Schedule7AModel_Sch7_2526Cage707', type: 'text' },
+    ],
+  },
+  {
+    rowsKey: 'statement1ARows',
+    label: 'Statement 1A (Immovable Properties)',
+    preClickSelector: '#btnStatement1AAddRow',
+    addButtonSelector: '#btnStatement1AAdd',
+    fields: [
+      { key: 'description', label: 'Situation of Property (Cage 1001)', selector: '#StatementPart1AModel_Sta_Cage1001', type: 'text' },
+      { key: 'dateAcquired', label: 'Date of Acquisition (Cage 1002)', selector: '#StatementPart1AModel_Sta_Cage1002', type: 'date' },
+      { key: 'cost', label: 'Cost (Cage 1003)', selector: '#StatementPart1AModel_Sta_Cage1003', type: 'number' },
+      { key: 'marketValue', label: 'Market Value (Cage 1004)', selector: '#StatementPart1AModel_Sta_Cage1004', type: 'number' },
+    ],
+  },
+  {
+    rowsKey: 'statement1B1Rows',
+    label: 'Statement 1B1 (Motor Vehicles)',
+    preClickSelector: '#btnStatement1B1AddRow',
+    addButtonSelector: '#btnStatement1B1Add',
+    fields: [
+      { key: 'description', label: 'Description (Cage 1005)', selector: '#StatementPart1B1Model_Sta_Cage1005', type: 'text' },
+      { key: 'regNo', label: 'Registration No (Cage 1006)', selector: '#StatementPart1B1Model_Sta_Cage1006', type: 'text' },
+      { key: 'dateAcquired', label: 'Date of Acquisition (Cage 1007)', selector: '#StatementPart1B1Model_Sta_Cage1007', type: 'date' },
+      { key: 'cost', label: 'Cost / Market Value (Cage 1008)', selector: '#StatementPart1B1Model_Sta_Cage1008', type: 'number' },
+    ],
+  },
+  {
+    rowsKey: 'statement1B2Rows',
+    label: 'Statement 1B2 (Bank Balances)',
+    preClickSelector: '#btnStatement1B2AddRow',
+    addButtonSelector: '#btnStatement1B2Add',
+    fields: [
+      { key: 'bankName', label: 'Bank / Institution (Cage 1009)', selector: '#StatementPart1B2Model_Sta_Cage1009', type: 'text' },
+      { key: 'accountNo', label: 'Account No (Cage 1010)', selector: '#StatementPart1B2Model_Sta_Cage1010', type: 'text' },
+      { key: 'amountInvested', label: 'Amount Invested (Cage 1011)', selector: '#StatementPart1B2Model_Sta_Cage1011', type: 'number' },
+      { key: 'interest', label: 'Interest (Cage 1012)', selector: '#StatementPart1B2Model_Sta_Cage1012', type: 'number' },
+      { key: 'balance', label: 'Balance (Cage 1013)', selector: '#StatementPart1B2Model_Sta_Cage1013', type: 'number' },
+    ],
+  },
+  {
+    rowsKey: 'statement1B3Rows',
+    label: 'Statement 1B3 (Shares / Stocks)',
+    preClickSelector: '#btnStatement1B3AddRow',
+    addButtonSelector: '#btnStatement1B3Add',
+    fields: [
+      { key: 'company', label: 'Company / Institution (Cage 1014)', selector: '#StatementPart1B3Model_Sta_Cage1014', type: 'text' },
+      { key: 'shares', label: 'No. of Shares/Stocks (Cage 1015)', selector: '#StatementPart1B3Model_Sta_Cage1015', type: 'text' },
+      { key: 'dateAcquired', label: 'Date of Acquisition (Cage 1016)', selector: '#StatementPart1B3Model_Sta_Cage1016', type: 'date' },
+      { key: 'cost', label: 'Cost of Acquisition (Cage 1017)', selector: '#StatementPart1B3Model_Sta_Cage1017', type: 'number' },
+      { key: 'dividendIncome', label: 'Net Dividend Income (Cage 1018)', selector: '#StatementPart1B3Model_Sta_Cage1018', type: 'number' },
+    ],
+  },
+  {
+    rowsKey: 'statement1DRows',
+    label: 'Statement 1D (Liabilities / Loans)',
+    preClickSelector: '#btnStatement1DAddRow',
+    addButtonSelector: '#btnStatement1DAdd',
+    fields: [
+      { key: 'security', label: 'Liability Description (Cage 1025)', selector: '#StatementPart1DModel_Sta_Cage1025', type: 'text' },
+      { key: 'lender', label: 'Lender Name (Cage 1026)', selector: '#StatementPart1DModel_Sta_Cage1026', type: 'text' },
+      { key: 'dateIncurred', label: 'Date of Commencement (Cage 1027)', selector: '#StatementPart1DModel_Sta_Cage1027', type: 'date' },
+      { key: 'originalAmount', label: 'Original Amount (Cage 1028)', selector: '#StatementPart1DModel_Sta_Cage1028', type: 'number' },
+      { key: 'amount', label: 'Closing Liability (Cage 1029)', selector: '#StatementPart1DModel_Sta_Cage1029', type: 'number' },
+    ],
+  },
 ];
 
 /**
  * Returns the unminified, readable source code of the injected bookmarklet
- * payload with the UTF-8 Base64 data and field map embedded.
+ * payload with the UTF-8 Base64 data, direct field map, and grid map embedded.
  */
 export function buildUnminifiedIrdPayloadScript(
   encodedPayloadBase64: string,
-  fieldMap: IrdFieldMapping[] = DEFAULT_RAMIS_FIELD_MAP
+  fieldMap: IrdFieldMapping[] = DEFAULT_RAMIS_FIELD_MAP,
+  gridMap: IrdGridMapping[] = DEFAULT_RAMIS_GRID_MAP
 ): string {
   const serializedMap = JSON.stringify(fieldMap, null, 2);
+  const serializedGridMap = JSON.stringify(gridMap, null, 2);
 
   return `(async function () {
   'use strict';
@@ -98,8 +242,15 @@ export function buildUnminifiedIrdPayloadScript(
   /* 1. Embedded UTF-8 Base64 Tax Payload (zero external network calls) */
   var ENCODED_DATA = ${JSON.stringify(encodedPayloadBase64)};
 
-  /* 2. Field Mapping: plug in or adjust IRD RAMIS CSS selectors here */
+  /* 2. Direct Field Mapping: plug in or adjust IRD RAMIS Cage selectors here */
   var FIELD_MAP = ${serializedMap};
+
+  /* 3. Repeating Kendo Grid Mapping: Schedules 1-4, 7 & Statement of Assets */
+  var GRID_MAP = ${serializedGridMap};
+
+  function sleep(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+  }
 
   /**
    * Safely decode a UTF-8 Base64 string into a JSON object.
@@ -140,7 +291,7 @@ export function buildUnminifiedIrdPayloadScript(
 
   /**
    * Async helper using MutationObserver to wait for dynamically rendered
-   * dependent fields (e.g. after a dropdown selection).
+   * dependent fields (e.g. after a dropdown selection or popup open).
    */
   function waitForElement(selector, timeoutMs) {
     var limit = typeof timeoutMs === 'number' ? timeoutMs : 3000;
@@ -174,10 +325,6 @@ export function buildUnminifiedIrdPayloadScript(
     });
   }
 
-  /**
-   * Dispatches native input, change, and blur events with { bubbles: true }
-   * so React, Angular, jQuery, and ASP.NET WebForms register the update.
-   */
   function dispatchNativeEvents(el) {
     var eventNames = ['input', 'change', 'blur'];
     for (var i = 0; i < eventNames.length; i++) {
@@ -185,10 +332,6 @@ export function buildUnminifiedIrdPayloadScript(
     }
   }
 
-  /**
-   * Sets a native element value via its prototype property descriptor
-   * (bypasses React's internal value tracker override).
-   */
   function setNativeValue(el, value) {
     var proto =
       el.tagName === 'SELECT'
@@ -206,10 +349,6 @@ export function buildUnminifiedIrdPayloadScript(
     dispatchNativeEvents(el);
   }
 
-  /**
-   * Highlights a Kendo widget wrapper or raw element in yellow when manual
-   * review is needed (e.g. missing selector or unmatched option).
-   */
   function highlightYellow(el) {
     if (!el) return;
     var target = (el.closest && el.closest('.k-widget')) || el;
@@ -217,11 +356,6 @@ export function buildUnminifiedIrdPayloadScript(
     target.style.backgroundColor = '#fef9c3';
   }
 
-  /**
-   * Sets a form field safely, handling Telerik Kendo UI widgets (used on RAMIS),
-   * standard <select> (matching by value or visible text), checkboxes, radios,
-   * and standard text/number inputs.
-   */
   function setFrameworkValue(el, rawValue, fieldType) {
     var tag = el.tagName.toUpperCase();
     var inputType = (el.getAttribute('type') || '').toLowerCase();
@@ -328,16 +462,12 @@ export function buildUnminifiedIrdPayloadScript(
       return true;
     }
 
-    /* D. Standard <input type="text|number"> or <textarea> */
+    /* D. Standard <input type="text|number|date"> or <textarea> */
     setNativeValue(el, rawValue);
     return true;
   }
 
-  /**
-   * Renders a non-intrusive, Trusted-Types-safe floating toast in the
-   * top-right corner of the target page (uses createElement + textContent only).
-   */
-  function showToast(filledCount, totalCount, missingLabels) {
+  function showToast(summaryText, missingLabels) {
     var existingToast = document.getElementById('wg-ird-autofill-toast');
     if (existingToast && existingToast.parentNode) {
       existingToast.parentNode.removeChild(existingToast);
@@ -349,7 +479,7 @@ export function buildUnminifiedIrdPayloadScript(
     toast.style.top = '16px';
     toast.style.right = '16px';
     toast.style.zIndex = '2147483647';
-    toast.style.maxWidth = '340px';
+    toast.style.maxWidth = '360px';
     toast.style.padding = '12px 16px';
     toast.style.borderRadius = '8px';
     toast.style.backgroundColor = '#0f172a';
@@ -367,7 +497,7 @@ export function buildUnminifiedIrdPayloadScript(
     headerRow.style.gap = '12px';
 
     var title = document.createElement('strong');
-    title.textContent = 'IRD Auto-Fill: ' + filledCount + '/' + totalCount + ' fields populated';
+    title.textContent = summaryText;
 
     var closeBtn = document.createElement('button');
     closeBtn.type = 'button';
@@ -399,10 +529,10 @@ export function buildUnminifiedIrdPayloadScript(
 
     setTimeout(function () {
       if (toast.parentNode) toast.parentNode.removeChild(toast);
-    }, 10000);
+    }, 12000);
   }
 
-  /* 3. Execute Auto-Fill */
+  /* 4. Execute Auto-Fill (Direct Cages + Repeating Schedule/Statement Grids) */
   try {
     var payload = decodeUtf8Base64(ENCODED_DATA);
     var activeFields = [];
@@ -428,8 +558,7 @@ export function buildUnminifiedIrdPayloadScript(
         continue;
       }
 
-      var ok = setFrameworkValue(el, value, field.type);
-      if (ok) {
+      if (setFrameworkValue(el, value, field.type)) {
         filled++;
       } else {
         highlightYellow(el);
@@ -437,7 +566,67 @@ export function buildUnminifiedIrdPayloadScript(
       }
     }
 
-    showToast(filled, activeFields.length, missing);
+    /* Process Repeating Kendo Grids */
+    var totalRows = 0;
+    var filledRows = 0;
+
+    for (var g = 0; g < GRID_MAP.length; g++) {
+      var section = GRID_MAP[g];
+      var rows = payload[section.rowsKey];
+      if (!Array.isArray(rows) || rows.length === 0) continue;
+
+      for (var r = 0; r < rows.length; r++) {
+        totalRows++;
+        var rowObj = rows[r];
+
+        if (section.preClickSelector) {
+          var openBtn = querySelectorDeep(section.preClickSelector);
+          if (!openBtn) {
+            missing.push(section.label + ' row ' + (r + 1));
+            continue;
+          }
+          openBtn.click();
+          if (section.fields.length > 0) {
+            await waitForElement(section.fields[0].selector, 3000);
+          }
+        }
+
+        var rowOk = true;
+        for (var f = 0; f < section.fields.length; f++) {
+          var rf = section.fields[f];
+          var rVal = rowObj[rf.key];
+          if (rVal === undefined || rVal === null || rVal === '') continue;
+
+          var rEl = querySelectorDeep(rf.selector);
+          if (!rEl) {
+            rowOk = false;
+            missing.push(section.label + ' -> ' + rf.label);
+            continue;
+          }
+          if (!setFrameworkValue(rEl, rVal, rf.type)) {
+            highlightYellow(rEl);
+            rowOk = false;
+          }
+        }
+
+        var addBtn = querySelectorDeep(section.addButtonSelector);
+        if (addBtn) {
+          addBtn.click();
+          if (rowOk) filledRows++;
+          await sleep(typeof section.rowDelayMs === 'number' ? section.rowDelayMs : 350);
+        } else {
+          missing.push(section.label + ' (Add button)');
+        }
+      }
+    }
+
+    var summary = 'IRD Auto-Fill: ' + filled + '/' + activeFields.length + ' fields';
+    if (totalRows > 0) {
+      summary += ' & ' + filledRows + '/' + totalRows + ' schedule rows';
+    }
+    summary += ' populated';
+
+    showToast(summary, missing);
   } catch (err) {
     alert('IRD Auto-Fill Error: ' + (err && err.message ? err.message : String(err)));
   }

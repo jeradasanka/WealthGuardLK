@@ -3,7 +3,7 @@
  * Displays Schedule 8 tax computation with progressive rates and reliefs
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ArrowLeft, Calculator, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -12,34 +12,89 @@ import { useStore } from '@/stores/useStore';
 import { computeTax, getTaxBreakdown, calculateDerivedInvestmentIncome } from '@/lib/taxEngine';
 import { DangerMeter } from '@/components/DangerMeter';
 import { IrdBookmarkletCard } from '@/components/IrdBookmarkletCard';
-import { buildIrdPayloadFromComputation } from '@/utils/bookmarkletGenerator';
+import { buildFullIrdPayloadFromStore } from '@/utils/bookmarkletGenerator';
 import { formatTaxYear } from '@/lib/taxYear';
 import { EmploymentIncome, BusinessIncome, InvestmentIncome, OtherIncome } from '@/types';
 
 export function TaxComputationPage() {
   const navigate = useNavigate();
-  const { incomes, assets, currentTaxYear, certificates } = useStore();
+  const { entities, incomes, assets, liabilities, currentTaxYear, certificates } = useStore();
+  const [selectedEntityId, setSelectedEntityId] = useState<string>(() => entities[0]?.id || 'all');
 
-  const taxComputation = computeTax(incomes, assets, currentTaxYear, 0, certificates);
+  const activeEntityId =
+    selectedEntityId !== 'all' && entities.some((e) => e.id === selectedEntityId)
+      ? selectedEntityId
+      : entities.length === 1
+        ? entities[0].id
+        : selectedEntityId;
+
+  const filteredIncomes = useMemo(
+    () =>
+      incomes.filter(
+        (i) =>
+          (!i.taxYear || i.taxYear === currentTaxYear) &&
+          (activeEntityId === 'all' || i.ownerId === activeEntityId)
+      ),
+    [incomes, currentTaxYear, activeEntityId]
+  );
+
+  const filteredAssets = useMemo(
+    () =>
+      assets.filter((a) => {
+        if (activeEntityId === 'all') return true;
+        if (a.ownerId === activeEntityId) return true;
+        return a.ownershipShares?.some((s) => s.entityId === activeEntityId) ?? false;
+      }),
+    [assets, activeEntityId]
+  );
+
+  const filteredLiabilities = useMemo(
+    () =>
+      liabilities.filter((l) => {
+        if (activeEntityId === 'all') return true;
+        if (l.ownerId === activeEntityId) return true;
+        return l.ownershipShares?.some((s) => s.entityId === activeEntityId) ?? false;
+      }),
+    [liabilities, activeEntityId]
+  );
+
+  const filteredCertificates = useMemo(
+    () =>
+      certificates.filter(
+        (c) =>
+          (!c.taxYear || c.taxYear === currentTaxYear) &&
+          (activeEntityId === 'all' || c.ownerId === activeEntityId)
+      ),
+    [certificates, currentTaxYear, activeEntityId]
+  );
+
+  const taxComputation = computeTax(
+    filteredIncomes,
+    filteredAssets,
+    currentTaxYear,
+    0,
+    filteredCertificates
+  );
   const taxBreakdown = getTaxBreakdown(taxComputation.taxableIncome, currentTaxYear);
   const totalReliefs = taxComputation.reliefs.personalRelief + taxComputation.reliefs.solarRelief;
   const totalTaxCredits = taxComputation.taxCredits.apit + taxComputation.taxCredits.wht;
 
-  // Group incomes by schedule and calculate totals
-  const employmentIncomes = incomes.filter((i) => i.schedule === '1');
-  const businessIncomes = incomes.filter((i) => i.schedule === '2');
-  const investmentIncomes = incomes.filter((i) => i.schedule === '3');
-  const otherIncomes = incomes.filter((i) => i.schedule === '4');
+  // Group filtered incomes by schedule and calculate totals
+  const employmentIncomes = filteredIncomes.filter((i) => i.schedule === '1');
+  const businessIncomes = filteredIncomes.filter((i) => i.schedule === '2');
+  const investmentIncomes = filteredIncomes.filter((i) => i.schedule === '3');
+  const otherIncomes = filteredIncomes.filter((i) => i.schedule === '4');
 
   // Get derived income from assets (bank interest and stock dividends)
-  const derivedIncomes = calculateDerivedInvestmentIncome(assets, currentTaxYear);
+  const derivedIncomes = calculateDerivedInvestmentIncome(filteredAssets, currentTaxYear);
   const derivedInterest = derivedIncomes.filter(d => d.type === 'interest').reduce((sum, d) => sum + d.amount, 0);
   const derivedDividends = derivedIncomes.filter(d => d.type === 'dividend').reduce((sum, d) => sum + d.amount, 0);
   const derivedTotal = derivedInterest + derivedDividends;
 
   const employmentTotal = employmentIncomes.reduce((sum, i) => {
     const emp = i as EmploymentIncome;
-    return sum + (emp.details.grossRemuneration || 0) + (emp.details.nonCashBenefits || 0);
+    const gross = (emp.details.grossRemuneration || 0) + (emp.details.nonCashBenefits || 0);
+    return sum + Math.max(0, gross - (emp.details.exemptIncome || 0));
   }, 0);
   const businessTotal = businessIncomes.reduce((sum, i) => {
     const bus = i as BusinessIncome;
@@ -51,28 +106,30 @@ export function TaxComputationPage() {
   }, 0);
   const otherTotal = otherIncomes.reduce((sum, i) => {
     const other = i as OtherIncome;
-    return sum + (other.details.grossAmount || 0);
+    return sum + Math.max(0, (other.details.grossAmount || 0) - (other.details.exemptAmount || 0));
   }, 0);
 
   const irdPayload = useMemo(
     () =>
-      buildIrdPayloadFromComputation({
-        employmentTotal,
-        businessTotal,
-        investmentTotal,
-        derivedInvestmentTotal: derivedTotal,
-        otherTotal,
-        personalRelief: taxComputation.reliefs.personalRelief,
-        solarRelief: taxComputation.reliefs.solarRelief,
+      buildFullIrdPayloadFromStore({
+        incomes: filteredIncomes,
+        assets: filteredAssets,
+        liabilities: filteredLiabilities,
+        certificates: filteredCertificates,
+        currentTaxYear,
+        computation: taxComputation,
+        derivedInterest,
+        derivedDividends,
       }),
     [
-      employmentTotal,
-      businessTotal,
-      investmentTotal,
-      derivedTotal,
-      otherTotal,
-      taxComputation.reliefs.personalRelief,
-      taxComputation.reliefs.solarRelief,
+      filteredIncomes,
+      filteredAssets,
+      filteredLiabilities,
+      filteredCertificates,
+      currentTaxYear,
+      taxComputation,
+      derivedInterest,
+      derivedDividends,
     ]
   );
 
@@ -87,10 +144,27 @@ export function TaxComputationPage() {
             </Button>
             <div>
               <h1 className="text-3xl font-bold">Tax Computation</h1>
-              <p className="text-gray-600">Schedule 8 - Income Tax Calculation</p>
+              <p className="text-gray-600">Schedule 8 - Income Tax Calculation ({formatTaxYear(currentTaxYear)})</p>
             </div>
           </div>
-          <Calculator className="h-8 w-8 text-blue-600" />
+          <div className="flex items-center gap-3">
+            {entities.length > 0 && (
+              <select
+                aria-label="Select Taxpayer"
+                value={activeEntityId}
+                onChange={(e) => setSelectedEntityId(e.target.value)}
+                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none"
+              >
+                {entities.map((entity) => (
+                  <option key={entity.id} value={entity.id}>
+                    {entity.name} ({entity.tin || 'No TIN'})
+                  </option>
+                ))}
+                {entities.length > 1 && <option value="all">All Family Members Combined</option>}
+              </select>
+            )}
+            <Calculator className="h-8 w-8 text-blue-600" />
+          </div>
         </div>
 
         {/* Danger Meter */}

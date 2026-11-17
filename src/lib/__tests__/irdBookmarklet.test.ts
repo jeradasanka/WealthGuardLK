@@ -5,7 +5,7 @@ import {
   generateIrdBookmarklet,
   buildIrdPayloadFromComputation,
 } from '@/utils/bookmarkletGenerator';
-import type { IrdFieldMapping } from '@/lib/irdBookmarkletPayload';
+import type { IrdFieldMapping, IrdGridMapping } from '@/lib/irdBookmarkletPayload';
 
 describe('IRD Bookmarklet Generator & Payload Runner', () => {
   beforeEach(() => {
@@ -153,5 +153,70 @@ describe('IRD Bookmarklet Generator & Payload Runner', () => {
     expect(toast).not.toBeNull();
     expect(toast?.textContent).toContain('IRD Auto-Fill: 6/7 fields populated');
     expect(toast?.textContent).toContain('Missing Field');
+  });
+
+  it('populates repeating Kendo Grid rows via preClickSelector and addButtonSelector', async () => {
+    document.body.innerHTML = `
+      <input id="mainCage10" type="number" />
+      <button id="openModalBtn" type="button">Add Row</button>
+      <div id="modalArea"></div>
+    `;
+
+    const addedRows: Array<{ employer: string; amount: string }> = [];
+
+    document.getElementById('openModalBtn')!.addEventListener('click', () => {
+      document.getElementById('modalArea')!.innerHTML = `
+        <input id="rowEmp" type="text" />
+        <input id="rowAmt" type="number" />
+        <button id="submitRowBtn" type="button">Add</button>
+      `;
+      document.getElementById('submitRowBtn')!.addEventListener('click', () => {
+        addedRows.push({
+          employer: (document.getElementById('rowEmp') as HTMLInputElement).value,
+          amount: (document.getElementById('rowAmt') as HTMLInputElement).value,
+        });
+      });
+    });
+
+    const fieldMap: IrdFieldMapping[] = [
+      { key: 'empTotal', label: 'Emp Total', selector: '#mainCage10', type: 'number' },
+    ];
+    const gridMap: IrdGridMapping[] = [
+      {
+        rowsKey: 'schedule1Rows',
+        label: 'Schedule 1A',
+        preClickSelector: '#openModalBtn',
+        addButtonSelector: '#submitRowBtn',
+        rowDelayMs: 10,
+        fields: [
+          { key: 'employerName', label: 'Employer', selector: '#rowEmp', type: 'text' },
+          { key: 'amount', label: 'Amount', selector: '#rowAmt', type: 'number' },
+        ],
+      },
+    ];
+
+    const { uri } = generateIrdBookmarklet(
+      {
+        empTotal: 3000000,
+        schedule1Rows: [
+          { employerName: 'Acme Pvt Ltd', amount: 2000000 } as never,
+          { employerName: 'Beta Corp', amount: 1000000 } as never,
+        ],
+      },
+      fieldMap,
+      gridMap
+    );
+
+    const jsBody = decodeURIComponent(uri.slice('javascript:'.length));
+    await new Function(`return ${jsBody}`)();
+
+    expect((document.getElementById('mainCage10') as HTMLInputElement).value).toBe('3000000');
+    expect(addedRows).toEqual([
+      { employer: 'Acme Pvt Ltd', amount: '2000000' },
+      { employer: 'Beta Corp', amount: '1000000' },
+    ]);
+
+    const toast = document.getElementById('wg-ird-autofill-toast');
+    expect(toast?.textContent).toContain('IRD Auto-Fill: 1/1 fields & 2/2 schedule rows populated');
   });
 });

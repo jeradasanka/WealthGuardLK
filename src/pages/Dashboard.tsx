@@ -5,7 +5,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Building2, Wallet, Settings, ArrowLeft, Upload, Download, ChevronDown } from 'lucide-react';
+import { FileText, Building2, Wallet, Settings, ArrowLeft, Upload, Download, ChevronDown, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -456,7 +456,7 @@ export function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/income')}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -493,6 +493,19 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <Button className="w-full">View Certificates</Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-blue-200" onClick={() => navigate('/tax-computation')}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-700">
+                <Calculator className="w-5 h-5" />
+                Tax Computation &amp; IRD
+              </CardTitle>
+              <CardDescription>View Schedule 8 tax &amp; generate IRD RAMIS bookmarklet</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full bg-blue-600 hover:bg-blue-700">Open Tax Computation</Button>
             </CardContent>
           </Card>
         </div>

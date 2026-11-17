@@ -3,6 +3,7 @@
  * Displays Schedule 8 tax computation with progressive rates and reliefs
  */
 
+import { useMemo } from 'react';
 import { ArrowLeft, Calculator, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useStore } from '@/stores/useStore';
 import { computeTax, getTaxBreakdown, calculateDerivedInvestmentIncome } from '@/lib/taxEngine';
 import { DangerMeter } from '@/components/DangerMeter';
+import { IrdBookmarkletCard } from '@/components/IrdBookmarkletCard';
+import { buildIrdPayloadFromComputation } from '@/utils/bookmarkletGenerator';
 import { formatTaxYear } from '@/lib/taxYear';
 import { EmploymentIncome, BusinessIncome, InvestmentIncome, OtherIncome } from '@/types';
 
@@ -50,6 +53,28 @@ export function TaxComputationPage() {
     const other = i as OtherIncome;
     return sum + (other.details.grossAmount || 0);
   }, 0);
+
+  const irdPayload = useMemo(
+    () =>
+      buildIrdPayloadFromComputation({
+        employmentTotal,
+        businessTotal,
+        investmentTotal,
+        derivedInvestmentTotal: derivedTotal,
+        otherTotal,
+        personalRelief: taxComputation.reliefs.personalRelief,
+        solarRelief: taxComputation.reliefs.solarRelief,
+      }),
+    [
+      employmentTotal,
+      businessTotal,
+      investmentTotal,
+      derivedTotal,
+      otherTotal,
+      taxComputation.reliefs.personalRelief,
+      taxComputation.reliefs.solarRelief,
+    ]
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -236,6 +261,12 @@ export function TaxComputationPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* IRD RAMIS Auto-Fill Bookmarklet */}
+        <IrdBookmarkletCard
+          taxData={irdPayload}
+          taxYearLabel={formatTaxYear(currentTaxYear)}
+        />
       </div>
     </div>
   );
